@@ -69,226 +69,258 @@ This bot demonstrates many of the core features of Botkit:
 var Botkit = require('botkit');
 var os = require('os');
 gw2nodelib = require('gw2nodelib');
-var debug = true;
+var debug = false;
 
-if(debug) console.log("file set successfully: " + gw2nodelib.loadCacheFromFile('cache.json'));
+var fileLoad = gw2nodelib.loadCacheFromFile('cache.json');
 
-  gw2nodelib.quaggans(function(jsonArray) {
-     console.log("I found "+Object.keys(jsonArray).length+' quaggans.');
-      console.log(JSON.stringify(jsonArray));
-    });
+if(debug)
+{
 
+  console.log("file set successfully: " + fileLoad);
 
   // gw2nodelib.quaggans(function(jsonArray) {
   //    console.log("I found "+Object.keys(jsonArray).length+' quaggans.');
   //     console.log(JSON.stringify(jsonArray));
+  //   });
+
+
+  // gw2nodelib.quaggans(function(jsonArray) {
+  //     console.log(JSON.stringify(jsonArray));
   //   },{id : 'box'});
 
+  gw2nodelib.items(function(jsonArray) {
+     console.log("I found "+Object.keys(jsonArray).length+' items.');
+      console.log(JSON.stringify(jsonArray));
+    },{ids : "9437"});
 
   // gw2nodelib.items(function(jsonArray) {
   //    console.log("I found "+Object.keys(jsonArray).length+' items.');
   //     console.log(JSON.stringify(jsonArray));
-  //   },{ids : "1,2"});
+  //   },{ids : "1"});
+
+  // gw2nodelib.items(function(jsonArray) {
+  //    console.log("I found "+Object.keys(jsonArray).length+' items.');
+  //     console.log(JSON.stringify(jsonArray));
+  //   },{ids : "6"});
+
 
   // gw2nodelib.characters(function(jsonArray) {
   //    console.log("I found "+Object.keys(jsonArray).length+' characters.');
   //     console.log(JSON.stringify(jsonArray));
   //   },{access_token : "2EC0A376-57F0-3E41-8ED3-C2AAD7C05378DBC4702E-E83A-45BD-A51A-32A9DD3B3764", page : '0'});
-
-/*
-if (!process.env.token) {
-    console.log('Error: Specify token in environment');
-    process.exit(1);
 }
-
-var controller = Botkit.slackbot({
-    debug: false,
-});
-
-var bot = controller.spawn({
-    token: process.env.token
-}).startRTM(function(err,bot,payload) {
-  if (err) {
-    throw new Error('Could not connect to Slack');
+else{
+  if (!process.env.token) {
+      console.log('Error: Specify token in environment');
+      process.exit(1);
   }
-});
 
-
-
-function attachment(bot,message) {
-
-  var attachments = [];
-  var attachment = {
-    title: 'This is an attachment',
-    color: '#FFCC99',
-    fields: [],
-  };
-
-  attachment.fields.push({
-    label: 'Field',
-    value: 'A longish value',
-    short: false,
+  var controller = Botkit.slackbot({
+      debug: true,
   });
 
-  attachment.fields.push({
-    label: 'Field',
-    value: 'Value',
-    short: true,
+  var bot = controller.spawn({
+      token: process.env.token
+  }).startRTM(function(err,bot,payload) {
+    if (err) {
+      throw new Error('Could not connect to Slack');
+    }
   });
 
-  attachment.fields.push({
-    label: 'Field',
-    value: 'Value',
-    short: true,
-  });
-
-  attachments.push(attachment);
-
-  bot.reply(message,{
-    text: 'See below...',
-    attachments: attachments,
-  },function(err,resp) {
-    console.log(err,resp);
-  });
-}
-
-function debugit(jsonObj){
-  console.log('DEBUG JSON Object: '+JSON.stringify(jsonObj));
-}
-
-function addReaction(message,emoji){
-    bot.api.reactions.add({
-        timestamp: message.ts,
-        channel: message.channel,
-        name: emoji,
-    }, function (err, res) {
-        if (err) {
-            bot.botkit.log('Failed to add emoji reaction :(', err);
-        }
-    }); 
-}
-
-controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function (bot, message) {
 
 
-        if (message.user && message.user=='U0T3J3J9W') {
-            bot.reply(message, 'Farrrrt Pizza');
-             addReaction(message,'dash');
-             addReaction(message,'pizza');
-        } else {
-            bot.reply(message, 'Hello.');
-            addReaction(message,'robot_face');
-        }
+  function attachment(bot,message) {
 
+    var attachments = [];
+    var attachment = {
+      title: 'This is an attachment',
+      color: '#FFCC99',
+      fields: [],
+    };
 
-    // controller.storage.users.get(message.user, function (err, user) {
-    //     if (user && user.name) {
-    //         bot.reply(message, 'Hello ' + user.name + '!!');
-    //     } else {
-    //         bot.reply(message, 'Hello.');
-    //     }
-    // });
-});
-
-controller.hears(['quaggans'],'direct_message,direct_mention,mention', function (bot, message) {
-  gw2nodelib.quaggans(function(jsonArray) {
-     bot.reply(message,"I found "+Object.keys(jsonArray).length+' quaggans.');
-      bot.reply(message,"say quaggan <quaggan name> to preview!");
-      bot.reply(message,JSON.stringify(jsonArray));
-  });
-});
-
-controller.hears(['quaggan (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
-    var matches = message.text.match(/quaggan (.*)/i);
-    var name = matches[1];
-    console.log('Quaggan of type '+name);
-    gw2nodelib.quaggans(function(jsonArray) {
-      bot.reply(message,JSON.stringify(jsonArray.url));
-  },{option: name},true);
-});
-
-
-
-// controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
-//     var matches = message.text.match(/call me (.*)/i);
-//     var name = matches[1];
-//     controller.storage.users.get(message.user, function (err, user) {
-//         if (!user) {
-//             user = {
-//                 id: message.user,
-//             };
-//         }
-//         user.name = name;
-//         controller.storage.users.save(user, function (err, id) {
-//             bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-//         });
-//     });
-// });
-
-// controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function (bot, message) {
-
-//     controller.storage.users.get(message.user, function (err, user) {
-//         if (user && user.name) {
-//             bot.reply(message, 'Your name is ' + user.name);
-//         } else {
-//             bot.reply(message, 'I don\'t know yet!');
-//         }
-//     });
-// });
-
-
-controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function (bot, message) {
-
-    bot.startConversation(message, function (err, convo) {
-
-        convo.ask('Are you sure you want me to shutdown?', [
-            {
-                pattern: bot.utterances.yes,
-                callback: function (response, convo) {
-                    convo.say('Bye!');
-                    convo.next();
-                    setTimeout(function () {
-                        process.exit();
-                    }, 3000);
-                }
-            },
-        {
-            pattern: bot.utterances.no,
-            default: true,
-            callback: function (response, convo) {
-                convo.say('*Phew!*');
-                convo.next();
-            }
-        }
-        ]);
+    attachment.fields.push({
+      label: 'Field',
+      value: 'A longish value',
+      short: false,
     });
+
+    attachment.fields.push({
+      label: 'Field',
+      value: 'Value',
+      short: true,
+    });
+
+    attachment.fields.push({
+      label: 'Field',
+      value: 'Value',
+      short: true,
+    });
+
+    attachments.push(attachment);
+
+    bot.reply(message,{
+      text: 'See below...',
+      attachments: attachments,
+    },function(err,resp) {
+      console.log(err,resp);
+    });
+  }
+
+  function debugit(jsonObj){
+    console.log('DEBUG JSON Object: '+JSON.stringify(jsonObj));
+  }
+
+  function addReaction(message,emoji){
+      bot.api.reactions.add({
+          timestamp: message.ts,
+          channel: message.channel,
+          name: emoji,
+      }, function (err, res) {
+          if (err) {
+              bot.botkit.log('Failed to add emoji reaction :(', err);
+          }
+      }); 
+  }
+
+  function listToString(jsonList){
+        var outstring = "",
+        len = Object.keys(jsonList).length;
+        for (var i = 0; i< len; i++) {
+          outstring += jsonList[i];
+          if(i!==len-1) outstring += ", "
+        }
+      return outstring;
+
+  }
+
+  controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function (bot, message) {
+          if (message.user && message.user=='U0T3J3J9W') {
+              bot.reply(message, 'Farrrrt Pizza');
+               addReaction(message,'dash');
+               addReaction(message,'pizza');
+          } else {
+              bot.reply(message, 'Hello.');
+              addReaction(message,'robot_face');
+          }
+
+
+      // controller.storage.users.get(message.user, function (err, user) {
+      //     if (user && user.name) {
+      //         bot.reply(message, 'Hello ' + user.name + '!!');
+      //     } else {
+      //         bot.reply(message, 'Hello.');
+      //     }
+      // });
+  });
+
+  controller.hears(['characters'], 'direct_message,direct_mention,mention', function (bot, message) {
+    if (message.user && message.user=='U0T3J3J9W') {
+      gw2nodelib.characters(function(jsonArray) {
+        bot.reply(message, "I found "+Object.keys(jsonArray).length+' characters for roj.');
+        bot.reply(message, listToString(jsonArray));
+      },{access_token : ""});
+  }
+  else bot.reply(message, "No access token on file for you, sorry.");
 });
+  controller.hears(['quaggans'],'direct_message,direct_mention,mention', function (bot, message) {
+    gw2nodelib.quaggans(function(jsonList) {
+       bot.reply(message,"I found "+Object.keys(jsonList).length+' quaggans.');
+        bot.reply(message,"say quaggan <quaggan name> to preview!");
+        bot.reply(message,listToString(jsonList));
+    });
+  });
+
+  controller.hears(['quaggan (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
+      var matches = message.text.match(/quaggan (.*)/i);
+      var name = matches[1];
+      console.log('Quaggan of type '+name);
+      gw2nodelib.quaggans(function(jsonItem) {
+        bot.reply(message,jsonItem.url);
+    },{id: name},true);
+  });
 
 
-controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'], 'direct_message,direct_mention,mention', function (bot, message) {
 
-    var hostname = os.hostname();
-    var uptime = formatUptime(process.uptime());
+  // controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
+  //     var matches = message.text.match(/call me (.*)/i);
+  //     var name = matches[1];
+  //     controller.storage.users.get(message.user, function (err, user) {
+  //         if (!user) {
+  //             user = {
+  //                 id: message.user,
+  //             };
+  //         }
+  //         user.name = name;
+  //         controller.storage.users.save(user, function (err, id) {
+  //             bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
+  //         });
+  //     });
+  // });
 
-    bot.reply(message, ':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+  // controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function (bot, message) {
 
-});
+  //     controller.storage.users.get(message.user, function (err, user) {
+  //         if (user && user.name) {
+  //             bot.reply(message, 'Your name is ' + user.name);
+  //         } else {
+  //             bot.reply(message, 'I don\'t know yet!');
+  //         }
+  //     });
+  // });
 
-function formatUptime(uptime) {
-    var unit = 'second';
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'minute';
-    }
-    if (uptime > 60) {
-        uptime = uptime / 60;
-        unit = 'hour';
-    }
-    if (uptime != 1) {
-        unit = unit + 's';
-    }
 
-    uptime = uptime + ' ' + unit;
-    return uptime;
+  controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function (bot, message) {
+
+      bot.startConversation(message, function (err, convo) {
+
+          convo.ask('Are you sure you want me to shutdown?', [
+              {
+                  pattern: bot.utterances.yes,
+                  callback: function (response, convo) {
+                      convo.say('Bye!');
+                      convo.next();
+                      setTimeout(function () {
+                          process.exit();
+                      }, 3000);
+                  }
+              },
+          {
+              pattern: bot.utterances.no,
+              default: true,
+              callback: function (response, convo) {
+                  convo.say('*Phew!*');
+                  convo.next();
+              }
+          }
+          ]);
+      });
+  });
+
+
+  controller.hears(['uptime', 'identify yourself', 'who are you', 'what is your name'], 'direct_message,direct_mention,mention', function (bot, message) {
+
+      var hostname = os.hostname();
+      var uptime = formatUptime(process.uptime());
+
+      bot.reply(message, ':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+
+  });
+
+  function formatUptime(uptime) {
+      var unit = 'second';
+      if (uptime > 60) {
+          uptime = uptime / 60;
+          unit = 'minute';
+      }
+      if (uptime > 60) {
+          uptime = uptime / 60;
+          unit = 'hour';
+      }
+      if (uptime != 1) {
+          unit = unit + 's';
+      }
+
+      uptime = uptime + ' ' + unit;
+      return uptime;
+  }
 }
-*/
