@@ -146,9 +146,11 @@ else{ //"real" code
     var prefixes = prefixSearch(name);
     if(!prefixes || (Object.keys(prefixes).length) < 1) bot.reply(message,'No match for \''+name+'\'. Misspell?');
       else{
-      for (var key in prefixes) {
-        bot.reply(message,key+": "+listToString(prefixes[key]));
-      }
+        var outMessage = "";
+        for (var key in prefixes) {
+          outMessage += key+": "+listToString(prefixes[key])+"\n"
+        }
+        bot.reply(message,outMessage);
     }
   });
 
