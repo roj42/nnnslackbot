@@ -15,22 +15,39 @@ controller = Botkit.slackbot({
     json_file_store: 'slackbotDB',
 });
 
-
-
 if(debug) {//play area
 
-  var name = 'emerald';
-  var prefixes = prefixSearch(name);
+  var name = 'power';
+  var prefixes = prefixSearch(name, type);
   if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
   else{
-    for (var key in prefixes) {
-      console.log(key+": "+listToString(prefixes[key]));
-    }
+    console.log(printPrefixes(prefixes));
+  }
+
+  var name = 'power';
+  var type = 'asc';
+  var prefixes = prefixSearch(name, type);
+  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
+  else{
+    console.log(printPrefixes(prefixes));
+  }
+  var name = 'power';
+  var type = 'ascended';
+  var prefixes = prefixSearch(name, type);
+  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
+  else{
+    console.log(printPrefixes(prefixes));
+  }
+    var name = 'power';
+  var type = 'all';
+  var prefixes = prefixSearch(name, type);
+  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
+  else{
+    console.log(printPrefixes(prefixes));
   }
 
 
-
-  console.log(helpFile['prefix']);
+//  console.log(helpFile['prefix']);
   // console.log(listToString(helpFile));
   // console.log("file set successfully: " + fileLoad);
 
@@ -66,7 +83,7 @@ else{ //"real" code
 
 ////HELP
   controller.hears(['help','help (.*)'],'direct_message,direct_mention,mention', function (bot, message) {
-      var matches = message.text.match(/help (.*)/i);
+      var matches = message.text.match(/help ([a-zA-Z]*)/i);
       if(!matches) bot.reply(message, "Help topics: "+listKeys(helpFile));
       else{
         var name = matches[1].toLowerCase();
@@ -141,20 +158,16 @@ else{ //"real" code
   });
 /////NOMENCLATURE
   controller.hears(['prefix (.*)','suffix (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
-    var matches = message.text.match(/(prefix|suffix) (.*)/i);
-    var name = matches[2].toLowerCase();
-    var prefixes = prefixSearch(name);
-    if(!prefixes || (Object.keys(prefixes).length) < 1) bot.reply(message,'No match for \''+name+'\'. Misspell?');
+    var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
+    var name = matches[2];
+    var type = matches[3];
+    var prefixes = prefixSearch(name, type);
+      if(!prefixes || (Object.keys(prefixes).length) < 1)
+        bot.reply(message,'No match for \''+name+'\' of type\''+scrubType(type)+'\'. Misspell?');
       else{
-        var outMessage = "";
-        for (var key in prefixes) {
-          outMessage += key+": "+listToString(prefixes[key])+"\n"
-        }
-        bot.reply(message,outMessage);
-    }
+        bot.reply(message,printPrefixes(prefixes));
+      }
   });
-
-
 
   // controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
   //     var matches = message.text.match(/call me (.*)/i);
@@ -344,6 +357,14 @@ function listToString(jsonList){
     return outstring;
 }
 
+function printPrefixes(prefixes){
+ var outMessage = "";
+  for (var key in prefixes) {
+    outMessage += key+": "+listToString(prefixes[key].stats)+"\n"
+  }
+  return outMessage
+}
+
 //deprecated. Just store directly for now
 function loadNomenclature() {  
   controller.storage.teams.get('prefixes', function (err, prefixes) {
@@ -362,37 +383,53 @@ function loadNomenclature() {
     }); 
 }
 
+function scrubType(type){
+  if(!type || type.length == 0) return 'standard';
+  else if('gem'.startsWith(type)) return 'gem';
+  else if('all'.startsWith(type)) return 'all';
+  else if('ascended'.startsWith(type)) return 'ascended';
+  else return;
+}
 
-function prefixSearch(searchTerm){
+function prefixSearch(searchTerm, type){
   var prefixList = {};
-  findPrefixByName(searchTerm, prefixList);
-  findPrefixesByStat(searchTerm, prefixList);
+  type = scrubType(type);
+  if(debug) console.log("searching "+searchTerm+" of type "+type);
+  findPrefixByName(searchTerm, type, prefixList);
+  findPrefixesByStat(searchTerm, type, prefixList);
   return prefixList;
 }
 
-function findPrefixByName (name, prefixList){
+function findPrefixByName (name, type, prefixList){
   for (var key in prefixData) {
     //skip keywords
-    if(prefixData.hasOwnProperty(key) && key.indexOf(name) > -1) {
-      if(debug) console.log("added key "+key);
+    if(prefixData.hasOwnProperty(key) && key.indexOf(name) > -1 && (type=='all' || prefixData[key].type==type)) {
+      if(debug) console.log("added key from name "+key);
       prefixList[key] = prefixData[key];
     }
   }
+  if(debug)console.log("Total after ByName search "+Object.keys(prefixList).length);
 }
 
-function findPrefixesByStat (stat, prefixList){
+function findPrefixesByStat (stat, type, prefixList){
   for (var key in prefixData) {
     //skip keywords
     if(prefixData.hasOwnProperty(key)) {
-      for (var subKey in prefixData[key]) {
-        if(prefixData[key][subKey].indexOf(stat) > -1)
-        {
-          if(debug) console.log("added key "+key);
-          prefixList[key] = prefixData[key];
+      if(type == 'all' || prefixData[key].type==type){
+        for (var subKey in prefixData[key].stats) {
+          if(debug) console.log("subkey "+prefixData[key].stats[subKey]);
+          if(prefixData[key].stats[subKey].indexOf(stat) > -1)
+          {
+            if(debug) console.log("added key from stat "+key);
+            prefixList[key] = prefixData[key];
+            break;
+          }
         }
       }
     }
   }
+  if(debug)console.log("Total after ByStat search "+Object.keys(prefixList).length);
+
 }
 
 function getHelpFile(){
@@ -406,110 +443,109 @@ function getHelpFile(){
   "quaggan" : "Takes an argument. Paste a url to a picture of that quaggan for slack to fetch. See help quaggans. Example: \'quaggan box\'",
   "access\ token" : "Set up your guild wars account to allow lessdremoth to read data. Direct Message access token help for more information.",
   "characters" : "Display a list of characters on your account.",
-  "prefix" : "Takes an argument. Returns a list of all item prefixes and their stats that contain that string. Note that \'s (as in Zojja\'s) and \'of the\' strings have been removed. \'Healing power\' is called \'healing\' to avoid overlap with \'power\'. Examples: \'prefix berzerker\' \'prefix pow\'",
-  "suffix" : "Alias for prefix. Takes an argument. Returns a list of all item prefixes and their stats that contain that string. Examples: \'prefix berzerker\' \'prefix pow\'",
+  "prefix" : "Takes two arguments.\n One:Returns a list of all item prefixes and their stats that contain that string.\nTwo:filters results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but \'a\'' will be all.\nNotes:\n\'s-es (as in Zojja\'s) and \'of the\' strings have been removed.\n\'Healing power\' is called \'healing\'.\n\'Condition Damage\' is called \'condition\'\nExamples: \'prefix berzerker all\' \'prefix pow gem\' \'prefix pow asc\'",
+  "suffix" : "Alias for prefix. ",
   };
 }
 
 function getPrefixData(){
   return {
-berserker : ["power","precision","ferocity"],
-ruby : ["power","precision","ferocity"],
-zojja : ["power","precision ","ferocity"],
-zealot : ["power","precision ","healing"],
-watchwork : ["power","precision","healing"],
-keeper : ["power","precision ","healing"],
-soldier : ["power","toughness","vitality"],
-ahamid : ["power","toughness","vitality"],
-chorben : ["power","toughness","vitality"],
-forsaken : ["power","toughness","healing"],
-valkyrie : ["power","vitality","ferocity"],
-beryl : ["power","vitality","ferocity"],
-gobrech : ["power","vitality","ferocity"],
-stonecleaver : ["power","vitality","ferocity"],
-captain : ["precision ","power","toughness"],
-"emerald(gemstone or jewel)" : ["toughness","power","precision"],
-"emerald(crafted trinket)" : ["precision ","power","toughness"],
-rampager : ["precision ","power","condition damage"],
-coral : ["precision ","power","condition damage"],
-forgemaster : ["precision ","power","condition damage"],
-coalforge : ["precision ","power","condition damage"],
-assassin : ["precision ","power","ferocity"],
-opal : ["precision ","power","ferocity"],
-saphir : ["precision ","power","ferocity"],
-soros : ["precision ","power","ferocity"],
-knight : ["toughness","power","precision "],
-beigarth : ["toughness","power","precision "],
-cavalier : ["toughness","power","ferocity"],
-angchu : ["toughness","power","ferocity"],
-nomad : ["toughness","vitality","healing"],
-ambrite : ["toughness","vitality","healing"],
-ventari : ["toughness","vitality","healing"],
-"giver(armor)" : ["toughness","boon duration","healing"],
-winter : ["toughness","boon duration","healing"],
-snowflake : ["toughness","boon duration","healing"],
-settler : ["toughness","condition damage","healing"],
-leftpaw : ["toughness","condition damage","healing"],
-sentinel : ["vitality","power","toughness"],
-azurite : ["vitality","power","toughness"],
-"wei qi" : ["vitality","power","toughness"],
-tonn : ["vitality","power","toughness"],
-"shaman(universal upgrades)" : ["vitality","power","healing"],
-shaman : ["vitality","condition damage","healing"],
-zintl : ["vitality","condition damage","healing"],
-sinister : ["condition damage","power","precision "],
-"charged ambrite" : ["condition damage","power","precision "],
-verata : ["condition damage","power","precision "],
-carrion : ["condition damage","power","vitality"],
-chrysocola : ["condition damage","power","vitality"],
-occam : ["condition damage","power","vitality"],
-rabid : ["condition damage","precision ","toughness"],
-ferratus : ["condition damage","precision ","toughness"],
-grizzlemouth : ["condition damage","precision ","toughness"],
-sunless : ["condition damage","precision ","toughness"],
-dire : ["condition damage","toughness","vitality"],
-morbach : ["condition damage","toughness","vitality"],
-mathilde : ["condition damage","toughness","vitality"],
-apostate : ["condition damage","toughness","healing"],
-"giver(weapon)" : ["condition duration","precision ","vitality"],
-cleric : ["healing","power","toughness"],
-sapphire : ["healing","power","toughness"],
-tateos : ["healing","power","toughness"],
-theodosus : ["healing","power","toughness"],
-magi : ["healing","precision ","vitality"],
-hronk : ["healing","precision ","vitality"],
-apothecary : ["healing","toughness","condition damage"],
-"passiflora(passion flower)" : ["healing","toughness","condition damage"],
-veldrunner : ["healing","toughness","condition damage"],
-ebonmane : ["healing","toughness","condition damage"],
-commander : ["power","precision ","toughness","concentration"],
-"maguuma burl" : ["power","precision ","toughness","concentration"],
-tizlak : ["power","precision ","toughness","concentration"],
-marauder : ["power","precision ","vitality","ferocity"],
-"ebony orb" : ["power","precision ","vitality","ferocity"],
-svaard : ["power","precision ","vitality","ferocity"],
-vigilant : ["power","toughness","concentration","expertise"],
-"flax blossom" : ["power","toughness","concentration","expertise"],
-laranthir : ["power","toughness","concentration","expertise"],
-crusader : ["power","toughness","ferocity","healing"],
-"agate orb" : ["power","toughness","ferocity","healing"],
-ossa : ["power","toughness","ferocity","healing"],
-wanderer : ["power","vitality","toughness","concentration"],
-"moonstone orb" : ["power","vitality","toughness","concentration"],
-ruka : ["power","vitality","toughness","concentration"],
-viper : ["power","condition damage","precision ","expertise"],
-"black diamond" : ["power","condition damage","precision ","expertise"],
-yassith : ["power","condition damage","precision ","expertise"],
-trailblazer : ["toughness","condition damage","vitality","expertise"],
-"maguuma lily" : ["toughness","condition damage","vitality","expertise"],
-pahua : ["toughness","condition damage","vitality","expertise"],
-minstrel : ["toughness","healing","vitality","concentration"],
-"freshwater pearl" : ["toughness","healing","vitality","concentration"],
-maklain : ["toughness","healing","vitality","concentration"],
-celestial : ["power","precision ","toughness","vitality","condition damage","healing","ferocity"],
-sky : ["power","precision ","toughness","vitality","condition damage","healing","ferocity"],
-"charged quartz" : ["power","precision ","toughness","vitality","condition damage","healing","ferocity"],
-wupwup : ["power","precision ","toughness","vitality","condition damage","healing","ferocity"],
-  };
-
+"berserker" :{type:"standard",stats: ["power","precision","ferocity"]},
+"ruby" :{type:"gem",stats: ["power","precision","ferocity"]},
+"zojja" :{type:"ascended",stats: ["power","precision ","ferocity"]},
+"zealot" :{type:"standard",stats: ["power","precision ","healing"]},
+"watchwork" :{type:"gem",stats: ["power","precision","healing"]},
+"keeper" :{type:"ascended",stats: ["power","precision ","healing"]},
+"soldier" :{type:"standard",stats: ["power","toughness","vitality"]},
+"ahamid" :{type:"ascended",stats: ["power","toughness","vitality"]},
+"chorben" :{type:"ascended",stats: ["power","toughness","vitality"]},
+"forsaken" :{type:"standard",stats: ["power","toughness","healing"]},
+"valkyrie" :{type:"standard",stats: ["power","vitality","ferocity"]},
+"beryl" :{type:"gem",stats: ["power","vitality","ferocity"]},
+"gobrech" :{type:"ascended",stats: ["power","vitality","ferocity"]},
+"stonecleaver" :{type:"ascended",stats: ["power","vitality","ferocity"]},
+"captain" :{type:"standard",stats: ["precision ","power","toughness"]},
+"emerald(gemstone or jewel)" :{type:"gem",stats: ["toughness","power","precision"]},
+"emerald(crafted trinket)" :{type:"gem",stats: ["precision ","power","toughness"]},
+"rampager" :{type:"standard",stats: ["precision ","power","condition"]},
+"coral" :{type:"gem",stats: ["precision ","power","condition"]},
+"forgemaster" :{type:"ascended",stats: ["precision ","power","condition"]},
+"coalforge" :{type:"ascended",stats: ["precision ","power","condition"]},
+"assassin" :{type:"standard",stats: ["precision ","power","ferocity"]},
+"opal" :{type:"gem",stats: ["precision ","power","ferocity"]},
+"saphir" :{type:"ascended",stats: ["precision ","power","ferocity"]},
+"soros" :{type:"ascended",stats: ["precision ","power","ferocity"]},
+"knight" :{type:"standard",stats: ["toughness","power","precision "]},
+"beigarth" :{type:"ascended",stats: ["toughness","power","precision "]},
+"cavalier" :{type:"standard",stats: ["toughness","power","ferocity"]},
+"angchu" :{type:"ascended",stats: ["toughness","power","ferocity"]},
+"nomad" :{type:"standard",stats: ["toughness","vitality","healing"]},
+"ambrite" :{type:"gem",stats: ["toughness","vitality","healing"]},
+"ventari" :{type:"ascended",stats: ["toughness","vitality","healing"]},
+"giver(armor)" :{type:"standard",stats: ["toughness","boon duration","healing"]},
+"winter" :{type:"standard",stats: ["toughness","boon duration","healing"]},
+"snowflake" :{type:"gem",stats: ["toughness","boon duration","healing"]},
+"settler" :{type:"standard",stats: ["toughness","condition","healing"]},
+"leftpaw" :{type:"ascended",stats: ["toughness","condition","healing"]},
+"sentinel" :{type:"standard",stats: ["vitality","power","toughness"]},
+"azurite" :{type:"gem",stats: ["vitality","power","toughness"]},
+"wei qi" :{type:"ascended",stats: ["vitality","power","toughness"]},
+"tonn" :{type:"ascended",stats: ["vitality","power","toughness"]},
+"shaman(universal upgrades)" :{type:"standard",stats: ["vitality","power","healing"]},
+"shaman" :{type:"standard",stats: ["vitality","condition","healing"]},
+"zintl" :{type:"ascended",stats: ["vitality","condition","healing"]},
+"sinister" :{type:"standard",stats: ["condition","power","precision "]},
+"charged ambrite" :{type:"gem",stats: ["condition","power","precision "]},
+"verata" :{type:"ascended",stats: ["condition","power","precision "]},
+"carrion" :{type:"standard",stats: ["condition","power","vitality"]},
+"chrysocola" :{type:"gem",stats: ["condition","power","vitality"]},
+"occam" :{type:"ascended",stats: ["condition","power","vitality"]},
+"rabid" :{type:"standard",stats: ["condition","precision ","toughness"]},
+"ferratus" :{type:"ascended",stats: ["condition","precision ","toughness"]},
+"grizzlemouth" :{type:"ascended",stats: ["condition","precision ","toughness"]},
+"sunless" :{type:"ascended",stats: ["condition","precision ","toughness"]},
+"dire" :{type:"standard",stats: ["condition","toughness","vitality"]},
+"morbach" :{type:"ascended",stats: ["condition","toughness","vitality"]},
+"mathilde" :{type:"ascended",stats: ["condition","toughness","vitality"]},
+"apostate" :{type:"standard",stats: ["condition","toughness","healing"]},
+"giver(weapon)" :{type:"standard",stats: ["condition duration","precision ","vitality"]},
+"cleric" :{type:"standard",stats: ["healing","power","toughness"]},
+"sapphire" :{type:"gem",stats: ["healing","power","toughness"]},
+"tateos" :{type:"ascended",stats: ["healing","power","toughness"]},
+"theodosus" :{type:"ascended",stats: ["healing","power","toughness"]},
+"magi" :{type:"standard",stats: ["healing","precision ","vitality"]},
+"hronk" :{type:"ascended",stats: ["healing","precision ","vitality"]},
+"apothecary" :{type:"standard",stats: ["healing","toughness","condition"]},
+"passiflora(passion flower)" :{type:"gem",stats: ["healing","toughness","condition"]},
+"veldrunner" :{type:"ascended",stats: ["healing","toughness","condition"]},
+"ebonmane" :{type:"ascended",stats: ["healing","toughness","condition"]},
+"commander" :{type:"standard",stats: ["power","precision ","toughness","concentration"]},
+"maguuma burl" :{type:"gem",stats: ["power","precision ","toughness","concentration"]},
+"tizlak" :{type:"ascended",stats: ["power","precision ","toughness","concentration"]},
+"marauder" :{type:"standard",stats: ["power","precision ","vitality","ferocity"]},
+"ebony orb" :{type:"gem",stats: ["power","precision ","vitality","ferocity"]},
+"svaard" :{type:"ascended",stats: ["power","precision ","vitality","ferocity"]},
+"vigilant" :{type:"standard",stats: ["power","toughness","concentration","expertise"]},
+"flax blossom" :{type:"gem",stats: ["power","toughness","concentration","expertise"]},
+"laranthir" :{type:"ascended",stats: ["power","toughness","concentration","expertise"]},
+"crusader" :{type:"standard",stats: ["power","toughness","ferocity","healing"]},
+"agate orb" :{type:"gem",stats: ["power","toughness","ferocity","healing"]},
+"ossa" :{type:"ascended",stats: ["power","toughness","ferocity","healing"]},
+"wanderer" :{type:"standard",stats: ["power","vitality","toughness","concentration"]},
+"moonstone orb" :{type:"gem",stats: ["power","vitality","toughness","concentration"]},
+"ruka" :{type:"ascended",stats: ["power","vitality","toughness","concentration"]},
+"viper" :{type:"standard",stats: ["power","condition","precision ","expertise"]},
+"black diamond" :{type:"gem",stats: ["power","condition","precision ","expertise"]},
+"yassith" :{type:"ascended",stats: ["power","condition","precision ","expertise"]},
+"trailblazer" :{type:"standard",stats: ["toughness","condition","vitality","expertise"]},
+"maguuma lily" :{type:"gem",stats: ["toughness","condition","vitality","expertise"]},
+"pahua" :{type:"ascended",stats: ["toughness","condition","vitality","expertise"]},
+"minstrel" :{type:"standard",stats: ["toughness","healing","vitality","concentration"]},
+"freshwater pearl" :{type:"gem",stats: ["toughness","healing","vitality","concentration"]},
+"maklain" :{type:"ascended",stats: ["toughness","healing","vitality","concentration"]},
+"celestial" :{type:"standard",stats: ["power","precision ","toughness","vitality"]},
+"sky" :{type:"standard",stats: ["power","precision ","toughness","vitality"]},
+"charged quartz" :{type:"gem",stats: ["power","precision ","toughness","vitality"]},
+"wupwup" :{type:"ascended",stats: ["power","precision ","toughness","vitality"]},
+ };
 }
