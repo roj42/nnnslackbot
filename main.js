@@ -243,7 +243,6 @@ else{ //"real" code
 }
 /////Easter Eggs
   controller.hears(['my love for you is like a truck','my love for you is like a rock','my love for you is ticking clock'], 'direct_message,ambient', function (bot, message) {
-    console.log(message.text);
     var name = 'berserker';
     var prefixes = prefixSearch(name);
     if(prefixes)
