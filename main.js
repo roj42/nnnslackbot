@@ -161,9 +161,9 @@ else{ //"real" code
     var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
     var name = matches[2];
     var type = matches[3];
-    var prefixes = prefixSearch(name, type);
+    var prefixes = prefixSearch(name, scrubType(type));
       if(!prefixes || (Object.keys(prefixes).length) < 1)
-        bot.reply(message,'No match for \''+name+'\' of type\''+scrubType(type)+'\'. Misspell?');
+        bot.reply(message,'No match for \''+name+'\' of type \''+type+'\'. Misspell?');
       else{
         bot.reply(message,printPrefixes(prefixes));
       }
@@ -443,7 +443,7 @@ function getHelpFile(){
   "quaggan" : "Takes an argument. Paste a url to a picture of that quaggan for slack to fetch. See help quaggans. Example: \'quaggan box\'",
   "access\ token" : "Set up your guild wars account to allow lessdremoth to read data. Direct Message access token help for more information.",
   "characters" : "Display a list of characters on your account.",
-  "prefix" : "Takes two arguments.\n One:Returns a list of all item prefixes and their stats that contain that string.\nTwo:filters results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but \'a\'' will be all.\nNotes:\n\'s-es (as in Zojja\'s) and \'of the\' strings have been removed.\n\'Healing power\' is called \'healing\'.\n\'Condition Damage\' is called \'condition\'\nExamples: \'prefix berzerker all\' \'prefix pow gem\' \'prefix pow asc\'",
+  "prefix" : "Takes two arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo: Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but \'a\' will be all.\nNotes:\n\'s-es (as in Zojja\'s) and \'of the\' strings have been removed.\n\'Healing power\' is called \'healing\'.\n\'Condition Damage\' is called \'condition\'\nExamples: \'prefix berzerker all\' \'prefix pow gem\' \'prefix pow asc\'",
   "suffix" : "Alias for prefix. ",
   };
 }
