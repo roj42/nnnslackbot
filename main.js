@@ -1,6 +1,6 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
-var debug = false;
+var debug = true;
 
 Botkit = require('botkit');
 os = require('os');
@@ -17,55 +17,31 @@ controller = Botkit.slackbot({
 
 if(debug) {//play area
 
-  var name = 'power';
-  var prefixes = prefixSearch(name, type);
-  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
-  else{
-    console.log(printPrefixes(prefixes));
-  }
 
-  var name = 'power';
-  var type = 'asc';
-  var prefixes = prefixSearch(name, type);
-  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
-  else{
-    console.log(printPrefixes(prefixes));
-  }
-  var name = 'power';
-  var type = 'ascended';
-  var prefixes = prefixSearch(name, type);
-  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
-  else{
-    console.log(printPrefixes(prefixes));
-  }
-    var name = 'power';
-  var type = 'all';
-  var prefixes = prefixSearch(name, type);
-  if(!prefixes || (Object.keys(prefixes).length) < 1) console.log('Misspell?');
-  else{
-    console.log(printPrefixes(prefixes));
-  }
+    gw2nodelib.half = function(){
+      console.log("HALF");
+    }
+    gw2nodelib.done = function(){
+      console.log("DONE");
+   console.log("data has "+Object.keys(gw2nodelib.data['recipes']).length+" items");
+//    console.log('Numkeys: '+Object.keys(gw2nodelib.data[recipes]));
+    // console.log("stringify: "+JSON.stringify(gw2nodelib.data));
 
+    } 
+    gw2nodelib.load("recipes");
+    // var recurse = function(nextPage){
+    //   var fetchParams = {page:nextPage,page_size:200};
+    //   gw2nodelib.recipes(function(jsonList, headers) {
+    //     console.log("fetched page "+nextPage+" of "+(headers.pageTotal-1));
+    //     if((headers.pageTotal-1)>nextPage) recurse(nextPage+1);
+    //   },fetchParams);
+    // } 
+    // recurse(0);
 
-//  console.log(helpFile['prefix']);
-  // console.log(listToString(helpFile));
-  // console.log("file set successfully: " + fileLoad);
-
-  // gw2nodelib.items(function(jsonArray) {
-  //    console.log("I found "+Object.keys(jsonArray).length+' items.');
-  //     console.log(JSON.stringify(jsonArray));
-  //   },{ids : "9437"});
-
-  // gw2nodelib.items(function(jsonArray) {
-  //    console.log("I found "+Object.keys(jsonArray).length+' items.');
-  //     console.log(JSON.stringify(jsonArray));
-  //   },{ids : "1"});
-
-  // gw2nodelib.items(function(jsonArray) {
-  //    console.log("I found "+Object.keys(jsonArray).length+' items.');
-  //     console.log(JSON.stringify(jsonArray));
-  //   },{ids : "6"});
-
+    // var fetchParams = {page:108,page_size:100};
+    // gw2nodelib.recipes(function(jsonList) {
+    //    console.log("I found "+Object.keys(jsonList).length+' recipes.');
+    // },fetchParams);
 }
 else{ //"real" code
   if (!process.env.token) {
@@ -82,34 +58,34 @@ else{ //"real" code
   });
 
 ////HELP
-  controller.hears(['help','help (.*)'],'direct_message,direct_mention,mention', function (bot, message) {
+  controller.hears(['^help','^help (.*)'],'direct_message,direct_mention,mention', function (bot, message) {
       var matches = message.text.match(/help ([a-zA-Z]*)/i);
-      if(!matches) bot.reply(message, "Help topics: "+listKeys(helpFile));
+      if(!matches || !matches[1] || !helpFile[matches[1].toLowerCase()]) bot.reply(message, "Help topics: "+listKeys(helpFile));
       else{
         var name = matches[1].toLowerCase();
         bot.reply(message,helpFile[name]);
       }
   });
 /////QUAGGANS
-  controller.hears(['quaggans'],'direct_message,direct_mention,mention', function (bot, message) {
+  controller.hears(['^quaggans$','^quaggan$'],'direct_message,direct_mention,mention', function (bot, message) {
     gw2nodelib.quaggans(function(jsonList) {
-       bot.reply(message,"I found "+Object.keys(jsonList).length+' quaggans.');
-        bot.reply(message,"Tell lessdremoth quaggan <quaggan name> to preview!");
-        bot.reply(message,listToString(jsonList));
+      bot.reply(message,"I found "+Object.keys(jsonList).length+' quaggans.');
+      bot.reply(message,"Tell lessdremoth quaggan <quaggan name> to preview!");
+      bot.reply(message,listToString(jsonList));
     });
   });
 
-  controller.hears(['quaggan (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
-      var matches = message.text.match(/quaggan (.*)/i);
+  controller.hears(['quaggan (.*)','quaggans (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
+      var matches = message.text.match(/quaggans? (.*)/i);
+      if(!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell lessdremoth \'quaggans\' for a list."); 
       var name = matches[1];
-      if(debug) console.log('Quaggan of type '+name);
       gw2nodelib.quaggans(function(jsonItem) {
         bot.reply(message,jsonItem.url);
-    },{id: name},true);
+    },{id: name});
   });
 
 /////ACCESS TOKEN
-  controller.hears(['access token (.*)'], 'direct_mention,mention', function (bot, message) {
+  controller.hears(['access token'], 'direct_mention,mention', function (bot, message) {
         bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
   });
 
@@ -126,6 +102,7 @@ else{ //"real" code
 
   controller.hears(['access token (.*)'], 'direct_message', function (bot, message) {
     var matches = message.text.match(/access token (.*)/i);
+    if(!matches[1]) bot.reply(message, "I didn't get that.");
     var token = matches[1];
       controller.storage.users.get(message.user, function (err, user) {
         if (user) {
@@ -143,19 +120,43 @@ else{ //"real" code
     });
   });
 
-
 /////CHARACTERS
   controller.hears(['characters'], 'direct_message,direct_mention,mention', function (bot, message) {
     controller.storage.users.get(message.user, function (err, user) {
-      if (!user) {
+      if (!user || !user.access_token) {
           bot.reply(message, "Sorry, I don't have your access token on file. direct message me the phrase \'access token help\' for help.");
       }
       else gw2nodelib.characters(function(jsonList) {
         bot.reply(message,"I found "+Object.keys(jsonList).length+' characters.');
-        bot.reply(message,listToString(jsonList));
+        gw2nodelib.characters(function(jsonList) {
+          var attachments = [];
+          var attachment = {
+            color: '#000000',
+            thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
+            fields: [],
+          };
+          var totalDeaths = 0;
+          for(var n in jsonList){
+            console.log("char :"+jsonList[n]);
+              attachment.fields.push({
+              title: jsonList[n].name,
+              value: jsonList[n].deaths,
+              short: true,
+            });
+              totalDeaths+=jsonList[n].deaths;
+          }
+          attachment.title = 'Death Report: '+totalDeaths+' total deaths.';
+          attachments.push(attachment);
+          bot.reply(message,{
+            attachments: attachments,
+          },function(err,resp) {
+            console.log(err,resp);
+          });
+        },{access_token : user.access_token,ids : listToString(jsonList,true)});    
       },{access_token : user.access_token});
     });
   });
+
 /////NOMENCLATURE
   controller.hears(['prefix (.*)','suffix (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
     var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
@@ -167,6 +168,38 @@ else{ //"real" code
       else{
         bot.reply(message,printPrefixes(prefixes));
       }
+  });
+//////DATA
+  controller.hears(['db reload'], 'direct_message,direct_mention,mention', function (bot, message) {
+
+      bot.startConversation(message, function (err, convo) {
+
+          convo.ask('Are you sure? If the cache has expired it can take a long time.', [
+              {
+                pattern: bot.utterances.yes,
+                callback: function (response, convo) {
+                  var innerConvo = convo;
+                  gw2nodelib.half = function(){
+                    innerConvo.say('Hrrrrnnng');
+                  }
+                  gw2nodelib.done = function(){
+                    innerConvo.say('Done!');
+                    innerConvo.next();
+                  } 
+                  gw2nodelib.load("recipes");
+//                  convo.next();
+                }
+              },
+              {
+                pattern: bot.utterances.no,
+                default: true,
+                callback: function (response, convo) {
+                    convo.say('\'Kay.');
+                    convo.next();
+                }
+              }
+          ]);
+      });
   });
 
   // controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
@@ -346,13 +379,14 @@ function listKeys(jsonArray){
   return outstring.substring(0,outstring.length-2);
 }
 
-function listToString(jsonList){
+function listToString(jsonList,skipComma){
       if(debug) console.log("jsonList: "+JSON.stringify(jsonList));
       var outstring = "",
       len = Object.keys(jsonList).length;
       for (var i = 0; i< len; i++) {
         outstring += jsonList[i];
-        if(i!==len-1) outstring += ", "
+        if(i!==len-1) outstring += ",";
+        if(!skipComma) outstring += " ";
       }
     return outstring;
 }
@@ -388,7 +422,7 @@ function scrubType(type){
   else if('gem'.startsWith(type)) return 'gem';
   else if('all'.startsWith(type)) return 'all';
   else if('ascended'.startsWith(type)) return 'ascended';
-  else return;
+  else return 'standard';
 }
 
 function prefixSearch(searchTerm, type){
@@ -441,7 +475,7 @@ function getHelpFile(){
   "who\ are\ you" : "lessdremoth will display some basic uptime information.",
   "quaggans" : "fetch a list of all fetchable quaggan pictures. See help quaggan.",
   "quaggan" : "Takes an argument. Paste a url to a picture of that quaggan for slack to fetch. See help quaggans. Example: \'quaggan box\'",
-  "access\ token" : "Set up your guild wars account to allow lessdremoth to read data. Direct Message access token help for more information.",
+  "access" : "Set up your guild wars account to allow lessdremoth to read data. Direct Message access token help for more information.",
   "characters" : "Display a list of characters on your account.",
   "prefix" : "Takes two arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo: Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but \'a\' will be all.\nNotes:\n\'s-es (as in Zojja\'s) and \'of the\' strings have been removed.\n\'Healing power\' is called \'healing\'.\n\'Condition Damage\' is called \'condition\'\nExamples: \'prefix berzerker all\' \'prefix pow gem\' \'prefix pow asc\'",
   "suffix" : "Alias for prefix. ",
