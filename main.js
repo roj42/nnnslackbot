@@ -2,6 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var debug = false;
 var dataLoaded = false;
+var toggle = true;
 Botkit = require('botkit');
 os = require('os');
 gw2nodelib = require('gw2nodelib');
@@ -121,22 +122,25 @@ if (debug) { //play area
   ////recipe lookup
   controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
     var matches = message.text.match(/craft (.*)/i);
-    if (!dataLoaded) bot.reply(message, "I'm still loading data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-    if (!matches || !matches[0]) bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
-    else {
+    if (!dataLoaded) {
+      bot.reply(message, "I'm still loading data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
+    } else if (!matches || !matches[0]) {
+      bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
+    } else {
       var searchTerm = matches[1];
       var itemSearchResults = findCraftableItemByName(searchTerm);
-      console.log(itemSearchResults.length + " matches found");
+      if (debug) console.log(itemSearchResults.length + " matches found");
       if (itemSearchResults.length === 0) {
-        bot.reply(message, "No items start with that text. Note that I have no mystic forge recipies.");
-      } else if (itemSearchResults.length > 6) {
+        bot.reply(message, "No item names contain that exact text. Note that I have no mystic forge recipies.");
+      } else if (itemSearchResults.length > 10) {
         bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.');
       } else if (itemSearchResults.length == 1) {
         var attachments = assembleRecipeAttachment(itemSearchResults[0]);
         bot.reply(message, {
           'text': itemSearchResults[0].name,
           attachments: attachments,
-          'icon_url': itemSearchResults[0].icon
+          'icon_url': itemSearchResults[0].icon,
+          "username": "RecipeBot",
         }, function(err, resp) {
           if (err || debug) console.log(err, resp);
         });
@@ -144,7 +148,7 @@ if (debug) { //play area
         bot.startConversation(message, function(err, convo) {
           var listofItems = '';
           for (var i in itemSearchResults) {
-            listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (itemSearchResults[i].level? " (level "+itemSearchResults[i].level+")":"");
+            listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (itemSearchResults[i].level ? " (level " + itemSearchResults[i].level + ")" : "");
           }
           convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
             //number, no, or repeat
@@ -155,7 +159,7 @@ if (debug) { //play area
               if (selection < itemSearchResults.length) {
                 var attachments = assembleRecipeAttachment(itemSearchResults[selection]);
                 var message_with_attachments = {
-                  'text': itemSearchResults[selection].name+" - " +itemSearchResults[selection].chat_link,
+                  'text': itemSearchResults[selection].name + (itemSearchResults[selection].level ? " (level " + itemSearchResults[selection].level + ")" : "") + " - " + itemSearchResults[selection].chat_link,
                   attachments: attachments,
                   'icon_url': itemSearchResults[selection].icon
                 };
@@ -324,9 +328,9 @@ if (debug) { //play area
             var end = new Date().getTime();
             var time = end - start;
             console.log("HALF " + apiKey + ": " + time);
-            if (innerConvo) {
-              if (numDone == 1) innerConvo.say('Hrrrrngh.');
-              innerConvo.say('Half done with ' + apiKey);
+            if (message) {
+              if (numDone == 1) bot.reply(message, 'Hrrrrngh.');
+              bot.reply(message, 'Half done with ' + apiKey);
             }
           };
 
@@ -338,9 +342,9 @@ if (debug) { //play area
               dataLoaded = true;
               if (innerConvo) innerConvo.next();
             }
-            if (innerConvo) {
-              innerConvo.say('Done with ' + apiKey);
-              if (numDone == 1) innerConvo.say('One down, one to go.');
+            if (message) {
+              bot.reply(message, 'Done with ' + apiKey);
+              if (numDone == 1) bot.reply(message, 'One down, one to go.');
             }
 
           };
@@ -385,6 +389,25 @@ if (debug) { //play area
   //         }
   //     });
   // });
+
+  /////TOGGLE
+  controller.hears(['^toggle'], 'direct_message,direct_mention,mention', function(bot, message) {
+    if (toggle) toggle = false;
+    else toggle = true;
+    bot.reply(message, "So toggled.");
+  });
+
+
+  controller.on('channel_left', function(bot, message) {
+
+    console.log("I've left a channel.");
+  });
+  controller.on('rtm_reconnect_failed', function(bot, message) {
+
+    console.log("reconnect failed.");
+  });
+
+
 
   /////GENERIC BOT INFO
   controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -1028,32 +1051,70 @@ function assembleRecipeAttachment(itemToDisplay) {
   var ingredients = getBaseIngredients(initalIngred);
   var gwPasteString = '';
   var attachments = [];
-  for (var i in ingredients) {
-    var item = findInData('id', ingredients[i].item_id, 'items');
-    if (item) {
-      gwPasteString += " " + ingredients[i].count + "x" + item.chat_link;
-      attachments.push({
-        "fallback": ingredients[i].count + "x" + item.name,
-        "author_name": ingredients[i].count + " " + item.name,
-        "author_link": "http://wiki.guildwars2.com/wiki/" + item.name.replace(/\s/g, "_"),
-        "author_icon": item.icon
-      });
-    } else {
-      gwPasteString += " " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id;
-      attachments.push({
-        "fallback": ingredients[i].count + " of unknown item id " + ingredients[i].item_id,
-        "author_name": ingredients[i].count + " of unknown item id " + ingredients[i].item_id
-      });
+  var item;
+  if (toggle) {
+
+    var attachment = {
+      color: '#000000',
+      thumb_url: foundRecipe.icon,
+      fields: [],
+      "fallback": itemToDisplay.name + " has " + ingredients.length + " items.",
+      // "title": itemToDisplay.name + " (level " + itemToDisplay.level + ")",
+      // "author_name": itemToDisplay.name + " on the wiki",
+      // "author_link": "http://wiki.guildwars2.com/wiki/" + itemToDisplay.name.replace(/\s/g, "_"),
+      // "author_icon": "https://render.guildwars2.com/file/25B230711176AB5728E86F5FC5F0BFAE48B32F6E/97461.png",
+    };
+    for (var i in ingredients) {
+      item = findInData('id', ingredients[i].item_id, 'items');
+      if (item) {
+        gwPasteString += " " + ingredients[i].count + "x" + item.chat_link;
+        attachment.fields.push({
+          title: ingredients[i].count + " " + item.name,
+          short: false
+        });
+      } else {
+        gwPasteString += " " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id;
+        attachment.fields.push({
+          title: ingredients[i].count + " of unknown item id " + ingredients[i].item_id,
+          short: false
+        });
+      }
+    }
+    attachments.push(attachment);
+  } else {
+    for (var j in ingredients) {
+      item = findInData('id', ingredients[j].item_id, 'items');
+      if (item) {
+        gwPasteString += " " + ingredients[j].count + "x" + item.chat_link;
+        attachments.push({
+          "fallback": ingredients[j].count + "x" + item.name,
+          "author_name": ingredients[j].count + " " + item.name,
+          "author_link": "http://wiki.guildwars2.com/wiki/" + item.name.replace(/\s/g, "_"),
+          "author_icon": item.icon
+        });
+      } else {
+        gwPasteString += " " + ingredients[j].count + " of unknown item id " + ingredients[j].item_id;
+        attachments.push({
+          "fallback": ingredients[j].count + " of unknown item id " + ingredients[j].item_id,
+          "author_name": ingredients[j].count + " of unknown item id " + ingredients[j].item_id
+        });
+      }
     }
   }
-  attachments[0].pretext = gwPasteString;
+  // attachments[0].pretext = gwPasteString;
+  attachments.push({
+    color: '#2200EE',
+    fields: [{
+      value: gwPasteString
+    }]
+  });
   return attachments;
 }
 
 function findCraftableItemByName(name) {
   var itemsFound = [];
   for (var i in gw2nodelib.data.items) {
-    if (gw2nodelib.data.items[i].name.toLowerCase().startsWith(name.toLowerCase()))
+    if (gw2nodelib.data.items[i].name.toLowerCase().includes(name.toLowerCase()))
       if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes'))
         itemsFound.push(gw2nodelib.data.items[i]);
       else if (debug) console.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
@@ -1067,13 +1128,8 @@ function getBaseIngredients(ingredients) {
     //ingredient format is {"item_id":19721,"count":1}
     for (var i in existingList) {
       if (existingList[i].item_id == ingredientToAdd.item_id) {
-        // for(var n = ingredientToAdd.count;n>0;n--){
-        //   console.log("ingred to add:"+ingredientToAdd.count);
-        //   existingList[i].count++;
-        // }
         var n = ingredientToAdd.count;
         existingList[i].count += n;
-        // existingList[i].count += ingredientToAdd.count;
         return;
       }
     }
