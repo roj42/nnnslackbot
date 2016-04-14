@@ -175,16 +175,29 @@ if (debug) { //play area
     }
   });
   var start = new Date().getTime();
+  var globalMessage;
+
   gw2nodelib.half = function(apiKey) {
     var end = new Date().getTime();
     var time = end - start;
+    if (globalMessage) {
+      bot.reply(globalMessage, "Half done loading the list of recipies.");
+    }
     console.log("HALF " + apiKey + ": " + time + "ms");
   };
-
+  gw2nodelib.error = function(msg) {
+    if (globalMessage) {
+      bot.reply(globalMessage, "Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.');
+    }
+    console.log("error loading: " + msg);
+    dataLoaded = false;
+  };
   gw2nodelib.done = function(apiKey) {
     var end = new Date().getTime();
     var time = end - start;
-    console.log("DONE " + apiKey + ": " + time + "ms");
+    if (globalMessage) {
+      bot.reply(globalMessage, "Finished loading the list of recipies. Starting on items.");
+    } else console.log("DONE " + apiKey + ": " + time + "ms");
     //Go through recipies, and get the item id of all output items and recipie ingredients.
     var itemsCompile = [];
     for (var t in gw2nodelib.data.recipes) {
@@ -192,6 +205,9 @@ if (debug) { //play area
       for (var i in gw2nodelib.data.recipes[t].ingredients) {
         itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
       }
+    }
+    if (globalMessage) {
+      bot.reply(globalMessage, "I need to fetch " + Object.keys(itemsCompile).length + " ingredient items");
     }
     console.log("we need to fetch " + Object.keys(itemsCompile).length + " recipie items");
     // console.log(JSON.stringify(itemsCompile));
@@ -201,13 +217,11 @@ if (debug) { //play area
     retry = 0;
     len = Object.keys(itemsCompile).length;
     total = Math.ceil(len / offset);
-
-    loadMakeableItems(Object.keys(itemsCompile), startIndex, offset);
+    loadMakeableItems(Object.keys(itemsCompile), startIndex, offset, (globalMessage ? true : false));
   };
 
 
   gw2nodelib.load("recipes", {}, false);
-  //gw2nodelib.load("items", {}, false);
 
   ////HELP
   controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -219,360 +233,355 @@ if (debug) { //play area
     }
   });
 
-  ////recipe lookup. I aplogize.
-  controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-    //Assembles an attahcment and calls bot reply. Used for one message, or after selectinv multiple.
-    var replyWithRecipieFor = function(itemToMake) {
-      var attachments = assembleRecipeAttachment(itemToMake);
-      var foundRecipe = findInData('output_item_id', itemToMake.id, 'recipes');
-      var amountString;
-      if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
-        amountString = foundRecipe.output_item_count;
-      }
-      bot.reply(message, {
-        'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (itemToMake.description ? "\n" + itemToMake.description : ""),
-        attachments: attachments,
-        'icon_url': itemToMake.icon,
-        "username": "RecipeBot",
-      }, function(err, resp) {
-        if (err || debug) console.log(err, resp);
-      });
+  ////sass
+  controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bot, message) {
+      var text = [
+        "Empty-headed homunculous.",
+        "Pusilanimous pinhead.",
+        "Shut your talk-hole, bookah. Every time you open it, you drip stupid all over my floor.",
+        "I run on frontline Iron Legion equipment, not Asuran crystal-magic rainbow trash.",
+        "Yo mamma’s so dumb, she thought a golemancer was what you get when you ask a golem question.",
+        "You're so fat, you got 100% world completion as soon as you logged in.",
+        "Yo mamma’s IQ so low she thinks crafting is something you do at a criver.",
+        "Who taught you to swim? Was it a rock? Quaggan thinks it must have been a rock.",
+        "Yo momma's so fat, it costs 100g to waypoint her.",
+        "You're duller than my alt's first sword.",
+        "You're so boring that I thought you were someone's clone",
+        "Your mother was a Skritt, and your father stank of Omnomberries",
+        "You're dumb. You'll die and you'll leave a dumb corpse.",
+      ];
+      var num = Math.floor(Math.random() * text.length);
+      bot.reply(message, text[num]);
+  });
 
-    };
 
-    var matches = message.text.match(/craft (.*)/i);
-    if (!dataLoaded) { //still loading
-      bot.reply(message, "I'm still loading data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-    } else if (!matches || !matches[0]) { //mismatch
-      bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
-    } else { //search
-      var searchTerm = matches[1];
-      var itemSearchResults = findCraftableItemByName(searchTerm);
-      if (debug) console.log(itemSearchResults.length + " matches found");
-      if (itemSearchResults.length === 0) { //no match
-        bot.reply(message, "No item names contain that exact text. Note that I have no mystic forge recipies, and newly discovered items are added to the GW's API slowly.");
-      } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-        var itemNameFirst = itemSearchResults[0].name;
-        var itemNameLast = itemSearchResults[itemSearchResults.length - 1].name;
-        bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n(from ' + itemNameFirst + ' to ' + itemNameLast + ')');
-      } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-        replyWithRecipieFor(itemSearchResults[0]);
-      } else { //a few items, allow user to choose
-        bot.startConversation(message, function(err, convo) {
-          var listofItems = '';
-          for (var i in itemSearchResults) {
-            var levelString;
-            if (itemSearchResults[i].level) {
-              levelString = itemSearchResults[i].level;
-            } else if (itemSearchResults[i].description) {
-              var matches = itemSearchResults[i].description.match(/level (\d{1,2})/i);
-              console.log("matches " + JSON.stringify(matches) + " of description " + itemSearchResults[i].description);
-              if (matches && matches[1]) {
-                levelString = matches[1];
-              }
+////////////////recipe lookup. I aplogize.
+controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+  //Assembles an attahcment and calls bot reply. Used for one message, or after selectinv multiple.
+  var replyWithRecipieFor = function(itemToMake) {
+    var attachments = assembleRecipeAttachment(itemToMake);
+    var foundRecipe = findInData('output_item_id', itemToMake.id, 'recipes');
+    var amountString;
+    if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
+      amountString = foundRecipe.output_item_count;
+    }
+    bot.reply(message, {
+      'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (itemToMake.description ? "\n" + itemToMake.description : ""),
+      attachments: attachments,
+      'icon_url': itemToMake.icon,
+      "username": "RecipeBot",
+    }, function(err, resp) {
+      if (err || debug) console.log(err, resp);
+    });
+
+  };
+
+  var matches = message.text.match(/craft (.*)/i);
+  if (!dataLoaded) { //still loading
+    bot.reply(message, "I'm still loading data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
+  } else if (!matches || !matches[0]) { //mismatch
+    bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
+  } else { //search
+    var searchTerm = matches[1];
+    var itemSearchResults = findCraftableItemByName(searchTerm);
+    if (debug) console.log(itemSearchResults.length + " matches found");
+    if (itemSearchResults.length === 0) { //no match
+      bot.reply(message, "No item names contain that exact text. Note that I have no mystic forge recipies, and newly discovered items are added to the GW's API slowly.");
+    } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+      var itemNameFirst = itemSearchResults[0].name;
+      var itemNameLast = itemSearchResults[itemSearchResults.length - 1].name;
+      bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n(from ' + itemNameFirst + ' to ' + itemNameLast + ')');
+    } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+      replyWithRecipieFor(itemSearchResults[0]);
+    } else { //a few items, allow user to choose
+      bot.startConversation(message, function(err, convo) {
+        var listofItems = '';
+        for (var i in itemSearchResults) {
+          var levelString;
+          if (itemSearchResults[i].level) {
+            levelString = itemSearchResults[i].level;
+          } else if (itemSearchResults[i].description) {
+            var matches = itemSearchResults[i].description.match(/level (\d{1,2})/i);
+            console.log("matches " + JSON.stringify(matches) + " of description " + itemSearchResults[i].description);
+            if (matches && matches[1]) {
+              levelString = matches[1];
             }
-            listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (levelString ? " (level " + levelString + ")" : "");
           }
-          convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-            //number, no, or repeat
-            pattern: new RegExp(/^(\d{1,2})/i),
-            callback: function(response, convo) {
-              var matches = response.text.match(/^(\d{1,2})/i);
-              var selection = matches[0];
-              if (selection < itemSearchResults.length) {
-                replyWithRecipieFor(itemSearchResults[selection]);
-              } else convo.repeat();
-              convo.next();
+          listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (levelString ? " (level " + levelString + ")" : "");
+        }
+        convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+          //number, no, or repeat
+          pattern: new RegExp(/^(\d{1,2})/i),
+          callback: function(response, convo) {
+            var matches = response.text.match(/^(\d{1,2})/i);
+            var selection = matches[0];
+            if (selection < itemSearchResults.length) {
+              replyWithRecipieFor(itemSearchResults[selection]);
+            } else convo.repeat();
+            convo.next();
+          }
+        }, {
+          pattern: bot.utterances.no,
+          callback: function(response, convo) {
+            convo.say('\'Kay.');
+            convo.next();
+          }
+        }, {
+          default: true,
+          callback: function(response, convo) {
+            // just repeat the question
+            convo.repeat();
+            convo.next();
+          }
+        }]);
+      });
+    }
+  }
+});
+
+//////DATA
+controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
+
+  bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to lauch for real');
+});
+
+controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
+  bot.reply(message, 'You asked for it.');
+  gw2nodelib.data.recipes = [];
+  gw2nodelib.data.items = [];
+  globalMessage = message;
+  dataLoaded = false;
+  var start = new Date().getTime();
+  gw2nodelib.load("recipes", {}, true);
+});
+
+
+/////QUAGGANS
+controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention', function(bot, message) {
+  gw2nodelib.quaggans(function(jsonList) {
+    if (jsonList.text || jsonList.error) {
+      bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
+    } else {
+      bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
+      bot.reply(message, "Tell lessdremoth quaggan <quaggan name> to preview!");
+      bot.reply(message, listToString(jsonList));
+    }
+  });
+});
+
+controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+  var matches = message.text.match(/quaggans? (.*)/i);
+  if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell lessdremoth \'quaggans\' for a list.");
+  var name = matches[1];
+  gw2nodelib.quaggans(function(jsonItem) {
+    if (jsonItem.text || jsonItem.error) {
+      bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
+    } else {
+      bot.reply(message, jsonItem.url);
+    }
+  }, {
+    id: name
+  });
+});
+
+/////ACCESS TOKEN
+controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
+  bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
+});
+
+controller.hears(['access token help'], 'direct_message', function(bot, message) {
+  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:");
+  bot.reply(message, "https://account.arena.net/applications");
+  bot.reply(message, "Copy the token, and then direct message me (here) with \'access token <your token>\'");
+  controller.storage.users.get(message.user, function(err, user) {
+    if (user) {
+      bot.reply(message, "Although I already have an access token on file for you.");
+    }
+  });
+});
+
+controller.hears(['access token (.*)'], 'direct_message', function(bot, message) {
+  var matches = message.text.match(/access token (.*)/i);
+  if (!matches[1]) bot.reply(message, "I didn't get that.");
+  var token = matches[1];
+  controller.storage.users.get(message.user, function(err, user) {
+    if (user) {
+      bot.reply(message, "I overwrote your existing token.");
+    } else {
+      user = {
+        id: message.user,
+      };
+    }
+    user.access_token = token;
+    controller.storage.users.save(user, function(err, id) {
+      bot.reply(message, 'Got it.');
+    });
+  });
+});
+
+/////CHARACTERS
+controller.hears(['characters'], 'direct_message,direct_mention,mention', function(bot, message) {
+  controller.storage.users.get(message.user, function(err, user) {
+    if (!user || !user.access_token) {
+      bot.reply(message, "Sorry, I don't have your access token on file. direct message me the phrase \'access token help\' for help.");
+    } else gw2nodelib.characters(function(jsonList) {
+      if (jsonList.text || jsonList.error) {
+        bot.reply(message, "Oops. I got this error when asking for a list of your characters: " + (jsonList.text ? jsonList.text : jsonList.error));
+      } else {
+        bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters.');
+        gw2nodelib.characters(function(jsonList) {
+          if (jsonList.text || jsonList.error) {
+            bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
+          } else {
+            var attachments = [];
+            var attachment = {
+              color: '#000000',
+              thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
+              fields: [],
+            };
+            var totalDeaths = 0;
+            for (var n in jsonList) {
+              if (debug) console.log("char :" + jsonList[n]);
+              attachment.fields.push({
+                title: jsonList[n].name,
+                value: jsonList[n].deaths,
+                short: true,
+              });
+              totalDeaths += jsonList[n].deaths;
             }
-          }, {
-            pattern: bot.utterances.no,
-            callback: function(response, convo) {
-              convo.say('\'Kay.');
-              convo.next();
-            }
-          }, {
-            default: true,
-            callback: function(response, convo) {
-              // just repeat the question
-              convo.repeat();
-              convo.next();
-            }
-          }]);
+            attachment.title = 'Death Report: ' + totalDeaths + ' total deaths.';
+            attachments.push(attachment);
+            bot.reply(message, {
+              attachments: attachments,
+            }, function(err, resp) {
+              if (err || debug) console.log(err, resp);
+            });
+          }
+        }, {
+          access_token: user.access_token,
+          ids: listToString(jsonList, true)
         });
       }
-    }
-  });
-
-
-
-  /////QUAGGANS
-  controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention', function(bot, message) {
-    gw2nodelib.quaggans(function(jsonList) {
-      if (jsonList.text || jsonList.error) {
-        bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
-      } else {
-        bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
-        bot.reply(message, "Tell lessdremoth quaggan <quaggan name> to preview!");
-        bot.reply(message, listToString(jsonList));
-      }
+    }, {
+      access_token: user.access_token
     });
   });
+});
 
-  controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var matches = message.text.match(/quaggans? (.*)/i);
-    if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell lessdremoth \'quaggans\' for a list.");
-    var name = matches[1];
-    gw2nodelib.quaggans(function(jsonItem) {
-      if (jsonItem.text || jsonItem.error) {
-        bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
-      } else {
-        bot.reply(message, jsonItem.url);
+/////NOMENCLATURE
+controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+  var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
+  var name = matches[2];
+  var type = matches[3];
+  var type = scrubType(type);
+  var prefixes = prefixSearch(name, type);
+  if (!prefixes || (Object.keys(prefixes).length) < 1)
+    bot.reply(message, 'No match for \'' + name + '\' of type \'' + type + '\'. Misspell? Or maybe search all.');
+  else {
+    bot.reply(message, printPrefixes(prefixes));
+  }
+});
+
+// controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
+//     var matches = message.text.match(/call me (.*)/i);
+//     var name = matches[1];
+//     controller.storage.users.get(message.user, function (err, user) {
+//         if (!user) {
+//             user = {
+//                 id: message.user,
+//             };
+//         }
+//         user.name = name;
+//         controller.storage.users.save(user, function (err, id) {
+//             bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
+//         });
+//     });
+// });
+
+// controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function (bot, message) {
+
+//     controller.storage.users.get(message.user, function (err, user) {
+//         if (user && user.name) {
+//             bot.reply(message, 'Your name is ' + user.name);
+//         } else {
+//             bot.reply(message, 'I don\'t know yet!');
+//         }
+//     });
+// });
+
+/////TOGGLE
+controller.hears(['^toggle'], 'direct_message,direct_mention,mention', function(bot, message) {
+  if (toggle) toggle = false;
+  else toggle = true;
+  bot.reply(message, "So toggled.");
+});
+
+
+controller.on('channel_left', function(bot, message) {
+
+  console.log("I've left a channel.");
+});
+controller.on('rtm_reconnect_failed', function(bot, message) {
+
+  console.log("reconnect failed.");
+});
+
+
+
+/////GENERIC BOT INFO
+controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
+  if (message.user && message.user == 'U0T3J3J9W') {
+    bot.reply(message, 'Farrrrt Pizza');
+    addReaction(message, 'dash');
+    addReaction(message, 'pizza');
+  } else {
+    bot.reply(message, 'Hello.');
+    addReaction(message, 'robot_face');
+  }
+
+
+  // controller.storage.users.get(message.user, function (err, user) {
+  //     if (user && user.name) {
+  //         bot.reply(message, 'Hello ' + user.name + '!!');
+  //     } else {
+  //         bot.reply(message, 'Hello.');
+  //     }
+  // });
+});
+
+controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
+
+  bot.startConversation(message, function(err, convo) {
+
+    convo.ask('Are you sure you want me to shutdown?', [{
+      pattern: bot.utterances.yes,
+      callback: function(response, convo) {
+        convo.say('Bye!');
+        convo.next();
+        setTimeout(function() {
+          process.exit();
+        }, 3000);
       }
     }, {
-      id: name
-    });
-  });
-
-  /////ACCESS TOKEN
-  controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
-    bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
-  });
-
-  controller.hears(['access token help'], 'direct_message', function(bot, message) {
-    bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:");
-    bot.reply(message, "https://account.arena.net/applications");
-    bot.reply(message, "Copy the token, and then direct message me (here) with \'access token <your token>\'");
-    controller.storage.users.get(message.user, function(err, user) {
-      if (user) {
-        bot.reply(message, "Although I already have an access token on file for you.");
+      pattern: bot.utterances.no,
+      default: true,
+      callback: function(response, convo) {
+        convo.say('*Phew!*');
+        convo.next();
       }
-    });
+    }]);
   });
-
-  controller.hears(['access token (.*)'], 'direct_message', function(bot, message) {
-    var matches = message.text.match(/access token (.*)/i);
-    if (!matches[1]) bot.reply(message, "I didn't get that.");
-    var token = matches[1];
-    controller.storage.users.get(message.user, function(err, user) {
-      if (user) {
-        bot.reply(message, "I overwrote your existing token.");
-      } else {
-        user = {
-          id: message.user,
-        };
-      }
-      user.access_token = token;
-      controller.storage.users.save(user, function(err, id) {
-        bot.reply(message, 'Got it.');
-      });
-    });
-  });
-
-  /////CHARACTERS
-  controller.hears(['characters'], 'direct_message,direct_mention,mention', function(bot, message) {
-    controller.storage.users.get(message.user, function(err, user) {
-      if (!user || !user.access_token) {
-        bot.reply(message, "Sorry, I don't have your access token on file. direct message me the phrase \'access token help\' for help.");
-      } else gw2nodelib.characters(function(jsonList) {
-        if (jsonList.text || jsonList.error) {
-          bot.reply(message, "Oops. I got this error when asking for a list of your characters: " + (jsonList.text ? jsonList.text : jsonList.error));
-        } else {
-          bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters.');
-          gw2nodelib.characters(function(jsonList) {
-            if (jsonList.text || jsonList.error) {
-              bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
-            } else {
-              var attachments = [];
-              var attachment = {
-                color: '#000000',
-                thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
-                fields: [],
-              };
-              var totalDeaths = 0;
-              for (var n in jsonList) {
-                if (debug) console.log("char :" + jsonList[n]);
-                attachment.fields.push({
-                  title: jsonList[n].name,
-                  value: jsonList[n].deaths,
-                  short: true,
-                });
-                totalDeaths += jsonList[n].deaths;
-              }
-              attachment.title = 'Death Report: ' + totalDeaths + ' total deaths.';
-              attachments.push(attachment);
-              bot.reply(message, {
-                attachments: attachments,
-              }, function(err, resp) {
-                if (err || debug) console.log(err, resp);
-              });
-            }
-          }, {
-            access_token: user.access_token,
-            ids: listToString(jsonList, true)
-          });
-        }
-      }, {
-        access_token: user.access_token
-      });
-    });
-  });
-
-  /////NOMENCLATURE
-  controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
-    var name = matches[2];
-    var type = matches[3];
-    var prefixes = prefixSearch(name, scrubType(type));
-    if (!prefixes || (Object.keys(prefixes).length) < 1)
-      bot.reply(message, 'No match for \'' + name + '\' of type \'' + type + '\'. Misspell?');
-    else {
-      bot.reply(message, printPrefixes(prefixes));
-    }
-  });
-  //////DATA
-  controller.hears(['db reload'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    bot.startConversation(message, function(err, convo) {
-
-      convo.ask('Are you sure? It can take a long time.', [{
-        pattern: bot.utterances.yes,
-        callback: function(response, convo) {
-          dataLoaded = false;
-          var innerConvo = convo;
-          var start = new Date().getTime();
-          var numDone = 0;
-          gw2nodelib.half = function(apiKey) {
-            var end = new Date().getTime();
-            var time = end - start;
-            console.log("HALF " + apiKey + ": " + time);
-            if (message) {
-              bot.reply(message, 'Hrrrrngh.');
-            }
-          };
-
-          gw2nodelib.done = function(apiKey) {
-            var end = new Date().getTime();
-            var time = end - start;
-            console.log("DONE " + apiKey + ": " + time);
-            dataLoaded = true;
-            if (message) {
-              bot.reply(message, 'Done loading ' + apiKey);
-            }
-          };
-          start = new Date().getTime();
-          gw2nodelib.load("recipes", true);
-        }
-      }, {
-        pattern: bot.utterances.no,
-        default: true,
-        callback: function(response, convo) {
-          convo.say('\'Kay.');
-          convo.next();
-        }
-      }]);
-    });
-  });
-
-  // controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
-  //     var matches = message.text.match(/call me (.*)/i);
-  //     var name = matches[1];
-  //     controller.storage.users.get(message.user, function (err, user) {
-  //         if (!user) {
-  //             user = {
-  //                 id: message.user,
-  //             };
-  //         }
-  //         user.name = name;
-  //         controller.storage.users.save(user, function (err, id) {
-  //             bot.reply(message, 'Got it. I will call you ' + user.name + ' from now on.');
-  //         });
-  //     });
-  // });
-
-  // controller.hears(['what is my name', 'who am i'], 'direct_message,direct_mention,mention', function (bot, message) {
-
-  //     controller.storage.users.get(message.user, function (err, user) {
-  //         if (user && user.name) {
-  //             bot.reply(message, 'Your name is ' + user.name);
-  //         } else {
-  //             bot.reply(message, 'I don\'t know yet!');
-  //         }
-  //     });
-  // });
-
-  /////TOGGLE
-  controller.hears(['^toggle'], 'direct_message,direct_mention,mention', function(bot, message) {
-    if (toggle) toggle = false;
-    else toggle = true;
-    bot.reply(message, "So toggled.");
-  });
+});
 
 
-  controller.on('channel_left', function(bot, message) {
+controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,mention', function(bot, message) {
 
-    console.log("I've left a channel.");
-  });
-  controller.on('rtm_reconnect_failed', function(bot, message) {
+  var hostname = os.hostname();
+  var uptime = formatUptime(process.uptime());
 
-    console.log("reconnect failed.");
-  });
+  bot.reply(message, ':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
 
-
-
-  /////GENERIC BOT INFO
-  controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
-    if (message.user && message.user == 'U0T3J3J9W') {
-      bot.reply(message, 'Farrrrt Pizza');
-      addReaction(message, 'dash');
-      addReaction(message, 'pizza');
-    } else {
-      bot.reply(message, 'Hello.');
-      addReaction(message, 'robot_face');
-    }
-
-
-    // controller.storage.users.get(message.user, function (err, user) {
-    //     if (user && user.name) {
-    //         bot.reply(message, 'Hello ' + user.name + '!!');
-    //     } else {
-    //         bot.reply(message, 'Hello.');
-    //     }
-    // });
-  });
-
-  controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    bot.startConversation(message, function(err, convo) {
-
-      convo.ask('Are you sure you want me to shutdown?', [{
-        pattern: bot.utterances.yes,
-        callback: function(response, convo) {
-          convo.say('Bye!');
-          convo.next();
-          setTimeout(function() {
-            process.exit();
-          }, 3000);
-        }
-      }, {
-        pattern: bot.utterances.no,
-        default: true,
-        callback: function(response, convo) {
-          convo.say('*Phew!*');
-          convo.next();
-        }
-      }]);
-    });
-  });
-
-
-  controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    var hostname = os.hostname();
-    var uptime = formatUptime(process.uptime());
-
-    bot.reply(message, ':robot_face: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
-
-  });
+});
 }
 
 // controller.on('channel_joined',function(bot,message) {
@@ -646,14 +655,14 @@ function listKeys(jsonArray) {
   return outstring.substring(0, outstring.length - 2);
 }
 
-function listToString(jsonList, skipComma) {
+function listToString(jsonList, skipSpace) {
   //  if (debug) console.log("jsonList: " + JSON.stringify(jsonList));
   var outstring = "",
     len = Object.keys(jsonList).length;
   for (var i = 0; i < len; i++) {
     outstring += jsonList[i];
     if (i !== len - 1) outstring += ",";
-    if (!skipComma) outstring += " ";
+    if (!skipSpace) outstring += " ";
   }
   return outstring;
 }
@@ -1145,7 +1154,7 @@ function getPrefixData() {
   };
 }
 ////////////////Recipe Lookup related functions
-function loadMakeableItems(itemsToFetch, startIndex, offset) {
+function loadMakeableItems(itemsToFetch, startIndex, offset, bypass) {
   //this is the same goddamn code as data load.
 
   console.log("fetching " + Math.ceil(startIndex / offset) + " of " + total);
@@ -1159,7 +1168,7 @@ function loadMakeableItems(itemsToFetch, startIndex, offset) {
       if (jsonList.text || jsonList.error) {
         console.log("retrying after error:" + (jsonList.text ? jsonList.text : jsonList.error));
         retry++;
-        loadMakeableItems(itemsToFetch, startIndex, offset);
+        loadMakeableItems(itemsToFetch, startIndex, offset, bypass);
       } else {
         for (var item in jsonList) {
           gw2nodelib.data.items = gw2nodelib.data.items.concat(gw2nodelib.daoLoad('items', jsonList[item]));
@@ -1168,14 +1177,18 @@ function loadMakeableItems(itemsToFetch, startIndex, offset) {
         //        gw2nodelib.data.items = gw2nodelib.data.items.concat(jsonList); //append fetch results to data.items
         retry = 0;
         startIndex += offset;
-        loadMakeableItems(itemsToFetch, startIndex, offset);
+        loadMakeableItems(itemsToFetch, startIndex, offset, bypass);
       }
     }, {
       ids: listToString(subList, true)
-    }, false);
+    }, bypass);
   } else {
+    if (globalMessage) {
+      bot.reply(globalMessage, "Ingredient list from recipies loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients.");
+    }
     console.log("Item list from recipies loaded. Data has " + Object.keys(gw2nodelib.data.items).length + " items");
     dataLoaded = true;
+    globalMessage = null;
   }
 }
 
@@ -1211,7 +1224,7 @@ function assembleRecipeAttachment(itemToDisplay) {
     for (var i in ingredients) {
       item = findInData('id', ingredients[i].item_id, 'items');
       if (item) {
-        gwLength += (" " + ingredients[i].count + "x[" + item.name+"]").length;
+        gwLength += (" " + ingredients[i].count + "x[" + item.name + "]").length;
         gwPasteStringMaxInt(" " + ingredients[i].count + "x" + item.chat_link);
         attachment.fields.push({
           title: ingredients[i].count + " " + item.name,
