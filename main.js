@@ -1,6 +1,6 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
-var debug = true;
+var debug = false;
 var dataLoaded = false;
 var toggle = true;
 Botkit = require('botkit');
@@ -797,7 +797,7 @@ function getBaseIngredients(ingredients) {
   return baseIngredients; //return our list of non-makeable ingredients
 }
 if (debug) { //play area
-  
+
 
   // var postpost = function() {
   //   var itemSearchList = findCraftableItemByName('clerics nob');
