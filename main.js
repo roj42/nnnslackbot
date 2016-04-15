@@ -8,10 +8,12 @@ os = require('os');
 fs = require('fs');
 gw2nodelib = require('gw2nodelib');
 fileLoad = gw2nodelib.loadCacheFromFile('cache.json');
+gw2nodelib.data.forged = [];
 
 prefixData = loadStaticDataFromFile('prefix.json');
 helpFile = loadStaticDataFromFile('help.json');
 sass = loadStaticDataFromFile('sass.json');
+lastSass = [];
 recipeById = [];
 recipeByMade = [];
 itemsById = [];
@@ -58,26 +60,60 @@ if (!debug) { //"real" code
     if (globalMessage) {
       bot.reply(globalMessage, "Finished loading the list of recipies. Starting on items.");
     } else console.log("DONE " + apiKey + ": " + time + "ms");
-    //Go through recipies, and get the item id of all output items and recipie ingredients.
-    var itemsCompile = [];
-    for (var t in gw2nodelib.data.recipes) {
-      itemsCompile[gw2nodelib.data.recipes[t].output_item_id] = 1;
-      for (var i in gw2nodelib.data.recipes[t].ingredients) {
-        itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
-      }
-    }
-    if (globalMessage) {
-      bot.reply(globalMessage, "I need to fetch " + Object.keys(itemsCompile).length + " ingredient items");
-    }
-    console.log("we need to fetch " + Object.keys(itemsCompile).length + " recipie items");
-    // console.log(JSON.stringify(itemsCompile));
+    gw2nodelib.forgeRequest(function(forgeList) {
+      if (debug) console.log("forgeitems: " + forgeList.length);
+      // console.log("forgeitems: " + JSON.stringify(forgeList));
+      // return;
 
-    var offset = 200; //number to fetch at once
-    var startIndex = 0;
-    retry = 0;
-    len = Object.keys(itemsCompile).length;
-    total = Math.ceil(len / offset);
-    loadMakeableItems(Object.keys(itemsCompile), startIndex, offset, (globalMessage ? true : false));
+      var num = 0;
+      var filteredForgeList = forgeList.filter(function(value, index, array) {
+        if (value.output_item_id < 1) {
+          num++;
+          return false;
+        }
+        for (var j in value.ingredients) {
+          if (value.ingredients[j].item_id < 1) {
+            num++;
+            return false;
+          }
+        }
+        return true;
+      });
+      if (debug) console.log(num + " invalid forge items");
+      if (debug) console.log("forgeitems: " + filteredForgeList.length);
+      gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
+      console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies and" + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
+      //Go through recipies, and get the item id of all output items and recipie ingredients.
+      var itemsCompile = [];
+      for (var t in gw2nodelib.data.recipes) {
+        itemsCompile[gw2nodelib.data.recipes[t].output_item_id] = 1;
+        //        if(gw2nodelib.data.recipes[t].output_item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+        for (var i in gw2nodelib.data.recipes[t].ingredients) {
+          itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
+          //      if(gw2nodelib.data.recipes[t].ingredients[i].item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+        }
+      }
+      for (var f in gw2nodelib.data.forged) {
+        itemsCompile[gw2nodelib.data.forged[f].output_item_id] = 1;
+        //        if(gw2nodelib.data.forged[f].output_item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+        for (var g in gw2nodelib.data.forged[f].ingredients) {
+          itemsCompile[gw2nodelib.data.forged[f].ingredients[g].item_id] = 1;
+          //      if(gw2nodelib.data.forged[f].ingredients[g].item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+        }
+      }
+      if (globalMessage) {
+        bot.reply(globalMessage, "I need to fetch " + Object.keys(itemsCompile).length + " ingredient items");
+      }
+      console.log("we need to fetch " + Object.keys(itemsCompile).length + " recipie items");
+      // console.log(JSON.stringify(itemsCompile));
+
+      var offset = 200; //number to fetch at once
+      var startIndex = 0;
+      retry = 0;
+      len = Object.keys(itemsCompile).length;
+      total = Math.ceil(len / offset);
+      loadMakeableItems(Object.keys(itemsCompile), startIndex, offset, (globalMessage ? true : false));
+    });
   };
 
 
@@ -93,15 +129,24 @@ if (!debug) { //"real" code
     }
   });
 
-  ////sass
+  ////SASS
   controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-    var num = Math.floor(Math.random() * sass.length);
-    bot.reply(message, sass[num]);
+    var replySass = sass[Math.floor(Math.random() * sass.length)];
+    while (lastSass.indexOf(replySass) > -1) {
+      if (debug) console.log('dropping recent sass: ' + replySass);
+      replySass = sass[Math.floor(Math.random() * sass.length)];
+    }
+    lastSass.push(replySass);
+    if (lastSass.length > 5) lastSass.shift();
+    if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
+      var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
+      replySass += suffix[Math.floor(Math.random() * suffix.length)];
+    }
+    bot.reply(message, replySass);
   });
 
 
-  ////////////////recipe lookup. I aplogize.
+  ////////////////recipe lookup. I apologize.
   controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
     //Assembles an attahcment and calls bot reply. Used for one message, or after selectinv multiple.
     var replyWithRecipieFor = function(itemToMake) {
@@ -114,8 +159,8 @@ if (!debug) { //"real" code
       bot.reply(message, {
         'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (itemToMake.description ? "\n" + itemToMake.description : ""),
         attachments: attachments,
-        'icon_url': itemToMake.icon,
-        "username": "RecipeBot",
+        // 'icon_url': itemToMake.icon,
+        // "username": "RecipeBot",
       }, function(err, resp) {
         if (err || debug) console.log(err, resp);
       });
@@ -148,12 +193,12 @@ if (!debug) { //"real" code
               levelString = itemSearchResults[i].level;
             } else if (itemSearchResults[i].description) {
               var matches = itemSearchResults[i].description.match(/level (\d{1,2})/i);
-              console.log("matches " + JSON.stringify(matches) + " of description " + itemSearchResults[i].description);
+              if (debug) console.log("matches " + JSON.stringify(matches) + " of description " + itemSearchResults[i].description);
               if (matches && matches[1]) {
                 levelString = matches[1];
               }
             }
-            listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (levelString ? " (level " + levelString + ")" : "");
+            listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (levelString ? " (level " + levelString + ")" : "") + (itemSearchResults[i].forged ? "(Mystic Forge)" : "");
           }
           convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
             //number, no, or repeat
@@ -217,7 +262,7 @@ if (!debug) { //"real" code
   controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
     var matches = message.text.match(/quaggans? (.*)/i);
     if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell lessdremoth \'quaggans\' for a list.");
-    var name = matches[1];
+    var name = removePunctuationAndToLower(matches[1]);
     gw2nodelib.quaggans(function(jsonItem) {
       if (jsonItem.text || jsonItem.error) {
         bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
@@ -318,6 +363,7 @@ if (!debug) { //"real" code
     var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
     var name = matches[2];
     var type = matches[3];
+    name = removePunctuationAndToLower(name);
     type = scrubType(type);
     var prefixes = prefixSearch(name, type);
     if (!prefixes || (Object.keys(prefixes).length) < 1)
@@ -333,9 +379,6 @@ if (!debug) { //"real" code
     else toggle = true;
     bot.reply(message, "So toggled.");
   });
-
-  //////SASS
-
 
   /////GENERIC BOT INFO
   // controller.hears(['call me (.*)'], 'direct_message,direct_mention,mention', function (bot, message) {
@@ -576,14 +619,19 @@ function findPrefixesByStat(stat, type, prefixList) {
     }
   }
   if (debug) console.log("Total after ByStat search " + Object.keys(prefixList).length);
-
 }
 
 ////////////////Recipe Lookup related functions
 function loadMakeableItems(itemsToFetch, startIndex, offset, bypass) {
   //this is the same goddamn code as data load.
-
-  console.log("fetching " + Math.ceil(startIndex / offset) + " of " + total);
+  ////HALF
+  if (Math.ceil((total - 1) / 2) === Math.ceil(startIndex / offset)) {
+    if (globalMessage) {
+      bot.reply(globalMessage, "Half done loading the ingredient list from recipies.");
+    }
+    console.log("HALF loading recipe items");
+  }
+  if (bypass) console.log("fetching " + Math.ceil(startIndex / offset) + " of " + total);
   if (retry > 3) {
     console.log("too many retries");
     return;
@@ -609,6 +657,7 @@ function loadMakeableItems(itemsToFetch, startIndex, offset, bypass) {
       ids: listToString(subList, true)
     }, bypass);
   } else {
+    ////DONE
     if (globalMessage) {
       bot.reply(globalMessage, "Ingredient list from recipies loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients.");
     }
@@ -619,10 +668,18 @@ function loadMakeableItems(itemsToFetch, startIndex, offset, bypass) {
 }
 
 function assembleRecipeAttachment(itemToDisplay) {
+  var ingredients;
+  //standard recipie
   var foundRecipe = findInData('output_item_id', itemToDisplay.id, 'recipes');
-  if (!foundRecipe) return [];
-  var initalIngred = foundRecipe.ingredients;
-  var ingredients = getBaseIngredients(initalIngred);
+  if (foundRecipe) {
+    ingredients = getBaseIngredients(foundRecipe.ingredients);
+  } else { //mystic forge. Do Not Recurse.
+    var forgeRecipe = findInData('output_item_id', itemToDisplay.id, 'forged');
+    if (forgeRecipe)
+      ingredients = forgeRecipe.ingredients;
+  }
+  //Recipie not found.
+  if (!ingredients) return [];
   var gwPasteString = '';
   var gwLength = 0;
   var attachments = [];
@@ -639,13 +696,9 @@ function assembleRecipeAttachment(itemToDisplay) {
 
     var attachment = {
       color: '#000000',
-      thumb_url: foundRecipe.icon,
+      thumb_url: itemToDisplay.icon,
       fields: [],
-      "fallback": itemToDisplay.name + " has " + ingredients.length + " items.",
-      // "title": itemToDisplay.name + " (level " + itemToDisplay.level + ")",
-      // "author_name": itemToDisplay.name + " on the wiki",
-      // "author_link": "http://wiki.guildwars2.com/wiki/" + itemToDisplay.name.replace(/\s/g, "_"),
-      // "author_icon": "https://render.guildwars2.com/file/25B230711176AB5728E86F5FC5F0BFAE48B32F6E/97461.png",
+      "fallback": itemToDisplay.name + " has " + ingredients.length + " items."
     };
     for (var i in ingredients) {
       item = findInData('id', ingredients[i].item_id, 'items');
@@ -653,7 +706,7 @@ function assembleRecipeAttachment(itemToDisplay) {
         gwLength += (" " + ingredients[i].count + "x[" + item.name + "]").length;
         gwPasteStringMaxInt(" " + ingredients[i].count + "x" + item.chat_link);
         attachment.fields.push({
-          title: ingredients[i].count + " " + item.name,
+          title: ingredients[i].count + " " + item.name + (item.level ? " (level " + item.level + ")" : ""),
           short: false
         });
       } else {
@@ -708,10 +761,15 @@ function findCraftableItemByName(searchName) {
   var cleanSearch = removePunctuationAndToLower(searchName);
   for (var i in gw2nodelib.data.items) {
     cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name);
-    if (cleanItemName.includes(cleanSearch))
-      if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes'))
+    if (cleanItemName.includes(cleanSearch)) {
+      if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes')) {
         itemsFound.push(gw2nodelib.data.items[i]);
-      else if (debug) console.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
+      } else if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'forged')) {
+        var forgedItem = gw2nodelib.data.items[i];
+        forgedItem.forged = true;
+        itemsFound.push(forgedItem);
+      } else if (debug) console.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
+    }
   }
   return itemsFound;
 }
@@ -730,7 +788,6 @@ function getBaseIngredients(ingredients) {
     //not in list, add to the end.
     existingList.push(ingredientToAdd);
   };
-
   //ingredient format is {"item_id":19721,"count":1}
   var baseIngredients = []; //ingredients to send back, unmakeable atoms
   var extraIngredients = []; //extra items left over after producing (usually a refinement)
@@ -796,97 +853,142 @@ function getBaseIngredients(ingredients) {
   }
   return baseIngredients; //return our list of non-makeable ingredients
 }
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
 if (debug) { //play area
 
+  var postpost = function() {
+    var itemSearchList = findCraftableItemByName('satchel of clerics nob');
+    console.log('Found ' + itemSearchList.length);
+    for (var n in itemSearchList)
+      console.log(itemSearchList[n].name);
+    if (itemSearchList.length === 0) {
+      return;
+    }
+    var itemToDisplay = itemSearchList[3];
+    var ingredients;
+    var foundRecipe = findInData('output_item_id', itemToDisplay.id, 'recipes');
+    if (foundRecipe) {
+      ingredients = getBaseIngredients(foundRecipe.ingredients);
+    } else { //mystic forge. Do Not Recurse.
+      var forgeRecipe = findInData('output_item_id', itemToDisplay.id, 'forged');
+      if (forgeRecipe)
+        ingredients = forgeRecipe.ingredients;
+    }
+    //Recipie not found.
 
-  // var postpost = function() {
-  //   var itemSearchList = findCraftableItemByName('clerics nob');
-  //   console.log('Found ' + itemSearchList.length);
-  //   for (var n in itemSearchList)
-  //     console.log(itemSearchList[n].name);
-  //   if (itemSearchList.length === 0) {
-  //     return;
-  //   }
-  //   var foundRecipe = findInData('output_item_id', itemSearchList[0].id, 'recipes');
-  //   var initalIngred = foundRecipe.ingredients;
-  //   var ingredients = getBaseIngredients(initalIngred);
-  //   setTimeout(function() {
+    // setTimeout(function() {
 
-  //     console.log("\nFinal List: ");
-  //     for (var i in ingredients) {
-  //       //      console.log(i+": "+JSON.stringify(ingredients[i]));
-  //       var item = findInData('id', ingredients[i].item_id, 'items');
-  //       if (item)
-  //         console.log(ingredients[i].count + " " + item.name);
-  //       else
-  //         console.log('Unknown Item of id: ' + ingredients[i].item_id + '(' + ingredients[i].count + ')');
-  //     }
-  //   }, 10000);
-  // };
+    console.log("\nFinal List: ");
+    for (var i in ingredients) {
+      //      console.log(i+": "+JSON.stringify(ingredients[i]));
+      var item = findInData('id', ingredients[i].item_id, 'items');
+      if (item)
+        console.log(ingredients[i].count + " " + item.name);
+      else
+        console.log('Unknown Item of id: ' + ingredients[i].item_id + '(' + ingredients[i].count + ')');
+    }
+    // }, 10000);
+  };
 
-  // var start;
-  // gw2nodelib.half = function(apiKey) {
-  //   var end = new Date().getTime();
-  //   var time = end - start;
+  var start;
+  gw2nodelib.half = function(apiKey) {
+    var end = new Date().getTime();
+    var time = end - start;
 
-  //   console.log("HALF " + apiKey + ": " + time + "ms");
-  // };
-  // var numDone = 0;
-  // gw2nodelib.done = function(apiKey) {
-  //   var end = new Date().getTime();
-  //   var time = end - start;
-  //   console.log("DONE " + apiKey + ": " + time + "ms");
-  //   console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies");
-  //   //Go through recipies, and get the item id of all output items and recipie ingredients.
-  //   var itemsCompile = [];
-  //   for (var t in gw2nodelib.data.recipes) {
-  //     itemsCompile[gw2nodelib.data.recipes[t].output_item_id] = 1;
-  //     for (var i in gw2nodelib.data.recipes[t].ingredients) {
-  //       itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
-  //     }
-  //   }
-  //   console.log("we need to fetch " + Object.keys(itemsCompile).length + " recipie items");
-  //   // console.log(JSON.stringify(itemsCompile));
+    console.log("HALF " + apiKey + ": " + time + "ms");
+  };
+  var numDone = 0;
+  gw2nodelib.done = function(apiKey) {
+    var end = new Date().getTime();
+    var time = end - start;
+    console.log("DONE " + apiKey + ": " + time + "ms");
+    console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies");
+    gw2nodelib.forgeRequest(function(forgeList) {
+      console.log("forgeitems: " + forgeList.length);
+      // console.log("forgeitems: " + JSON.stringify(forgeList));
+      // return;
 
-  //   var offset = 200; //number to fetch at once
-  //   var startIndex = 0;
-  //   var retry = 0;
-  //   var len = Object.keys(itemsCompile).length;
-  //   var total = Math.ceil(len / offset);
-  //   //this is the same goddamn code as data load.
-  //   var loadMakeableItems = function(itemsToFetch, startIndex, offset) {
-  //     console.log("fetching " + Math.ceil(startIndex / offset) + " of " + total);
-  //     if (retry > 3) {
-  //       console.log("too many retries");
-  //       return;
-  //     }
-  //     if (startIndex < len) {
-  //       var subList = itemsToFetch.slice(startIndex, startIndex + offset);
-  //       gw2nodelib.items(function(jsonList) {
-  //         if (jsonList.text || jsonList.error) {
-  //           console.log("retrying after error:" + (jsonList.text ? jsonList.text : jsonList.error));
-  //           retry++;
-  //           loadMakeableItems(itemsToFetch, startIndex, offset);
-  //         } else {
-  //           gw2nodelib.data.items = gw2nodelib.data.items.concat(jsonList); //append fetch results to data.items
-  //           retry = 0;
-  //           startIndex += offset;
-  //           loadMakeableItems(itemsToFetch, startIndex, offset);
-  //         }
-  //       }, {
-  //         ids: listToString(subList, true)
-  //       }, false);
-  //     } else {
-  //       console.log("done. data has " + Object.keys(gw2nodelib.data.items).length + " items");
-  //       postpost();
-  //     }
-  //   };
+      var num = 0;
+      var filteredForgeList = forgeList.filter(function(value, index, array) {
+        if (value.output_item_id < 1) {
+          num++;
+          return false;
+        }
+        for (var j in value.ingredients) {
+          if (value.ingredients[j].item_id < 1) {
+            num++;
+            return false;
+          }
+        }
+        return true;
+      });
+      console.log(num + " invalid forge items");
+      console.log("forgeitems: " + filteredForgeList.length);
+      gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
+      console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies and" + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
+      //Go through recipies, and get the item id of all output items and recipie ingredients.
+      var itemsCompile = [];
+      for (var t in gw2nodelib.data.recipes) {
+        itemsCompile[gw2nodelib.data.recipes[t].output_item_id] = 1;
+        //        if(gw2nodelib.data.recipes[t].output_item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+        for (var i in gw2nodelib.data.recipes[t].ingredients) {
+          itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
+          //      if(gw2nodelib.data.recipes[t].ingredients[i].item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+        }
+      }
+      for (var f in gw2nodelib.data.forged) {
+        itemsCompile[gw2nodelib.data.forged[f].output_item_id] = 1;
+        //        if(gw2nodelib.data.forged[f].output_item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+        for (var g in gw2nodelib.data.forged[f].ingredients) {
+          itemsCompile[gw2nodelib.data.forged[f].ingredients[g].item_id] = 1;
+          //      if(gw2nodelib.data.forged[f].ingredients[g].item_id < 1) console.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+        }
+      }
+      console.log("we need to fetch " + Object.keys(itemsCompile).length + " recipie and forged items");
 
+      // console.log(JSON.stringify(itemsCompile));
 
-  //   //this is the same goddamn code as data load.
-  //   loadMakeableItems(Object.keys(itemsCompile), startIndex, offset);
-  // };
-  // start = new Date().getTime();
-  // gw2nodelib.load("recipes", {}, false);
+      var offset = 200; //number to fetch at once
+      var startIndex = 0;
+      var retry = 0;
+      var len = Object.keys(itemsCompile).length;
+      var total = Math.ceil(len / offset);
+      //this is the same goddamn code as data load.
+      var loadMakeableItems = function(itemsToFetch, startIndex, offset) {
+        console.log("fetching " + Math.ceil(startIndex / offset) + " of " + total);
+        if (retry > 3) {
+          console.log("too many retries");
+          return;
+        }
+        if (startIndex < len) {
+          var subList = itemsToFetch.slice(startIndex, startIndex + offset);
+          gw2nodelib.items(function(jsonList) {
+            if (jsonList.text || jsonList.error) {
+              console.log("retrying after error:" + (jsonList.text ? jsonList.text : jsonList.error));
+              retry++;
+              loadMakeableItems(itemsToFetch, startIndex, offset);
+            } else {
+              gw2nodelib.data.items = gw2nodelib.data.items.concat(jsonList); //append fetch results to data.items
+              retry = 0;
+              startIndex += offset;
+              loadMakeableItems(itemsToFetch, startIndex, offset);
+            }
+          }, {
+            ids: listToString(subList, true)
+          }, false);
+        } else {
+          console.log("done. data has " + Object.keys(gw2nodelib.data.items).length + " items");
+          postpost();
+        }
+      };
+      //this is the same goddamn code as data load.
+      loadMakeableItems(Object.keys(itemsCompile), startIndex, offset);
+    });
+  };
+  start = new Date().getTime();
+  gw2nodelib.load("recipes", {}, false);
 
 }
