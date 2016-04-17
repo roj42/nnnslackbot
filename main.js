@@ -6,7 +6,7 @@ var toggle = true;
 Botkit = require('botkit');
 os = require('os');
 fs = require('fs');
-gw2nodelib = require('gw2nodelib');
+gw2nodelib = require('./api.js');
 fileLoad = gw2nodelib.loadCacheFromFile('cache.json');
 gw2nodelib.data.forged = [];
 
