@@ -25,7 +25,7 @@ var config = {
 		// build: 'build.json',
 		// colors: 'colors.json',
 	},
-	dao: {
+	dao: { //roj42 - define useful parts of each return JSOn item
 		items: ["name", "id", "description", "level", "chat_link", "icon"],
 		recipes: ["output_item_id", "output_item_count", "id", "ingredients", "chat_link"]
 	},
@@ -39,6 +39,7 @@ for (var apiKey in config.api) {
 	};
 }
 
+//roj42 - we're storing cache in memory, so strip out unused items
 var daoLoad = function(apiKey, rawJsonItem) {
 	var daoAppliedItem = {};
 	for (var i in config.dao[apiKey]) {
@@ -114,7 +115,6 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 		else console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey);
 
 		request(url, function(error, response, body) {
-			// if (1) {
 			//we're okay with
 			//200 - success 
 			//404 - no info returned, there will be a json object with 'text' we'll handle later
@@ -125,11 +125,10 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 				callback({
 					'error': msg
 				});
-				return;
+				return; //roj42 - A thrown exception strangles the bot upstream
 				// throw new Gw2ApiLibException(msg);
 			}
 			if (response.statusCode == 206) console.log("Received a 206 error, not all ids fetched.");
-			//console.log("Response: "+JSON.stringify(response.headers['x-page-total']));
 			var headerSet = {
 				options: options,
 				pageSize: response.headers['x-page-size'],
@@ -155,16 +154,16 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 module.exports = function() {
 	var ret = {
 		// Returns true if successfully set, false if bad arguments (i.e. file doesn't exist)
-		// RL: Will always error with new/empty file. Now loads iff file exists already, and sets if files exists
-		loadCacheFromFile: function(file) {
-			if (typeof file === 'undefined' || file === false) {
+		// roj42 - Now loads if file exists already, and just sets if files exists
+		loadCacheFromFile: function(fileSuffix) {
+			if (typeof fileSuffix === 'undefined' || fileSuffix === false) {
 				config.cacheFile = null;
 			} else {
-				if (typeof file !== 'string') {
+				if (typeof fileSuffix !== 'string') {
 					return false;
 				}
 				fs = require('fs');
-				config.cacheFile = file;
+				config.cacheFile = fileSuffix;
 
 				for (var apiKey in config.api) {
 					if (fs.existsSync(apiKey + config.cacheFile) && (fs.statSync(apiKey + config.cacheFile).size > 0)) {
@@ -235,6 +234,7 @@ module.exports = function() {
 			return true;
 		};
 	};
+	//roj42 - grab non-API forge recipeis from the kind people at gw2profits
 	var forgeOptions = {
 		method: 'GET',
 		url: 'http://www.gw2profits.com/json/forge?include=name',
@@ -243,7 +243,6 @@ module.exports = function() {
 			'cache-control': 'no-cache'
 		}
 	};
-
 	ret.forgeRequest = function(callback) {
 		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || (new Date()) > cache.get('recipes', 'forgeRecipes').updateAt) {
 
@@ -255,9 +254,9 @@ module.exports = function() {
 				});
 				callback(cache.get('recipes', 'forgeRecipes').json);
 			});
-		}
-		else callback(cache.get('recipes', 'forgeRecipes').json);
+		} else callback(cache.get('recipes', 'forgeRecipes').json);
 	};
+	//roj42 - methods to load ALL of a specific endpoint
 	ret.daoLoad = daoLoad;
 	ret.data = [];
 	for (var apiKey in config.api) {
@@ -288,22 +287,23 @@ module.exports = function() {
 		var total = 0; //hold total page size
 		var half_length = 0; //variable to identify half of max pages
 		var retry = 0;
-		var outerCallback = function(jsonList, headers) { //single fetch to get max pages
-			if (jsonList.error) {
+		var outerCallback = function(jsonList, headers) { //single fetch at a time up, iterate on self
+			if (jsonList.error) {//hopefully this is a network hiccup, try again
 				if (retry++ > 3) { //we're going to retry, do not increment page, increment retry
 					ret.error(jsonList.error);
 					return;
 				} else if (config.debug) {
 					console.log("Retrying: " + retry);
 				}
-			} else {
+			} else { //fetched a page. Load it into data
 				if (apiKey in config.dao) {
 					for (var item in jsonList) {
-						ret.data[apiKey] = ret.data[apiKey].concat(daoLoad(apiKey, jsonList[item]));
 						if (config.debug && fetchParams.page === 0 && item == '0') console.log("sample dao:\n" + JSON.stringify(jsonList[item]) + "\nbecomes\n" + JSON.stringify(daoLoad(apiKey, jsonList[item])));
+						ret.data[apiKey] = ret.data[apiKey].concat(daoLoad(apiKey, jsonList[item]));
 					}
-				}
-				ret.data[apiKey] = ret.data[apiKey].concat(jsonList); //append fetch results to data.apiKey
+				} else {
+					ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
+				} //append fetch results to data.apiKey
 				if (fetchParams.page === 0) {
 					total = headers.pageTotal - 1; //variable of max pages for looping
 					half_length = Math.ceil((headers.pageTotal - 1) / 2);
@@ -315,14 +315,13 @@ module.exports = function() {
 			if (fetchParams.page == half_length && retry === 0) { //call half callback at half
 				ret.half(apiKey);
 			}
-			if (fetchParams.page == total && retry === 0) { //call done callback when done successfully
+			if (fetchParams.page > total && retry === 0) { //call done callback when done successfully
 				ret.done(apiKey);
 			} else {
 				ret[apiKey](outerCallback, fetchParams, bypass);
 			}
 
 		};
-		//Call the ball
 		ret[apiKey](outerCallback, fetchParams, bypass);
 	};
 	return ret;

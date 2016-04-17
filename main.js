@@ -3,20 +3,17 @@
 var debug = false;
 var dataLoaded = false;
 var toggle = true;
-Botkit = require('botkit');
-os = require('os');
-fs = require('fs');
-gw2nodelib = require('./api.js');
-fileLoad = gw2nodelib.loadCacheFromFile('cache.json');
+var Botkit = require('botkit');
+var os = require('os');
+var fs = require('fs');
+var gw2nodelib = require('./api.js');
+gw2nodelib.loadCacheFromFile('cache.json');
 gw2nodelib.data.forged = [];
 
-prefixData = loadStaticDataFromFile('prefix.json');
-helpFile = loadStaticDataFromFile('help.json');
-sass = loadStaticDataFromFile('sass.json');
-lastSass = [];
-recipeById = [];
-recipeByMade = [];
-itemsById = [];
+var prefixData = loadStaticDataFromFile('prefix.json');
+var helpFile = loadStaticDataFromFile('help.json');
+var sass = loadStaticDataFromFile('sass.json');
+var lastSass = [];
 
 controller = Botkit.slackbot({
   debug: debug,
@@ -82,7 +79,7 @@ if (!debug) { //"real" code
       if (debug) console.log(num + " invalid forge items");
       if (debug) console.log("forgeitems: " + filteredForgeList.length);
       gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
-      console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies and" + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
+      console.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipies and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
       //Go through recipies, and get the item id of all output items and recipie ingredients.
       var itemsCompile = [];
       for (var t in gw2nodelib.data.recipes) {
@@ -648,7 +645,6 @@ function loadMakeableItems(itemsToFetch, startIndex, offset, bypass) {
           gw2nodelib.data.items = gw2nodelib.data.items.concat(gw2nodelib.daoLoad('items', jsonList[item]));
           if (debug && startIndex === 0 && item == '0') console.log("sample dao:\n" + JSON.stringify(jsonList[item]) + "\nbecomes\n" + JSON.stringify(gw2nodelib.daoLoad('items', jsonList[item])));
         }
-        //        gw2nodelib.data.items = gw2nodelib.data.items.concat(jsonList); //append fetch results to data.items
         retry = 0;
         startIndex += offset;
         loadMakeableItems(itemsToFetch, startIndex, offset, bypass);
