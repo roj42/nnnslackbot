@@ -1,0 +1,32 @@
+{
+  "name": "nnnslackbot",
+  "version": "1.0.0",
+  "description": "A slackbot for NNN. Provides an interface for guild wars 2 recipes, prefix nomenclature, and sass",
+  "main": "main.js",
+  "dependencies": {
+    "botkit": "^0.1.1",
+    "fs": "0.0.2",
+    "os": "^0.1.1",
+    "querystring": "^0.2.0",
+    "request": "^2.72.0",
+    "slackbot": "0.0.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/roj42/nnnslackbot.git"
+  },
+  "keywords": [
+    "neuralnexus",
+    "lessdremoth"
+  ],
+  "author": "Roger Lampe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/roj42/nnnslackbot/issues"
+  },
+  "homepage": "https://github.com/roj42/nnnslackbot#readme"
+}
