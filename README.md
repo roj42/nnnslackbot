@@ -1,4 +1,4 @@
-# nnnslackbot - A slackbot for the neuralnexus slack team called 'lessdremoth'.
+# nnnslackbot - A slackbot for the neuralnexus slack team
 
 [![npm](https://img.shields.io/npm/v/nnnslackbot.svg)](https://www.npmjs.com/package/nnnslackbot)
 [![npm](https://img.shields.io/npm/l/nnnslackbot.svg)](https://spdx.org/licenses/MIT)
@@ -14,8 +14,7 @@ bash
 npm install --save nnnslackbot
 ```
 
-You can also check out Botkit directly from Git.
-If you want to use the example code and included bots, it may be preferable to use Github over NPM.
+You can also check out nnnslackbot directly from Git.
 
 ```bash
 git clone git@github.com/roj42/nnnslackbot.git
@@ -23,7 +22,7 @@ git clone git@github.com/roj42/nnnslackbot.git
 
 ## Usage
 
-Expects a slackbot token as an environment variable called 'token'.
+Expects a slackbot token as an environment variable called 'token'. In the example below, our token bot is called 'lessdremoth'.
 The bot will automatically connect and be invited into channels.
 
 Has several functions that tie into the Guild Wars API
