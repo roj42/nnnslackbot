@@ -5,6 +5,8 @@ var config = {
 	cacheTime: 604800,
 	cacheFile: null,
 	debug: false,
+	dataLoadRetry: 3,
+	dataLoadPageSize: 200,
 	api: {
 		quaggans: 'quaggans',
 		build: 'build',
@@ -25,7 +27,7 @@ var config = {
 		// build: 'build.json',
 		// colors: 'colors.json',
 	},
-	dao: { //roj42 - define useful parts of each return JSOn item
+	dao: { //roj42 - define useful parts of each return JSON item
 		items: ["name", "id", "description", "level", "chat_link", "icon"],
 		recipes: ["output_item_id", "output_item_count", "id", "ingredients", "chat_link"]
 	},
@@ -48,6 +50,19 @@ var daoLoad = function(apiKey, rawJsonItem) {
 	}
 	return daoAppliedItem;
 };
+
+var listToString = function(jsonList, skipSpace) {
+	//  if (debug) console.log("jsonList: " + JSON.stringify(jsonList));
+	var outstring = "",
+		len = Object.keys(jsonList).length;
+	for (var i = 0; i < len; i++) {
+		outstring += jsonList[i];
+		if (i !== len - 1) outstring += ",";
+		if (!skipSpace) outstring += " ";
+	}
+	return outstring;
+};
+
 
 // Set up the cache to work with or without a file; defaults to without
 var fs = null;
@@ -125,11 +140,11 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 				callback({
 					'error': msg
 				});
-				return; //roj42 - A thrown exception strangles the bot upstream
+				return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
 				// throw new Gw2ApiLibException(msg);
 			}
 			if (response.statusCode == 206) console.log("Received a 206 error, not all ids fetched.");
-			var headerSet = {
+			var headerSet = { //add header data for auto loading, if it came back
 				options: options,
 				pageSize: response.headers['x-page-size'],
 				pageTotal: response.headers['x-page-total'],
@@ -234,7 +249,7 @@ module.exports = function() {
 			return true;
 		};
 	};
-	//roj42 - grab non-API forge recipeis from the kind people at gw2profits
+	//roj42 - grab non-API forge recipes from the kind people at gw2profits
 	var forgeOptions = {
 		method: 'GET',
 		url: 'http://www.gw2profits.com/json/forge?include=name',
@@ -247,7 +262,7 @@ module.exports = function() {
 		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || (new Date()) > cache.get('recipes', 'forgeRecipes').updateAt) {
 
 			request(forgeOptions, function(error, response, body) {
-				if (error) throw new Error(error);
+				if (error) return new Error(error);
 				cache.set('recipes', 'forgeRecipes', {
 					json: JSON.parse(body),
 					updateAt: (new Date()).setSeconds((new Date()).getSeconds() + config.api[apiKey].cacheTime),
@@ -259,38 +274,38 @@ module.exports = function() {
 	//roj42 - methods to load ALL of a specific endpoint
 	ret.daoLoad = daoLoad;
 	ret.data = [];
+	ret.data.forged = [];
+
 	for (var apiKey in config.api) {
 		// Returns true if successful, false if bad arguments
 		ret[apiKey] = entryPointFunction(apiKey);
 		ret.data[apiKey] = [];
 	}
-	//Loader helper functions; load pages of max page size for bulk download.
-	ret.half = function(apiKey) {
-		console.log("HALF " + apiKey);
-	};
-	ret.done = function(apiKey) {
-		console.log("DONE " + apiKey);
-	};
-	ret.error = function(msg) {
-		console.log("Error: " + msg);
-	};
-	ret.load = function(apiKey, fetchParams, bypass) {
-		// fill data.apiKey with all possible data
-		var num = 0; //track number of returned asynch calls
+	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
+	ret.load = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
 		if (!ret[apiKey]) {
-			_error("no apiKey for " + apiKey);
+			if (errorCallback) errorCallback("no apiKey for " + apiKey);
+			else console.log("no apiKey for " + apiKey);
 			return;
 		} //check apiKey
-		// fetch params for inital call. Max page size is 200
-		fetchParams.page = 0;
-		fetchParams.page_size = 200;
 		var total = 0; //hold total page size
 		var half_length = 0; //variable to identify half of max pages
-		var retry = 0;
-		var outerCallback = function(jsonList, headers) { //single fetch at a time up, iterate on self
-			if (jsonList.error) {//hopefully this is a network hiccup, try again
-				if (retry++ > 3) { //we're going to retry, do not increment page, increment retry
-					ret.error(jsonList.error);
+		var retry = config.dataLoadRetry; //hold number of retries.
+		// fetch params for inital call. Max page size is 200
+		fetchParams.page = 0;
+		fetchParams.page_size = config.dataLoadPageSize;
+		var saveList = [];
+		if (fetchParams.ids) { //Fetching a subset
+			saveList = fetchParams.ids.slice(0);
+			fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
+			// fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
+		}
+		var loopCallback = function(jsonList, headers) { //single fetch at a time up, iterate on self
+			if (jsonList.text || jsonList.error) { //hopefully this is a network hiccup, try again
+				console.log("error: " + JSON.stringify(jsonList));
+				if (retry-- <= 0) { //we're going to retry, do not increment page, increment retry
+					if (errorCallback) errorCallback("too many retries fetching " + apiKey + ": " + JSON.stringify(jsonList));
+					console.log("too many retries " + JSON.stringify(jsonList));
 					return;
 				} else if (config.debug) {
 					console.log("Retrying: " + retry);
@@ -305,24 +320,49 @@ module.exports = function() {
 					ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
 				} //append fetch results to data.apiKey
 				if (fetchParams.page === 0) {
-					total = headers.pageTotal - 1; //variable of max pages for looping
-					half_length = Math.ceil((headers.pageTotal - 1) / 2);
+					if (fetchParams.ids) { //up by page chunk
+						var len = Object.keys(saveList).length;
+						total = Math.ceil(len / fetchParams.page_size) - 1;
+						half_length = Math.ceil(total / 2);
+					} else { // up by single pages
+						total = headers.pageTotal - 1;
+						half_length = Math.ceil(total / 2);
+					}
 					console.log("half is " + half_length + ". Total is " + total);
 				}
-				retry = 0;
-				fetchParams.page++; // track progress
+				retry = config.dataLoadRetry;
+				// track progress
+				if (fetchParams.ids) {
+					fetchParams.page += fetchParams.page_size;
+					fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
+					if (!fetchParams.ids) { //cover the hopefully-impossible case that the slice left this empty. Make sure by-ids path is still triggered
+						fetchParams.ids = '0';
+					}
+				} else {
+					fetchParams.page++;
+				}
 			}
-			if (fetchParams.page == half_length && retry === 0) { //call half callback at half
-				ret.half(apiKey);
-			}
-			if (fetchParams.page > total && retry === 0) { //call done callback when done successfully
-				ret.done(apiKey);
+			var progress;
+			if (fetchParams.ids) {
+				progress = fetchParams.page / fetchParams.page_size;
 			} else {
-				ret[apiKey](outerCallback, fetchParams, bypass);
+				progress = fetchParams.page;
+			}
+			if (config.debug) console.log('Progress: ' + progress);
+
+			if (progress == half_length && retry == config.dataLoadRetry) { //call half callback at half
+				if (halfCallback)
+					halfCallback(apiKey);
+			}
+			if (progress > total && retry == config.dataLoadRetry) { //call done callback when done successfully
+				if (doneCallback)
+					doneCallback(apiKey);
+			} else {
+				ret[apiKey](loopCallback, fetchParams, bypass, halfCallback, doneCallback, errorCallback);
 			}
 
 		};
-		ret[apiKey](outerCallback, fetchParams, bypass);
+		ret[apiKey](loopCallback, fetchParams, bypass, halfCallback, doneCallback, errorCallback);
 	};
 	return ret;
 }();
