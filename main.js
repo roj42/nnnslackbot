@@ -1,6 +1,6 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
-var debug = false; //for debug messages, and skips standard botkit code
+var debug = false; //for debug messages, passe to api and botkit
 var dataLoaded = false; //To signal the bot that the async data load is finished.
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
 
@@ -8,10 +8,10 @@ var Botkit = require('botkit');
 var os = require('os');
 var fs = require('fs');
 var gw2nodelib = require('./api.js');
-gw2nodelib.loadCacheFromFile('cache.json'); //note that this file naem is a suffix. Creates itemscache.json, recipecache,json, and so on
+gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
 var prefixData = loadStaticDataFromFile('prefix.json');
-var helpFile = loadStaticDataFromFile('help.json');
+var helpFile = [];
 var sass = loadStaticDataFromFile('sass.json');
 var lastSass = [];
 
@@ -33,62 +33,6 @@ var bot = controller.spawn({
     throw new Error('Could not connect to Slack');
   }
 });
-
-//Variables and callbacks used for loading data
-var globalMessage;
-
-var halfCallback = function(apiKey) {
-  var end = new Date().getTime();
-  var time = end - start;
-  if (globalMessage) {
-    bot.reply(globalMessage, "Half done loading the list of " + apiKey + ".");
-  }
-  bot.botkit.log("HALF " + apiKey + ": " + time + "ms");
-};
-var errorCallback = function(msg) {
-  if (globalMessage) {
-    bot.reply(globalMessage, "Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.');
-  }
-  bot.botkit.log("error loading: " + msg);
-  dataLoaded = false;
-};
-var doneCallback = function(apiKey) {
-  var end = new Date().getTime();
-  var time = end - start;
-  if (globalMessage) {
-    bot.reply(globalMessage, "Finished loading the list of recipes. Starting on items.");
-  } else bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
-  gw2nodelib.forgeRequest(function(forgeList) {
-    if (debug) bot.botkit.log("unfiltered forgeitems: " + forgeList.length);
-    var filteredForgeList = forgeList.filter(removeInvalidIngredients);
-    if (debug) bot.botkit.log((forgeList.length - filteredForgeList.length) + " invalid forge items");
-    if (debug) bot.botkit.log("forgeitems: " + filteredForgeList.length);
-    gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
-    bot.botkit.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
-    //Go through recipes, and get the item id of all output items and recipe ingredients.
-    var itemsCompile = compileIngredientIds();
-    if (globalMessage) {
-      bot.reply(globalMessage, "I need to fetch item data for " + Object.keys(itemsCompile).length + " ingredients.");
-    }
-    bot.botkit.log("Fetching " + Object.keys(itemsCompile).length + " ingredient items");
-
-    var doneInner = function(apiKey) {
-      if (globalMessage) {
-        bot.reply(globalMessage, "Ingredient list from recipes loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients for " + Object.keys(gw2nodelib.data.recipes).length + " recipes/" + Object.keys(gw2nodelib.data.forged).length + " forge recipes.");
-      }
-      var end = new Date().getTime();
-      var time = end - start;
-      bot.botkit.log("Item list from recipes loaded. Data has " + Object.keys(gw2nodelib.data.items).length + " items: " + time + "ms");
-      dataLoaded = true;
-      globalMessage = null;
-    };
-    gw2nodelib.load("items", {
-      ids: Object.keys(itemsCompile)
-    }, (globalMessage ? true : false), halfCallback, doneInner, errorCallback);
-  });
-};
-var start = new Date().getTime();
-gw2nodelib.load("recipes", {}, false, halfCallback, doneCallback, errorCallback);
 
 ////HELP
 controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -118,6 +62,7 @@ controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bo
 
 
 ////////////////recipe lookup. I apologize.
+helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
 controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
   //function to assemble an attahcment and call bot reply. Used when finally responding with a recipe
   var replyWithRecipeFor = function(itemToMake) {
@@ -218,13 +163,16 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
 
 
 /////QUAGGANS
+helpFile.quaggans = "fetch a list of all fetchable quaggan pictures. See help quaggan.";
+helpFile.quaggan = "Takes an argument. Lessdremoth pastes a url to a picture of that quaggan for slack to fetch. Also see help quaggans. Example: 'quaggan box'";
+
 controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention', function(bot, message) {
   gw2nodelib.quaggans(function(jsonList) {
     if (jsonList.text || jsonList.error) {
       bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
     } else {
       bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
-      bot.reply(message, "Tell lessdremoth quaggan <quaggan name> to preview!");
+      bot.reply(message, "Tell Lessdremoth quaggan <quaggan name> to preview!");
       bot.reply(message, listToString(jsonList));
     }
   });
@@ -232,7 +180,7 @@ controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,men
 
 controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
   var matches = message.text.match(/quaggans? (.*)/i);
-  if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell lessdremoth \'quaggans\' for a list.");
+  if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
   var name = removePunctuationAndToLower(matches[1]);
   gw2nodelib.quaggans(function(jsonItem) {
     if (jsonItem.text || jsonItem.error) {
@@ -246,6 +194,7 @@ controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_menti
 });
 
 /////ACCESS TOKEN
+helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Direct Message 'access token help' for more information.";
 controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
   bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
 });
@@ -281,6 +230,7 @@ controller.hears(['access token (.*)'], 'direct_message', function(bot, message)
 });
 
 /////CHARACTERS
+helpFile.characters = "Display a report of characters on your account, and their career deaths.";
 controller.hears(['characters'], 'direct_message,direct_mention,mention', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (!user || !user.access_token) {
@@ -330,13 +280,17 @@ controller.hears(['characters'], 'direct_message,direct_mention,mention', functi
 });
 
 /////PREFIX
+helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker 12 all' 'prefix pow gem' 'prefix pow 2 asc'";
+helpFile.suffix = "Alias for prefix. ";
+
 controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-  var matches = message.text.match(/(prefix|suffix) ([a-zA-Z]*)\s?([a-zA-Z]*)?/i);
-  var name = matches[2];
-  var type = matches[3];
+  var matches = message.text.match(/(prefix|suffix) (\w+)\s?(\d{1,2})?\s?([a-zA-Z]*)$/i);
+  var name = matches[2].trim();
+  var level = matches[3];
+  var type = (matches[4] ? matches[4].trim() : "");
   name = removePunctuationAndToLower(name);
-  type = scrubType(type);
-  var prefixes = prefixSearch(name, type);
+  type = scrubType(removePunctuationAndToLower(type));
+  var prefixes = prefixSearch(name, type, level);
   if (!prefixes || (Object.keys(prefixes).length) < 1)
     bot.reply(message, 'No match for \'' + name + '\' of type \'' + type + '\'. Misspell? Or maybe search all.');
   else {
@@ -351,20 +305,23 @@ controller.hears(['^toggle'], 'direct_message,direct_mention,mention', function(
   bot.reply(message, "So toggled.");
 });
 
+helpFile.hello = "Lessdremoth will say hi back.";
+helpFile.hi = "Lessdremoth will say hi back.";
 controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
   if (message.user && message.user == 'U0T3J3J9W') {
     bot.reply(message, 'Farrrrt Pizza');
     addReaction(message, 'pizza');
-    addReaction(message, 'dash');
+    setTimeout(function() {
+      addReaction(message, 'dash');
+    }, 500);
   } else {
     bot.reply(message, 'Hello.');
     addReaction(message, 'robot_face');
   }
 });
 
+helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-
-
   bot.startConversation(message, function(err, convo) {
 
     convo.ask('Are you sure you want me to shutdown?', [{
@@ -387,7 +344,8 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
   });
 });
 
-
+helpFile.uptime = "Lessdremoth will display some basic uptime information.";
+helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
 controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,mention', function(bot, message) {
 
   var hostname = os.hostname();
@@ -410,8 +368,67 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 
 prefixData.Nuprin = {
   "type": "standard",
+  "minlevel": 0,
+  "maxlevel": 20,
   "stats": ["Little", "Yellow", "Different"]
 };
+
+//Variables and callbacks used for loading data
+var globalMessage;
+
+var halfCallback = function(apiKey) {
+  var end = new Date().getTime();
+  var time = end - start;
+  if (globalMessage) {
+    bot.reply(globalMessage, "Half done loading the list of " + apiKey + ".");
+  }
+  bot.botkit.log("HALF " + apiKey + ": " + time + "ms");
+};
+var errorCallback = function(msg) {
+  if (globalMessage) {
+    bot.reply(globalMessage, "Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.');
+  }
+  bot.botkit.log("error loading: " + msg);
+  dataLoaded = false;
+};
+var doneCallback = function(apiKey) {
+  var end = new Date().getTime();
+  var time = end - start;
+  if (globalMessage) {
+    bot.reply(globalMessage, "Finished loading the list of recipes. Starting on items.");
+  } else bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
+  gw2nodelib.forgeRequest(function(forgeList) {
+    if (debug) bot.botkit.log("unfiltered forgeitems: " + forgeList.length);
+    var filteredForgeList = forgeList.filter(removeInvalidIngredients);
+    if (debug) bot.botkit.log((forgeList.length - filteredForgeList.length) + " invalid forge items");
+    if (debug) bot.botkit.log("forgeitems: " + filteredForgeList.length);
+    gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
+    bot.botkit.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
+    //Go through recipes, and get the item id of all output items and recipe ingredients.
+    var itemsCompile = compileIngredientIds();
+    if (globalMessage) {
+      bot.reply(globalMessage, "I need to fetch item data for " + Object.keys(itemsCompile).length + " ingredients.");
+    }
+    bot.botkit.log("Fetching " + Object.keys(itemsCompile).length + " ingredient items");
+
+    var doneInner = function(apiKey) {
+      if (globalMessage) {
+        bot.reply(globalMessage, "Ingredient list from recipes loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients for " + Object.keys(gw2nodelib.data.recipes).length + " recipes/" + Object.keys(gw2nodelib.data.forged).length + " forge recipes.");
+      }
+      var end = new Date().getTime();
+      var time = end - start;
+      bot.botkit.log("Item list from recipes loaded. Data has " + Object.keys(gw2nodelib.data.items).length + " items: " + time + "ms");
+      dataLoaded = true;
+      globalMessage = null;
+    };
+    gw2nodelib.load("items", {
+      ids: Object.keys(itemsCompile)
+    }, (globalMessage ? true : false), halfCallback, doneInner, errorCallback);
+  });
+};
+var start = new Date().getTime();
+gw2nodelib.load("recipes", {}, false, halfCallback, doneCallback, errorCallback);
+
 
 
 ///Helper functions
@@ -464,6 +481,7 @@ function addReaction(message, emoji) {
     name: emoji,
   }, function(err, res) {
     if (err) {
+      bot.reply(message, "I'm having trouble adding reactions.");
       bot.botkit.log('Failed to add emoji reaction :(', err);
     }
   });
@@ -513,20 +531,21 @@ function scrubType(type) {
 }
 
 //Search the prfix data for searchTerm and type type
-function prefixSearch(searchTerm, type) {
+function prefixSearch(searchTerm, type, level) {
   var prefixList = {};
   type = scrubType(type);
   if (debug) bot.botkit.log("searching " + searchTerm + " of type " + type);
   findPrefixByName(searchTerm, type, prefixList);
   findPrefixesByStat(searchTerm, type, prefixList);
+  filterPrefixesByLevel(prefixList, (level ? level : 80));
   return prefixList;
 }
 
 //Search given prefix data for matching name
 function findPrefixByName(name, type, prefixList) {
   for (var key in prefixData) {
-    //skip keywords
-    if (prefixData.hasOwnProperty(key) && key.indexOf(name) > -1 && (type == 'all' || prefixData[key].type == type)) {
+    var compare = removePunctuationAndToLower(key);
+    if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1 && (type == 'all' || prefixData[key].type == type)) {
       if (debug) bot.botkit.log("added key from name " + key);
       prefixList[key] = prefixData[key];
     }
@@ -537,21 +556,26 @@ function findPrefixByName(name, type, prefixList) {
 //Search given prefix data for matching stat
 function findPrefixesByStat(stat, type, prefixList) {
   for (var key in prefixData) {
-    //skip keywords
-    if (prefixData.hasOwnProperty(key)) {
-      if (type == 'all' || prefixData[key].type == type) {
-        for (var subKey in prefixData[key].stats) {
-          if (debug) bot.botkit.log("subkey " + prefixData[key].stats[subKey]);
-          if (prefixData[key].stats[subKey].indexOf(stat) > -1) {
-            if (debug) bot.botkit.log("added key from stat " + key);
-            prefixList[key] = prefixData[key];
-            break;
-          }
+    if (prefixData.hasOwnProperty(key) && (type == 'all' || prefixData[key].type == type)) {
+      for (var subKey in prefixData[key].stats) {
+        var compare = removePunctuationAndToLower(prefixData[key].stats[subKey]);
+        if (debug) bot.botkit.log("subkey " + prefixData[key].stats[subKey]);
+        if (compare.indexOf(stat) === 0) {
+          if (debug) bot.botkit.log("added key from stat " + key);
+          prefixList[key] = prefixData[key];
+          break;
         }
       }
     }
   }
   if (debug) bot.botkit.log("Total after ByStat search " + Object.keys(prefixList).length);
+}
+
+function filterPrefixesByLevel(prefixList, level) {
+  for (var i in prefixList) {
+    if (prefixList[i].minlevel > level || prefixList[i].maxlevel < level)
+      delete prefixList[i];
+  }
 }
 
 ////////////////Recipe Lookup related functions
