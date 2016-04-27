@@ -1,6 +1,6 @@
 {
   "name": "nnnslackbot",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A slackbot for NNN. Provides an interface for guild wars 2 recipes, prefix nomenclature, and sass",
   "main": "main.js",
   "dependencies": {
