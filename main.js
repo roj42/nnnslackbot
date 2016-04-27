@@ -86,7 +86,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', funct
   var matches = message.text.match(/craft (.*)/i);
   if (!dataLoaded) { //still loading
     bot.reply(message, "I'm still loading data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-  } else if (!matches || !matches[0]) { //weird input issue
+  } else if (!matches || !matches[0]) { //weird input? Should be impossible to get here.
     bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
   } else { //search for recipes that produce items with names that contain the search string
     var searchTerm = matches[1];
@@ -120,14 +120,16 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', funct
           //number, no, or repeat
           pattern: new RegExp(/^(\d{1,2})/i),
           callback: function(response, convo) {
+            //if it's a number, and that number is within our search results, print it
             var matches = response.text.match(/^(\d{1,2})/i);
             var selection = matches[0];
             if (selection < itemSearchResults.length) {
               replyWithRecipeFor(itemSearchResults[selection]);
-            } else convo.repeat();
+            } else convo.repeat(); //invalid number. repeat choices.
             convo.next();
           }
         }, {
+          //negative response. Stop repeating the list.
           pattern: bot.utterances.no,
           callback: function(response, convo) {
             convo.say('\'Kay.');
@@ -136,8 +138,8 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', funct
         }, {
           default: true,
           callback: function(response, convo) {
-            // just repeat the question
-            convo.repeat();
+            // loop back, user needs to pick or say no.
+            convo.say("Choose a number of the recipe you'd like to see, or say 'No' and I'll shut up");
             convo.next();
           }
         }]);
@@ -279,22 +281,26 @@ controller.hears(['characters'], 'direct_message,direct_mention,mention', functi
   });
 });
 
-/////PREFIX
-helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker 12 all' 'prefix pow gem' 'prefix pow 2 asc'";
+///PREFIX
+helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
 helpFile.suffix = "Alias for prefix. ";
 
 controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
-  var matches = message.text.match(/(prefix|suffix) (\w+)\s?(\d{1,2})?\s?([a-zA-Z]*)$/i);
-  var name = matches[2].trim();
-  var level = matches[3];
-  var type = (matches[4] ? matches[4].trim() : "");
-  name = removePunctuationAndToLower(name);
-  type = scrubType(removePunctuationAndToLower(type));
-  var prefixes = prefixSearch(name, type, level);
-  if (!prefixes || (Object.keys(prefixes).length) < 1)
-    bot.reply(message, 'No match for \'' + name + '\' of type \'' + type + '\'. Misspell? Or maybe search all.');
-  else {
-    bot.reply(message, printPrefixes(prefixes));
+  var matches = message.text.match(/(prefix|suffix) (['\w]+)\s?(\d{1,2})?\s?(\w*)$/i);
+  if (!matches) {
+    bot.reply(message, 'No match. Ask me "help prefix" for formatting help.');
+  } else {
+    var name = (matches[2] ? matches[2].trim() : "");
+    var level = matches[3] || null;
+    var type = (matches[4] ? matches[4].trim() : "");
+    name = removePunctuationAndToLower(name);
+    type = scrubType(removePunctuationAndToLower(type));
+    var prefixes = prefixSearch(name, type, level);
+    if (!prefixes || (Object.keys(prefixes).length) < 1)
+      bot.reply(message, 'No' + (level ? ' level ' + level : '') + ' match for \'' + name + '\' of type \'' + type + '\'. Misspell? Or maybe search all.');
+    else {
+      bot.reply(message, printPrefixes(prefixes));
+    }
   }
 });
 
@@ -358,12 +364,22 @@ controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,menti
 
 /////Easter Eggs
 controller.hears(['my love for you is like a truck', 'my love for you is like a rock', 'my love for you is ticking clock'], 'direct_message,ambient', function(bot, message) {
-  var name = 'berserker';
-  var prefixes = prefixSearch(name);
+  var prefixes = prefixSearch('berserker');
   // if (prefixes)
-  for (var key in prefixes) {
-    bot.reply(message, key + ": " + listToString(prefixes[key]));
-  }
+  bot.reply(message, printPrefixes(prefixes));
+});
+
+controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(bot, message) {
+  var catFacts = ["Cats are delicious.",
+    "It takes over 400 stationary cats to completely stop an average truck going 30 mph.",
+    "Your cats don't love you.",
+    "Kittens: A renewable fuel.",
+    "A cät ønce bit my sister... No realli!",
+    "Did you know: If all the cats on the planet were to suddenly dissappear, that would be great."
+  ];
+  var replyCat = catFacts[Math.floor(Math.random() * catFacts.length)];
+  replyCat += '\n:cat: :cat: :eyebulge:';
+  bot.reply(message, replyCat);
 });
 
 prefixData.Nuprin = {
@@ -534,18 +550,18 @@ function scrubType(type) {
 function prefixSearch(searchTerm, type, level) {
   var prefixList = {};
   type = scrubType(type);
-  if (debug) bot.botkit.log("searching " + searchTerm + " of type " + type);
-  findPrefixByName(searchTerm, type, prefixList);
+  if (debug) bot.botkit.log("searching " + searchTerm + " of type " + type + " and level " + level);
   findPrefixesByStat(searchTerm, type, prefixList);
   filterPrefixesByLevel(prefixList, (level ? level : 80));
+  findPrefixByName(searchTerm, prefixList);
   return prefixList;
 }
 
 //Search given prefix data for matching name
-function findPrefixByName(name, type, prefixList) {
+function findPrefixByName(name, prefixList) {
   for (var key in prefixData) {
     var compare = removePunctuationAndToLower(key);
-    if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1 && (type == 'all' || prefixData[key].type == type)) {
+    if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1) { // && (type == 'all' || prefixData[key].type == type)) {
       if (debug) bot.botkit.log("added key from name " + key);
       prefixList[key] = prefixData[key];
     }
@@ -573,7 +589,7 @@ function findPrefixesByStat(stat, type, prefixList) {
 
 function filterPrefixesByLevel(prefixList, level) {
   for (var i in prefixList) {
-    if (prefixList[i].minlevel > level || prefixList[i].maxlevel < level)
+    if (level < prefixList[i].minlevel || level > prefixList[i].maxlevel)
       delete prefixList[i];
   }
 }
