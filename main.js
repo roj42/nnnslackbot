@@ -14,6 +14,7 @@ var prefixData = loadStaticDataFromFile('prefix.json');
 var helpFile = [];
 var sass = loadStaticDataFromFile('sass.json');
 var lastSass = [];
+var lastCat = [];
 
 controller = Botkit.slackbot({
   debug: debug,
@@ -72,8 +73,12 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', funct
     if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
       amountString = foundRecipe.output_item_count;
     }
+    var descripFlavorized;
+    if(itemToMake.description){
+      descripFlavorized = itemToMake.description.replace(/(<.?c(?:=@flavor)?>)/g, "_");
+    }
     bot.reply(message, {
-      'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (itemToMake.description ? "\n" + itemToMake.description : ""),
+      'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (descripFlavorized ? "\n" + descripFlavorized : ""),
       attachments: attachments,
       // 'icon_url': itemToMake.icon,
       // "username": "RecipeBot",
@@ -375,10 +380,23 @@ controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(
     "Your cats don't love you.",
     "Kittens: A renewable fuel.",
     "A cät ønce bit my sister... No realli!",
-    "Did you know: If all the cats on the planet were to suddenly dissappear, that would be great."
+    "Did you know: If all the cats on the planet were to suddenly dissappear, that would be great.",
+    "The Egyptians worshipped cats, and look what happened to them.",
+    "If a cat had a chance he'd eat you and everyone you care about.",
+    "Toxoplasmosis is a brain parasite cats carry that makes you walk into traffic. Did YOUR cat talk to you about toxoplasmosis before joining your household?",
+    "Cats evolved in the desert. They need no water to live and will instead drink your blood.",
+    "'Mu' is an east asian term meaning nothing, not, nothingness, un-, is not, has not, not any. Cats can only say this, reflecting their role as agents of undoing.",
   ];
   var replyCat = catFacts[Math.floor(Math.random() * catFacts.length)];
-  replyCat += '\n:cat: :cat: :eyebulge:';
+  while (lastCat.indexOf(replyCat) > -1) {
+    if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
+    replyCat = catFacts[Math.floor(Math.random() * catFacts.length)];
+  }
+  lastCat.push(replyCat);
+  if (lastCat.length > 3) lastCat.shift();
+
+  var emotes = ["eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu"];
+  replyCat += '\n:cat: :cat: :' + emotes[Math.floor(Math.random() * emotes.length)] + ':';
   bot.reply(message, replyCat);
 });
 
