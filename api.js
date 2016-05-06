@@ -11,25 +11,19 @@ var config = {
 		quaggans: 'quaggans',
 		build: 'build',
 		characters: 'characters',
-		// events: 'events.json',
-		// eventNames: 'event_names.json',
-		// mapNames: 'map_names.json',
-		// worldNames: 'world_names.json',
-		// wvwMatches: 'wvw/matches.json',
-		// wvwMatchDetails: 'wvw/match_details.json',
-		// wvwObjectiveNames: 'wvw/objective_names.json',
+		achievements: 'achievements',
+		achievementsCategories: 'achievements/categories',
+		accountAchievements: 'account/achievements',
 		items: 'items',
-		// itemDetails: 'item_details.json',
 		recipes: 'recipes',
-		// recipeSearch: 'recipes/search'
-		// recipeDetails: 'recipe_details.json',
-		// guildDetails: 'guild_details.json',
-		// build: 'build.json',
-		// colors: 'colors.json',
+		account: 'account',
+		tokeninfo: 'tokeninfo'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
 		items: ["name", "id", "description", "level", "chat_link", "icon"],
-		recipes: ["output_item_id", "output_item_count", "id", "ingredients", "chat_link"]
+		recipes: ["output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
+		achievements: ["id", "name", "description", "requirement", "icon", "bits","tiers"],
+		achievementsCategories: ["id", "name", "icon", "achievements"]
 	},
 };
 
@@ -295,7 +289,7 @@ module.exports = function() {
 		fetchParams.page = 0;
 		fetchParams.page_size = config.dataLoadPageSize;
 		var saveList = [];
-		if (fetchParams.ids) { //Fetching a subset
+		if (fetchParams.ids && fetchParams.ids != 'all') { //Fetching a subset, unless 'all', which indicates paging
 			saveList = fetchParams.ids.slice(0);
 			fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
 			// fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
@@ -320,22 +314,26 @@ module.exports = function() {
 					ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
 				} //append fetch results to data.apiKey
 				if (fetchParams.page === 0) {
-					if (fetchParams.ids) { //up by page chunk
+					//up by page chunk
+					if (fetchParams.ids && fetchParams.ids != 'all') {
 						var len = Object.keys(saveList).length;
 						total = Math.ceil(len / fetchParams.page_size) - 1;
 						half_length = Math.ceil(total / 2);
-					} else { // up by single pages
+
+					} // up by single pages 
+					else {
+						if (!headers.pageTotal) headers.pageTotal = 0;
 						total = headers.pageTotal - 1;
 						half_length = Math.ceil(total / 2);
 					}
-					console.log("half is " + half_length + ". Total is " + total);
+					console.log(apiKey + " half is " + half_length + ". Total is " + total);
 				}
 				retry = config.dataLoadRetry;
 				// track progress
-				if (fetchParams.ids) {
+				if (fetchParams.ids && fetchParams.ids != 'all') {
 					fetchParams.page += fetchParams.page_size;
 					fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
-					if (!fetchParams.ids) { //cover the hopefully-impossible case that the slice left this empty. Make sure by-ids path is still triggered
+					if (!fetchParams.ids && fetchParams.ids != 'all') { //cover the hopefully-impossible case that the slice left this empty. Make sure by-ids path is still triggered
 						fetchParams.ids = '0';
 					}
 				} else {
@@ -343,7 +341,7 @@ module.exports = function() {
 				}
 			}
 			var progress;
-			if (fetchParams.ids) {
+			if (fetchParams.ids && fetchParams.ids != 'all') {
 				progress = fetchParams.page / fetchParams.page_size;
 			} else {
 				progress = fetchParams.page;
@@ -358,11 +356,11 @@ module.exports = function() {
 				if (doneCallback)
 					doneCallback(apiKey);
 			} else {
-				ret[apiKey](loopCallback, fetchParams, bypass, halfCallback, doneCallback, errorCallback);
+				ret[apiKey](loopCallback, fetchParams, bypass);
 			}
 
 		};
-		ret[apiKey](loopCallback, fetchParams, bypass, halfCallback, doneCallback, errorCallback);
+		ret[apiKey](loopCallback, fetchParams, bypass);
 	};
 	return ret;
 }();
