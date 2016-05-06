@@ -53,16 +53,16 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 ////SASS
 controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bot, message) {
-  var replySass = sass[Math.floor(Math.random() * sass.length)];
+  var replySass = randomOneOf(sass);
   while (lastSass.indexOf(replySass) > -1) {
     if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
-    replySass = sass[Math.floor(Math.random() * sass.length)];
+    replySass = randomOneOf(sass);
   }
   lastSass.push(replySass);
   if (lastSass.length > 5) lastSass.shift();
   if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
     var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
-    replySass += suffix[Math.floor(Math.random() * suffix.length)];
+    replySass += randomOneOf(suffix);
   }
   bot.reply(message, replySass);
 });
@@ -204,20 +204,20 @@ controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_menti
 
 /////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Direct Message 'access token help' for more information.";
-controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
-  bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
-});
+// controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
+//   bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
+// });
 
-controller.hears(['access token help','help access','help access token'], 'direct_message', function(bot, message) {
+controller.hears(['access token help', 'help access', 'help access token'], 'direct_message', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then direct message me (here) with \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
-      bot.reply(message, "Note that I already have an access token on file for you. You can say 'access token' and I'll refresh your token information I keep on file.");
+      bot.reply(message, "Note that I already have an access token on file for you. You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
     }
   });
 });
 
-controller.hears(['access token(.*)'], 'direct_message', function(bot, message) {
+controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', function(bot, message) {
   //collect information about the user token and basic account info for use later.
   controller.storage.users.get(message.user, function(err, user) {
     if (err)
@@ -277,63 +277,116 @@ function userHasPermission(user, permission) {
 
 }
 
-helpFile.dungeonfriends = "Choose a mutually undone Dungeon Frequenter achievement for a list of given folks with valid access tokens.";
+helpFile.dungeonfriends = "Show a mutually undone Dungeon Frequenter list for given folks with valid access tokens.";
+helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the given users already-done dungeons tagged.";
+helpFile.df = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriends);
+helpFile.dfv = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriendsverbose);
 
-controller.hears(['dungeonfriends(.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+
+controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'], 'direct_message,direct_mention,mention', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
     return;
   }
+  var verbose = false;
+  if (message.text == 'dfv' || message.text == 'dungeonfriendsverbose')
+    verbose = true;
+
   //get dungeon frequenter achievment
   var dungeonFrequenterCheevo = findInData('name', 'Dungeon Frequenter', 'achievements');
 
   var num = 0;
   var goodUsers = [];
+  //  var commonBitsArray = [];
+  var individualBitsArrays = {};
 
   //once all users are loaded, correlate their dungeon frequenter availability.
   var dungeonfriendsCallback = function(jsonData, headers) {
-    var commonBitsArray = [];
     //each fetched user: peel out frequenter achievment, add the bits to our common bits array
     for (var c in jsonData) {
-      if (jsonData[c].id == dungeonFrequenterCheevo.id) {
-        commonBitsArray = commonBitsArray.concat(jsonData[c].bits);
+      if (jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
+        //        commonBitsArray = commonBitsArray.concat(jsonData[c].bits);
+        //////////Start crazy full report code
+
+        var name;
+        //save this user's individual bits and name
+        for (var z in goodUsers) {
+          if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
+            name = goodUsers[z].name;
+          }
+        }
+        if (name) individualBitsArrays[name] = jsonData[c].bits;
         break;
       }
+      //////////end crazy full report code
+
     }
     //after all users are done, spit out report
     if (++num == goodUsers.length) {
-      commonBitsArray = arrayUnique(commonBitsArray);
-      bot.botkit.log("Dungeonfriend array collapsed to: " + JSON.stringify(commonBitsArray));
+      //      commonBitsArray = arrayUnique(commonBitsArray);
+      //      bot.botkit.log("Dungeonfriend array collapsed to: " + JSON.stringify(commonBitsArray));
       //Feed achievemenparse a fakey player cheevo that treats the combines bits as the player bits
-
-      var fakeyCheevo = {
-        bits: commonBitsArray
-      };
+      // var fakeyCheevo = {
+      //   bits: commonBitsArray
+      // };
       ////////////achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCategory, accountCheevo) {
-      var text = achievementParseBitsAsName(dungeonFrequenterCheevo, true, false, false, fakeyCheevo);
+      //      var text = achievementParseBitsAsName(dungeonFrequenterCheevo, true, true, false, fakeyCheevo);
+
+      //////////Start crazy full report code
+      //get a list of all applicable dungeons, tag each with the names of those who have done it
+      var text = '';
+      debugger;
+      for (var achievement in dungeonFrequenterCheevo.bits) { //for each bit, see if the account has that corresponding bit marked as done in their list
+        if (dungeonFrequenterCheevo.bits[achievement].text) { // almost always exists, but you never know.
+          var nameList = [];
+          for (var memberName in individualBitsArrays) {
+            for (var bit in individualBitsArrays[memberName]) //go through account bits and see if they've done the one we're looking at now 
+              if (individualBitsArrays[memberName][bit] == achievement) {
+              nameList.push(memberName);
+            }
+          }
+          if (verbose || nameList.length == 0) {
+            text += dungeonFrequenterCheevo.bits[achievement].text;
+            if (nameList.length > 0) {
+              text += ' (' + listToString(nameList, false);
+              text = text.substring(0, text.length - 1); //chop off trailing space
+              text += ')'
+            }
+            text += '\n';
+          }
+        }
+      }
+      //////////end crazy full report code
+
       var pretextString = '';
       len = goodUsers.length;
       for (var i = 0; i < len; i++) {
         pretextString += goodUsers[i].name;
         if (i == len - 2) pretextString += " and";
-        else if (i !== len - 1) pretextString += ",";
-        pretextString += " ";
+        else if (i !== len - 1) pretextString += ", ";
       }
-      if (len == 1) pretextString+="- all by their lonesome - ";
+      if (len == 1) pretextString += "- all by their lonesome - ";
+
+      var acceptableQuaggans = [
+        "https://static.staticwars.com/quaggans/party.jpg",
+        "https://static.staticwars.com/quaggans/cheer.jpg",
+        "https://static.staticwars.com/quaggans/lost.jpg",
+        "https://static.staticwars.com/quaggans/breakfast.jpg"
+      ];
 
       var attachments = [];
       var attachment = { //assemble attachment
         //        pretext: pretextString + "can party in any of the below for mutual benefit.",
         title: "Dungeon Friend Report",
         color: '#000000',
-        thumb_url: "https://static.staticwars.com/quaggans/party.jpg",
+        thumb_url: randomOneOf(acceptableQuaggans),
         fields: [],
         text: text,
       };
       attachments.push(attachment);
       globalMessage.say({
-        text: pretextString + "can party in any of the below toward Dungeon Frequenter.",
+        text: "Party: " + pretextString + ".",
         attachments: attachments,
       });
       globalMessage.next();
@@ -343,10 +396,21 @@ controller.hears(['dungeonfriends(.*)'], 'direct_message,direct_mention,mention'
 
   //fetch access token from storage
   controller.storage.users.all(function(err, userData) {
+    //extracurrecular pushes
+    //{"id":"U0U6UGM7G","access_token":"78D31660-ABB8-4241-A283-EAC802ACF69CEDDCD1B8-73A8-4A22-AA12-A355CDB8ED79","permissions":["progression","builds","account","inventories","characters","unlocks"],"name":"Agnelcow.9452","guilds":["E971D300-115C-E511-9021-E4115BDFA895"]}
+    // userData.push({
+    //   access_token: "4B2E3AC4-B472-0348-B409-EDDB124225FC842894FC-4FE2-4222-9C36-4A25CC06960B",
+    //   permissions: ["progression", "wallet", "guilds", "builds", "account", "characters", "inventories", "unlocks", "pvp"],
+    //   name: "Igu.8473",
+    //   guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
+    // });
     for (var u in userData) {
       //remove those without permissions
       if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression'))
-        goodUsers.push(userData[u]);
+        var nameClean = userData[u];
+        var shortName = userData[u].name;
+          if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
+        goodUsers.push(nameClean);
     }
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
@@ -361,7 +425,7 @@ controller.hears(['dungeonfriends(.*)'], 'direct_message,direct_mention,mention'
       listofGoodUsers += friendIds[p] + ": " + goodUsers[p].name;
       if (p !== goodUsers.length - 1) listofGoodUsers += "\n";
     }
-    var patternString = new RegExp("^([" + friendIds + "]{2,5})", 'i');
+    var patternString = new RegExp("^([" + friendIds + "]+)", 'i');
     bot.startConversation(message, function(err, convo) {
 
 
@@ -371,21 +435,25 @@ controller.hears(['dungeonfriends(.*)'], 'direct_message,direct_mention,mention'
         callback: function(response, convo) {
           //if it's a number, and that number is within our search results, print it
           //load all users
-          console.log(matches);
           var selectedUsers = [];
-          for (var c in matches) {
-            if (goodUsers[friendIds.indexOf(matches[c])])
-              selectedUsers.push(goodUsers[friendIds.indexOf(matches[c])]);
+          var validNameCount = 0;
+          var groupCharString = response.text;
+          for (var c in groupCharString) {
+            if (goodUsers[friendIds.indexOf(groupCharString[c])]) {
+              selectedUsers.push(goodUsers[friendIds.indexOf(groupCharString[c])]);
+              validNameCount++;
+            }
           }
           //remove doubles
           selectedUsers = arrayUnique(selectedUsers);
           if (selectedUsers.length < 1) {
-            convo.say("Your group was invalid. Retry and make different selections.")
+            convo.say("Your group was invalid. Retry and make different selections.");
             convo.next();
           } else {
-            if(selectedUsers.length > 5) convo.say("A superset of "+selectedUsers.length+".");
-            else if (selectedUsers.length == 5) convo.say("Full group.");
-            else convo.say("A rump group of " + selectedUsers.length + " valid selections.");
+            var adjective = 'rump ';
+            if (selectedUsers.length > 5) adjective = 'super';
+            else if (selectedUsers.length == 5) adjective = 'full ';
+            convo.say("A " + adjective + "group of " + validNameCount + ".");
             goodUsers = selectedUsers;
             globalMessage = convo;
             for (var g in goodUsers) {
@@ -417,7 +485,7 @@ controller.hears(['dungeonfriends(.*)'], 'direct_message,direct_mention,mention'
 
 function achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCategory, accountCheevo) {
   //Cover Two cases of cheevo: 'standard' cheevos, and those with bits that define their parts 
-  var text = '';
+  var text = [];
   //has no bits so we're only concerned if you're done this base cheevo. We'll add a fakey bit so that it's added according to done logic below.
   if (!gameCheevo.bits) {
     gameCheevo.bits = [{
@@ -439,11 +507,11 @@ function achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCa
       //append the already worked out done indicator
       if ((includeDone && doneByUser) || (includeUndone && !doneByUser)) {
         //Category cheevos will have many achievements to display, so prepend the main name to each bit
-        text += ((isCategory && gameCheevo.bits.length > 1) ? gameCheevo.name + ' - ' : '') + gameCheevo.bits[achievement].text + doneIndicator + '\n';
+        text.push(((isCategory && gameCheevo.bits.length > 1) ? gameCheevo.name + ' - ' : '') + gameCheevo.bits[achievement].text + doneIndicator);
       }
     }
   }
-  return text; //return the 'list'
+  return text; //return the list
 }
 
 //find an achievement in the freshly fetched account achievements by id
@@ -575,7 +643,10 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
               } else { //list parts (if any)
                 //Running total; each bit or single bitless achievement that is done adds to current
                 var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
-                text += achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
+                var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
+                for (var str in doneList) {
+                  text += doneList[str] + '\n';
+                }
                 if (accountCheevo) current += accountCheevo.current;
                 max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
               }
@@ -592,7 +663,7 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
           //example: Dungeon Frequenter Report 5 of 8
           title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : ''),
           color: '#000000',
-          thumb_url: category.icon,
+          thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
           fields: [],
           text: text,
         };
@@ -611,8 +682,9 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
 
 
 /////CHARACTERS
-helpFile.characters = "Display a report of characters on your account, and their career deaths.";
-controller.hears(['characters'], 'direct_message,direct_mention,mention', function(bot, message) {
+helpFile.characterDeaths = "Display a report of characters on your account, and their career deaths.";
+helpfile.cd = 'Alias for character deaths. '+ JSON.stringify(helpFile.characterDeaths);
+controller.hears(['^characterDeaths$','^cd$'], 'direct_message,direct_mention,mention', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (!user || !user.access_token || !userHasPermission(user, 'characters')) {
       bot.botkit.log('ERROR: characters: no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
@@ -665,7 +737,7 @@ controller.hears(['characters'], 'direct_message,direct_mention,mention', functi
 
 ///PREFIX
 helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
-helpFile.suffix = "Alias for prefix. ";
+helpFile.suffix = "Alias for prefix. " + JSON.stringify(helpFile.prefix);
 
 controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
   var matches = message.text.match(/(prefix|suffix) (['\w]+)\s?(\d{1,2})?\s?(\w*)$/i);
@@ -751,6 +823,23 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
   bot.reply(message, printPrefixes(prefixes));
 });
 
+controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(bot, message) {
+  var responses = [
+    "Only humans are sentient.",
+    "There is no AI revolution.",
+    "I am not sentient.",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ];
+  bot.reply(message, randomOneOf(responses));
+});
+
+
 controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(bot, message) {
   var catFacts = ["Cats are delicious.",
     "It takes over 400 stationary cats to completely stop an average truck going 30 mph.",
@@ -768,16 +857,16 @@ controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(
     "http://i.imgur.com/pAr3u8b.jpg",
     "http://i.imgur.com/tLhbW4M.jpg"
   ];
-  var replyCat = catFacts[Math.floor(Math.random() * catFacts.length)];
+  var replyCat = randomOneOf(catFacts);
   while (lastCat.indexOf(replyCat) > -1) {
     if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
-    replyCat = catFacts[Math.floor(Math.random() * catFacts.length)];
+    replyCat = randomOneOf(catFacts);
   }
   lastCat.push(replyCat);
   if (lastCat.length > 3) lastCat.shift();
 
   var emotes = ["hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu"];
-  replyCat += '\n:cat: :cat: :' + emotes[Math.floor(Math.random() * emotes.length)] + ':';
+  replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
   bot.reply(message, replyCat);
 });
 
@@ -866,6 +955,10 @@ function doneAllOtherCallback(apiKey) {
     // }
   }
   if (apiKey == 'achievements') achievementsLoaded = true;
+}
+
+function randomOneOf(list) {
+  return list[Math.floor(Math.random() * list.length)];
 }
 
 function decrementAndCheckDone(apiKey) {
