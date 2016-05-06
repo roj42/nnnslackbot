@@ -408,9 +408,9 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
       //remove those without permissions
       if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression'))
         var nameClean = userData[u];
-        var shortName = userData[u].name;
-          if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
-        goodUsers.push(nameClean);
+      var shortName = userData[u].name;
+      if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
+      goodUsers.push(nameClean);
     }
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
@@ -683,8 +683,8 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
 
 /////CHARACTERS
 helpFile.characterDeaths = "Display a report of characters on your account, and their career deaths.";
-helpfile.cd = 'Alias for character deaths. '+ JSON.stringify(helpFile.characterDeaths);
-controller.hears(['^characterDeaths$','^cd$'], 'direct_message,direct_mention,mention', function(bot, message) {
+helpFile.cd = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
+controller.hears(['^characterDeaths$', '^cd$'], 'direct_message,direct_mention,mention', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (!user || !user.access_token || !userHasPermission(user, 'characters')) {
       bot.botkit.log('ERROR: characters: no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
@@ -867,7 +867,11 @@ controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(
 
   var emotes = ["hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu"];
   replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
-  bot.reply(message, replyCat);
+  var reply = {
+    icon_url: "http://i2.wp.com/amyshojai.com/wp-content/uploads/2015/05/CatHiss_10708457_original.jpg",
+    text: replyCat
+  };
+  bot.reply(message, reply);
 });
 
 prefixData.Nuprin = {
