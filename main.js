@@ -707,6 +707,7 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
 
 /////CHARACTERS
 helpFile.characterDeaths = "Display a report of characters on your account, and their career deaths.";
+helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
 helpFile.cd = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
 controller.hears(['^characterDeaths$', '^cd$'], 'direct_message,direct_mention,mention', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
