@@ -706,10 +706,9 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
 
 
 /////CHARACTERS
-helpFile.characterDeaths = "Display a report of characters on your account, and their career deaths.";
+helpFile.deaths = "Display a report of characters on your account, and their career deaths.";
 helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
-helpFile.cd = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
-controller.hears(['^characterDeaths$', '^cd$'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,mention', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (!user || !user.access_token || !userHasPermission(user, 'characters')) {
       bot.botkit.log('ERROR: characters: no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
