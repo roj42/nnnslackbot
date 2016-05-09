@@ -247,8 +247,8 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
         user.permissions = tokenInfo.permissions;
         gw2nodelib.account(function(accountInfo) {
           bot.botkit.log(JSON.stringify(accountInfo));
-          if (accountInfo.error) {
-            bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.");
+          if (accountInfo.error || accountInfo.text) {
+            bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
           }
           user.name = accountInfo.name;
           user.guilds = accountInfo.guilds;
@@ -275,6 +275,12 @@ function userHasPermission(user, permission) {
         return true;
   return false;
 
+}
+
+var dungeonFriendsOrder = ["Ascolonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
+
+function dungeonFrendSort(a, b) {
+  return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
 }
 
 helpFile.dungeonfriends = "Show a mutually undone Dungeon Frequenter list for given folks with valid access tokens.";
@@ -306,8 +312,9 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
     //each fetched user: peel out frequenter achievment, add the bits to our common bits array
     for (var c in jsonData) {
       if (jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
+        ////////Common bits array instead
         //        commonBitsArray = commonBitsArray.concat(jsonData[c].bits);
-        //////////Start crazy full report code
+
 
         var name;
         //save this user's individual bits and name
@@ -319,11 +326,11 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
         if (name) individualBitsArrays[name] = jsonData[c].bits;
         break;
       }
-      //////////end crazy full report code
 
     }
     //after all users are done, spit out report
     if (++num == goodUsers.length) {
+      ////////Common bits array instead
       //      commonBitsArray = arrayUnique(commonBitsArray);
       //      bot.botkit.log("Dungeonfriend array collapsed to: " + JSON.stringify(commonBitsArray));
       //Feed achievemenparse a fakey player cheevo that treats the combines bits as the player bits
@@ -332,11 +339,10 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
       // };
       ////////////achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCategory, accountCheevo) {
       //      var text = achievementParseBitsAsName(dungeonFrequenterCheevo, true, true, false, fakeyCheevo);
+      ////////end Common bits array instead
 
-      //////////Start crazy full report code
       //get a list of all applicable dungeons, tag each with the names of those who have done it
-      var text = '';
-      debugger;
+      var textList = [];
       for (var achievement in dungeonFrequenterCheevo.bits) { //for each bit, see if the account has that corresponding bit marked as done in their list
         if (dungeonFrequenterCheevo.bits[achievement].text) { // almost always exists, but you never know.
           var nameList = [];
@@ -346,27 +352,38 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
               nameList.push(memberName);
             }
           }
-          if (verbose || nameList.length == 0) {
-            text += dungeonFrequenterCheevo.bits[achievement].text;
+          if (verbose || nameList.length === 0) {
+            var textMain = dungeonFrequenterCheevo.bits[achievement].text;
+            var textPost = '';
             if (nameList.length > 0) {
-              text += ' (' + listToString(nameList, false);
-              text = text.substring(0, text.length - 1); //chop off trailing space
-              text += ')'
+              textPost += ' (' + listToString(nameList, false);
+              textPost = textPost.substring(0, textPost.length - 1); //chop off trailing space
+              textPost += ')';
             }
-            text += '\n';
+            textPost += '\n';
+            textList.push({
+              text: textMain,
+              textPost: textPost
+            });
           }
         }
       }
-      //////////end crazy full report code
+
+
+      textList.sort(dungeonFrendSort);
+      var text = '';
+
+      for (var s in textList)
+        text += textList[s].text + textList[s].textPost;
 
       var pretextString = '';
       len = goodUsers.length;
       for (var i = 0; i < len; i++) {
         pretextString += goodUsers[i].name;
-        if (i == len - 2) pretextString += " and";
+        if (i == len - 2) pretextString += " and ";
         else if (i !== len - 1) pretextString += ", ";
       }
-      if (len == 1) pretextString += "- all by their lonesome - ";
+      if (len == 1) pretextString += "- all by their lonesome";
 
       var acceptableQuaggans = [
         "https://static.staticwars.com/quaggans/party.jpg",
@@ -397,20 +414,27 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
   //fetch access token from storage
   controller.storage.users.all(function(err, userData) {
     //extracurrecular pushes
-    //{"id":"U0U6UGM7G","access_token":"78D31660-ABB8-4241-A283-EAC802ACF69CEDDCD1B8-73A8-4A22-AA12-A355CDB8ED79","permissions":["progression","builds","account","inventories","characters","unlocks"],"name":"Agnelcow.9452","guilds":["E971D300-115C-E511-9021-E4115BDFA895"]}
     // userData.push({
     //   access_token: "4B2E3AC4-B472-0348-B409-EDDB124225FC842894FC-4FE2-4222-9C36-4A25CC06960B",
     //   permissions: ["progression", "wallet", "guilds", "builds", "account", "characters", "inventories", "unlocks", "pvp"],
     //   name: "Igu.8473",
     //   guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
     // });
+    userData.push({
+      access_token: "AC3E4FD8-5ECA-EE4C-80AB-7BD66255C12545D6A9DE-5A96-4905-87DC-CF1E69D36673",
+      permissions: ["tradingpost", "characters", "pvp", "progression", "wallet", "guilds", "builds", "account", "inventories", "unlocks"],
+      name: "Rufus.5940",
+      guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
+    });
+
     for (var u in userData) {
       //remove those without permissions
-      if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression'))
+      if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression')) {
         var nameClean = userData[u];
-      var shortName = userData[u].name;
-      if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
-      goodUsers.push(nameClean);
+        var shortName = userData[u].name;
+        if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
+        goodUsers.push(nameClean);
+      }
     }
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
@@ -639,7 +663,7 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
               if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
                 current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
                 max += rollupCheevo.max; //add the max to the running total of max
-                text += gameCheevo.name + ' - DONE\n';
+                text += gameCheevo.name + ' - DONE (' + rollupCheevo.max + ')\n';
               } else { //list parts (if any)
                 //Running total; each bit or single bitless achievement that is done adds to current
                 var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
@@ -812,7 +836,12 @@ controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,menti
   var uptime = formatUptime(process.uptime());
 
   bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
-
+  var dataString;
+  for (var type in gw2nodelib.data)
+    if (gw2nodelib.data[type].length > 0)
+      dataString += '\n' + type + ': ' + gw2nodelib.data[type].length;
+  if (dataString)
+    bot.reply(message, "Data:" + dataString);
 });
 
 
@@ -967,6 +996,8 @@ function randomOneOf(list) {
 
 function decrementAndCheckDone(apiKey) {
   if (--numToLoad === 0) {
+    if (globalMessage)
+      bot.reply(globalMessage, "All loading complete.");
     globalMessage = null;
     bot.botkit.log('Finished loading all items after ' + apiKey + '.');
   }
