@@ -191,6 +191,8 @@ controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_menti
   var matches = message.text.match(/quaggans? (.*)/i);
   if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
   var name = removePunctuationAndToLower(matches[1]);
+  if(name == 'hoodieup') name = 'hoodie-up';
+  if(name == 'hoodiedown') name = 'hoodie-down';
   gw2nodelib.quaggans(function(jsonItem) {
     if (jsonItem.text || jsonItem.error) {
       bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
@@ -278,6 +280,40 @@ function userHasPermission(user, permission) {
 }
 
 var dungeonFriendsOrder = ["Ascolonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
+var dungeonNames = {
+  "Ascolonian Catacombs Story": "ACS",
+  "Catacombs Explorable—Hodgins's Path": "AC1 Hodgins",
+  "Catacombs Explorable—Detha's Path": "AC2 Detha",
+  "Catacombs Explorable—Tzark's Path": "AC3 Tzark",
+  "Caudecus's Manor Story": "CMS",
+  "Manor Explorable—Asura Path": "CM1 Asura",
+  "Manor Explorable—Seraph Path": "CM2 Seraph",
+  "Manor Explorable—Butler's Path": "CM3 Butler",
+  "Twilight Arbor Story": "TAS",
+  "Twilight Explorable—Leurent's Path": "TAF Leurent",
+  "Twilight Explorable—Vevina's Path": "TAU Vevina",
+  "Twilight Explorable—Aetherpath": "TAAE Aether",
+  "Sorrow's Embrace Story": "SES",
+  "Sorrow's Explorable—Fergg's Path": "SE1 Fergg",
+  "Sorrow's Explorable—Rasolov's Path": "SE2 Rasolov",
+  "Sorrow's Explorable—Koptev's Path": "SE3 Koptev",
+  "Citadel of Flame Story": "CoFS",
+  "Citadel Explorable—Ferrah's Path": "CoF1 Ferrah",
+  "Citadel Explorable—Magg's Path": "CoF2 Magg",
+  "Citadel Explorable—Rhiannon's Path": "CoF3 Rhiannon",
+  "Honor of the Waves Story": "HotWS",
+  "Honor Explorable—Butcher's Path": "HotW1 Butcher",
+  "Honor Explorable-Plunderer's Path": "HotW2 Plunderer",
+  "Honor Explorable—Zealot's Path": "HotW3 Zealot",
+  "Crucible of Eternity Story": "CoES",
+  "Crucible Explorable—Submarine Path": "CoE1 Submarine",
+  "Crucible Explorable—Teleporter Path": "CoE2 Teleporter",
+  "Crucible Explorable—Front Door Path": "CoE3 Front Door",
+  "Arah Explorable—Jotun Path": "Arah1 Jotun",
+  "Arah Explorable—Mursaat Path": "Arah2 Mursaat",
+  "Arah Explorable—Forgotten Path": "Arah3 Forgotten",
+  "Arah Explorable—Seer Path": "Arah4 Seer"
+};
 
 function dungeonFrendSort(a, b) {
   return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
@@ -330,6 +366,7 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
     }
     //after all users are done, spit out report
     if (++num == goodUsers.length) {
+
       ////////Common bits array instead
       //      commonBitsArray = arrayUnique(commonBitsArray);
       //      bot.botkit.log("Dungeonfriend array collapsed to: " + JSON.stringify(commonBitsArray));
@@ -374,7 +411,10 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
       var text = '';
 
       for (var s in textList)
-        text += textList[s].text + textList[s].textPost;
+        if (verbose)
+          text += dungeonNames[textList[s].text] + textList[s].textPost;
+        else
+          text += textList[s].text + textList[s].textPost;
 
       var pretextString = '';
       len = goodUsers.length;
@@ -392,14 +432,31 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
         "https://static.staticwars.com/quaggans/breakfast.jpg"
       ];
 
+      var fieldsFormatted = [];
+      // if (verbose) {
+        var half = Math.floor(textList.length / 2);
+        for (var s = 0; s < half; s++) {
+          fieldsFormatted.push({
+            "value": dungeonNames[textList[s].text] + textList[s].textPost,
+            "short": true
+          });
+          if ((s + half) <= textList.length)
+            fieldsFormatted.push({
+              "value": dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
+              "short": true
+            });
+          // text += dungeonNames[textList[s].text] + textList[s].textPost;
+        }
+      // }
+
       var attachments = [];
       var attachment = { //assemble attachment
         //        pretext: pretextString + "can party in any of the below for mutual benefit.",
         title: "Dungeon Friend Report",
         color: '#000000',
-        thumb_url: randomOneOf(acceptableQuaggans),
-        fields: [],
-        text: text,
+        thumb_url: randomOneOf(acceptableQuaggans), //(!verbose ? randomOneOf(acceptableQuaggans):null),
+        fields: fieldsFormatted,
+//        text: (!verbose ? text:null),
       };
       attachments.push(attachment);
       globalMessage.say({
@@ -420,14 +477,21 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
     //   name: "Igu.8473",
     //   guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
     // });
-    userData.push({
-      access_token: "AC3E4FD8-5ECA-EE4C-80AB-7BD66255C12545D6A9DE-5A96-4905-87DC-CF1E69D36673",
-      permissions: ["tradingpost", "characters", "pvp", "progression", "wallet", "guilds", "builds", "account", "inventories", "unlocks"],
-      name: "Rufus.5940",
-      guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
-    });
-
+    var tokensByHand = {
+      Rufus: {
+        access_token: "AC3E4FD8-5ECA-EE4C-80AB-7BD66255C12545D6A9DE-5A96-4905-87DC-CF1E69D36673",
+        permissions: ["tradingpost", "characters", "pvp", "progression", "wallet", "guilds", "builds", "account", "inventories", "unlocks"],
+        name: "Rufus",
+        guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
+      }
+    };
     for (var u in userData) {
+      //cover the case of extra users added by hand above eventually adding via normal means. If you see them, don't push.
+      var engName = userData[u].name.substring(0, userData[u].name.indexOf('.'));
+      if (Object.keys(tokensByHand).indexOf(engName) === 0) {
+        tokensByHand[engName] = null;
+        if (debug) bot.botkit.log('kicking ' + engName + ' out of the dungeonfriends by-hands list');
+      }
       //remove those without permissions
       if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression')) {
         var nameClean = userData[u];
@@ -436,6 +500,14 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
         goodUsers.push(nameClean);
       }
     }
+    //Add any unexisting users.
+    for (var tbh in tokensByHand) {
+      if (tokensByHand[tbh]) {
+        goodUsers.push(tokensByHand[tbh]);
+        if (debug) bot.botkit.log('adding ' + tbh + ' to the dungeonfriends list from the tokens-by-hand');
+      }
+    }
+
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
     //Establish the group and leave result in goodUsers
@@ -475,7 +547,7 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
             convo.next();
           } else {
             var adjective = 'rump ';
-            if (selectedUsers.length > 5) adjective = 'super';
+            if (selectedUsers.length > 5) adjective = 'completely invalid super';
             else if (selectedUsers.length == 5) adjective = 'full ';
             convo.say("A " + adjective + "group of " + validNameCount + ".");
             goodUsers = selectedUsers;
