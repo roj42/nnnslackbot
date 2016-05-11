@@ -191,8 +191,8 @@ controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_menti
   var matches = message.text.match(/quaggans? (.*)/i);
   if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
   var name = removePunctuationAndToLower(matches[1]);
-  if(name == 'hoodieup') name = 'hoodie-up';
-  if(name == 'hoodiedown') name = 'hoodie-down';
+  if (name == 'hoodieup') name = 'hoodie-up';
+  if (name == 'hoodiedown') name = 'hoodie-down';
   gw2nodelib.quaggans(function(jsonItem) {
     if (jsonItem.text || jsonItem.error) {
       bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
@@ -205,12 +205,12 @@ controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_menti
 });
 
 /////ACCESS TOKEN
-helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Direct Message 'access token help' for more information.";
+helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
 // controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
 //   bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
 // });
 
-controller.hears(['access token help', 'help access', 'help access token'], 'direct_message', function(bot, message) {
+controller.hears(['access token help', 'help access', 'help access token'], 'direct_message,mention,direct_message', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then direct message me (here) with \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
@@ -222,17 +222,21 @@ controller.hears(['access token help', 'help access', 'help access token'], 'dir
 controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', function(bot, message) {
   //collect information about the user token and basic account info for use later.
   controller.storage.users.get(message.user, function(err, user) {
-    if (err)
+    var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
+    if (message.text.length > 12 && !matches) { // they put SOMETHING in, but it was mangled
+      bot.reply(message, "Incorrect token format. Check the spelling and try again. I Expected something like:\nEIGHTABC-ABCD-1234-A1B2-TWENTYCHARACTERSHERE-7777-6543-BBBB-THERESTWELVE");
+      return;
+    }
+    if (err && err != 'Error: could not load data')//missing file error.
       bot.reply(message, "I got an error while loading your user data: " + err);
-    var matches = message.text.match(/access token (.*)/i);
     if (user && user.access_token) {
       if (!matches || (matches[1] && matches[1] == user.access_token)) { //use existing token
-        bot.reply(message, "Refreshing your token.");
+        bot.reply(message, "Refreshing your existing token.");
       } else {
         bot.reply(message, "Replacing your existing token.");
         user.access_token = matches[1];
       }
-    } else if (!matches || !matches[1]) { //new user, no token given
+    } else if (!matches) { //new user, no token given
       bot.reply(message, "No token on file for you. Say 'access token help' in this channel for instructions.");
       return;
     } else { //new user, new token
@@ -242,13 +246,13 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
       };
     }
     gw2nodelib.tokeninfo(function(tokenInfo) {
-      bot.botkit.log(JSON.stringify(tokenInfo));
-      if (tokenInfo.error) {
-        bot.reply(message, "I got an error looking up your token. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.");
+      bot.botkit.log("access token tokenInfo fetch: " + JSON.stringify(tokenInfo));
+      if (tokenInfo.error || tokenInfo.text) {
+        bot.reply(message, "I got an error looking up your token and did not save it. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.");
       } else {
         user.permissions = tokenInfo.permissions;
         gw2nodelib.account(function(accountInfo) {
-          bot.botkit.log(JSON.stringify(accountInfo));
+          if (debug) bot.botkit.log(JSON.stringify(accountInfo));
           if (accountInfo.error || accountInfo.text) {
             bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
           }
@@ -258,7 +262,7 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
             if (err)
               bot.reply(message, "I got an error while saving: " + err);
             else
-              bot.reply(message, 'Done! Saved for later.');
+              bot.reply(message, 'Done! Saved for later. Your access token provided me with these permissions:\n'+listToString(user.permissions));
           });
         }, {
           access_token: user.access_token
@@ -434,19 +438,19 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
 
       var fieldsFormatted = [];
       // if (verbose) {
-        var half = Math.floor(textList.length / 2);
-        for (var s = 0; s < half; s++) {
+      var half = Math.floor(textList.length / 2);
+      for (var s = 0; s < half; s++) {
+        fieldsFormatted.push({
+          "value": dungeonNames[textList[s].text] + textList[s].textPost,
+          "short": true
+        });
+        if ((s + half) <= textList.length)
           fieldsFormatted.push({
-            "value": dungeonNames[textList[s].text] + textList[s].textPost,
+            "value": dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
             "short": true
           });
-          if ((s + half) <= textList.length)
-            fieldsFormatted.push({
-              "value": dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
-              "short": true
-            });
-          // text += dungeonNames[textList[s].text] + textList[s].textPost;
-        }
+        // text += dungeonNames[textList[s].text] + textList[s].textPost;
+      }
       // }
 
       var attachments = [];
@@ -456,7 +460,7 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
         color: '#000000',
         thumb_url: randomOneOf(acceptableQuaggans), //(!verbose ? randomOneOf(acceptableQuaggans):null),
         fields: fieldsFormatted,
-//        text: (!verbose ? text:null),
+        //        text: (!verbose ? text:null),
       };
       attachments.push(attachment);
       globalMessage.say({
@@ -908,7 +912,7 @@ controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,menti
   var uptime = formatUptime(process.uptime());
 
   bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
-  var dataString;
+  var dataString = '';
   for (var type in gw2nodelib.data)
     if (gw2nodelib.data[type].length > 0)
       dataString += '\n' + type + ': ' + gw2nodelib.data[type].length;
@@ -1087,8 +1091,11 @@ function reloadAllData(bypass) {
 
   start = new Date().getTime();
   numToLoad = 3;
+  if (globalMessage) bot.reply(globalMessage, "Starting to load recipes.");
   gw2nodelib.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
+  if (globalMessage) bot.reply(globalMessage, "Starting to load achievements.");
   gw2nodelib.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+  if (globalMessage) bot.reply(globalMessage, "Starting to load achievementsCategories.");
   gw2nodelib.load("achievementsCategories", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);
