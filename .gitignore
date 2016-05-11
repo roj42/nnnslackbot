@@ -1,3 +1,4 @@
+*.log
 /slackbotDB/
 /*cache.json
 /TODO
