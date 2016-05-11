@@ -211,7 +211,7 @@ helpFile.access = "Set up your guild wars account to allow lessdremoth to read d
 // });
 
 controller.hears(['access token help', 'help access', 'help access token'], 'direct_message,mention,direct_message', function(bot, message) {
-  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then direct message me (here) with \'access token <your token>\'");
+  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
       bot.reply(message, "Note that I already have an access token on file for you. You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
