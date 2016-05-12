@@ -11,7 +11,7 @@ var toggle = true; //global no-real-use toggle. Used at present to compare 'craf
 var Botkit = require('botkit');
 var os = require('os');
 var fs = require('fs');
-var winston = require('winston');
+// var winston = require('winston');
 var gw2nodelib = require('./api.js');
 gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
@@ -24,17 +24,17 @@ var lastCat = [];
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
-  logger: new winston.Logger({
-    transports: [
-      new(winston.transports.Console)({
-        level: 'info'
-      }),
-      new(winston.transports.File)({
-        filename: './bot.log',
-        level: 'warning'
-      })
-    ]
-  })
+  // logger: new winston.Logger({
+  //   transports: [
+  //     new(winston.transports.Console)({
+  //       level: 'info'
+  //     }),
+  //     new(winston.transports.File)({
+  //       filename: './bot.log',
+  //       level: 'warning'
+  //     })
+  //   ]
+  // })
 
 });
 
@@ -51,9 +51,9 @@ var bot = controller.spawn({
     throw new Error('Could not connect to Slack');
   }
 });
-bot.botkit.log.warning("WARN TEST");
-bot.botkit.log.error("ERROR TEST");
-bot.botkit.log("INFO TEST");
+// bot.botkit.log.warning("WARN TEST");
+// bot.botkit.log.error("ERROR TEST");
+// bot.botkit.log("INFO TEST");
 reloadAllData(false);
 
 
