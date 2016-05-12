@@ -273,17 +273,67 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
           if (accountInfo.error || accountInfo.text) {
             bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
           }
-          if (user.name.indexOf('.') > 0) accountInfo.name = user.name.substring(0, user.name.indexOf('.'));
+
+          if (accountInfo.name.indexOf('.') > 0) user.name = accountInfo.name.substring(0, accountInfo.name.indexOf('.'));
           else user.name = accountInfo.name;
-
-          user.dfid = removePunctuationAndToLower(user.name[0]);
-
           user.guilds = accountInfo.guilds;
-          controller.storage.users.save(user, function(err, id) {
-            if (err)
-              bot.reply(message, "I got an error while saving: " + err);
-            else
-              bot.reply(message, 'Done! Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
+
+          //Fetch user data to check for doubles.
+          controller.storage.users.all(function(err, userData) {
+
+            //assemble list of ids in use, skip their existing one if it's already in the list
+            var idsInUse = [];
+            for (var u in userData)
+              if (!user.dfid || user.dfid != userData[u].dfid)
+                idsInUse.push(userData[u].dfid);
+            console.log("ids in use " + listToString(idsInUse));
+            //set user dfid to a reasonable default or the old one
+            user.dfid = (user.dfid ? user.dfid : removePunctuationAndToLower(user.name[0]));
+
+            //Scramble the id name if its in use to present a workable default
+            while (idsInUse.indexOf(user.dfid) > -1) {
+              var nextChar = user.dfid;
+              nextChar = String.fromCharCode(nextChar.charCodeAt() + 1);
+              if (!nextChar.match(/\w/i)) nextChar = 'a';
+              user.dfid = nextChar;
+            }
+
+            bot.startConversation(message, function(err, convo) {
+
+              convo.ask('What one letter or number best describes you? Might I suggest ' + user.dfid + '?\n(say no to quit)', [{
+                pattern: bot.utterances.no,
+                callback: function(response, convo) {
+                  convo.say('Okay. Maybe try again later.');
+                  convo.next();
+                }
+              }, {
+                pattern: new RegExp(/^(\w)$/i),
+                callback: function(response, convo) {
+                  if (idsInUse.indexOf(response.text) > -1) {
+                    convo.say('That appears to be in use:\n' + listToString(idsInUse));
+                    convo.repeat();
+                    convo.next();
+                  } else {
+                    user.dfid = response.text;
+                    controller.storage.users.save(user, function(err, id) {
+                      if (err)
+                        bot.reply(message, "I got an error while saving: " + err);
+                      else
+                        bot.reply(message, 'Done! You are \'' + user.dfid + '\'. Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
+                      convo.next();
+                    });
+                  }
+                }
+              }, {
+                pattern: new RegExp(/.*/i),
+                default: true,
+                callback: function(response, convo) {
+                  convo.say("I didn't get that. One letter/number.");
+                  convo.repeat();
+                  convo.next();
+                }
+              }]);
+            });
           });
         }, {
           access_token: user.access_token
@@ -349,7 +399,6 @@ helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the 
 helpFile.df = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriends);
 helpFile.dfv = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriendsverbose);
 
-
 controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
@@ -363,7 +412,6 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
     bot.reply(message, "I couldn't find the Dungeon Frequenter achievement in my loaded data. Try 'db reload'.");
     return;
   }
-
 
   //Ready to start. Setup variables
   var num = 0;
@@ -423,15 +471,26 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         }
       }
 
+      var acceptableQuaggans = [
+        "https://static.staticwars.com/quaggans/party.jpg",
+        "https://static.staticwars.com/quaggans/cheer.jpg",
+        "https://static.staticwars.com/quaggans/lost.jpg",
+        "https://static.staticwars.com/quaggans/breakfast.jpg"
+      ];
 
       textList.sort(dungeonFrendSort);
       var text = '';
 
-      for (var r in textList)
+      for (var r in textList) {
         if (verbose)
           text += dungeonNames[textList[r].text] + textList[r].textPost;
         else
           text += textList[r].text + textList[r].textPost;
+        if (dungeonNames[textList[r].text][0] == "H")
+          acceptableQuaggans.push("https://static.staticwars.com/quaggans/killerwhale.jpg");
+      }
+
+      acceptableQuaggans = arrayUnique(acceptableQuaggans);
 
       var pretextString = '';
       len = goodUsers.length;
@@ -440,14 +499,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         if (i == len - 2) pretextString += " and ";
         else if (i !== len - 1) pretextString += ", ";
       }
-      if (len == 1) pretextString += "- all by their lonesome";
-
-      var acceptableQuaggans = [
-        "https://static.staticwars.com/quaggans/party.jpg",
-        "https://static.staticwars.com/quaggans/cheer.jpg",
-        "https://static.staticwars.com/quaggans/lost.jpg",
-        "https://static.staticwars.com/quaggans/breakfast.jpg"
-      ];
+      if (len == 1) pretextString += " (all alone)";
 
       var fieldsFormatted = [];
       // if (verbose) {
@@ -489,38 +541,10 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
 
   //fetch access tokens from storage
   controller.storage.users.all(function(err, userData) {
-    //extracurrecular pushes
-    // Igu: {
-    //   access_token: "4B2E3AC4-B472-0348-B409-EDDB124225FC842894FC-4FE2-4222-9C36-4A25CC06960B",
-    //   permissions: ["progression", "wallet", "guilds", "builds", "account", "characters", "inventories", "unlocks", "pvp"],
-    //   name: "Igu.8473",
-    //   guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
-    // }
-    var tokensByHand = {
-      Rufus: {
-        access_token: "AC3E4FD8-5ECA-EE4C-80AB-7BD66255C12545D6A9DE-5A96-4905-87DC-CF1E69D36673",
-        permissions: ["tradingpost", "characters", "pvp", "progression", "wallet", "guilds", "builds", "account", "inventories", "unlocks"],
-        name: "Rufus",
-        dfid: "s",
-        guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
-      }
-    };
     for (var u in userData) {
-      //cover the case of extra users added by hand above eventually adding via normal means. If you see them, don't push.
-      if (Object.keys(tokensByHand).indexOf(userData[u].name) === 0) {
-        tokensByHand[userData[u].name] = null;
-        if (debug) bot.botkit.log('kicking ' + engName + ' out of the dungeonfriends by-hands list');
-      }
       //remove those without permissions
       if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression')) {
         goodUsers.push(userData[u]);
-      }
-    }
-    //Add any unexisting users left in the tokens by hand list
-    for (var tbh in tokensByHand) {
-      if (tokensByHand[tbh]) {
-        goodUsers.push(tokensByHand[tbh]);
-        if (debug) bot.botkit.log('adding ' + tbh + ' to the dungeonfriends list from the tokens-by-hand');
       }
     }
     //goodUsers is now a list of users with good access tokens
