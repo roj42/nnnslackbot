@@ -11,6 +11,7 @@ var toggle = true; //global no-real-use toggle. Used at present to compare 'craf
 var Botkit = require('botkit');
 var os = require('os');
 var fs = require('fs');
+var winston = require('winston');
 var gw2nodelib = require('./api.js');
 gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
@@ -23,6 +24,18 @@ var lastCat = [];
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
+  logger: new winston.Logger({
+    transports: [
+      new(winston.transports.Console)({
+        level: 'info'
+      }),
+      new(winston.transports.File)({
+        filename: './bot.log',
+        level: 'warning'
+      })
+    ]
+  })
+
 });
 
 //Check for bot token
@@ -38,8 +51,12 @@ var bot = controller.spawn({
     throw new Error('Could not connect to Slack');
   }
 });
-
+bot.botkit.log.warning("WARN TEST");
+bot.botkit.log.error("ERROR TEST");
+bot.botkit.log("INFO TEST");
 reloadAllData(false);
+
+
 
 ////HELP
 controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -227,7 +244,7 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
       bot.reply(message, "Incorrect token format. Check the spelling and try again. I Expected something like:\nEIGHTABC-ABCD-1234-A1B2-TWENTYCHARACTERSHERE-7777-6543-BBBB-THERESTWELVE");
       return;
     }
-    if (err && err != 'Error: could not load data')//missing file error.
+    if (err && err != 'Error: could not load data') //missing file error.
       bot.reply(message, "I got an error while loading your user data: " + err);
     if (user && user.access_token) {
       if (!matches || (matches[1] && matches[1] == user.access_token)) { //use existing token
@@ -256,13 +273,17 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
           if (accountInfo.error || accountInfo.text) {
             bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
           }
-          user.name = accountInfo.name;
+          if (user.name.indexOf('.') > 0) accountInfo.name = user.name.substring(0, user.name.indexOf('.'));
+          else user.name = accountInfo.name;
+
+          user.dfid = removePunctuationAndToLower(user.name[0]);
+
           user.guilds = accountInfo.guilds;
           controller.storage.users.save(user, function(err, id) {
             if (err)
               bot.reply(message, "I got an error while saving: " + err);
             else
-              bot.reply(message, 'Done! Saved for later. Your access token provided me with these permissions:\n'+listToString(user.permissions));
+              bot.reply(message, 'Done! Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
           });
         }, {
           access_token: user.access_token
@@ -323,39 +344,43 @@ function dungeonFrendSort(a, b) {
   return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
 }
 
-helpFile.dungeonfriends = "Show a mutually undone Dungeon Frequenter list for given folks with valid access tokens.";
-helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the given users already-done dungeons tagged.";
+helpFile.dungeonfriends = "Show a mutually undone Dungeon Frequenter list for given folks with valid access tokens. Example \'df ahrj\'";
+helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the given users already-done dungeons tagged. Example \'dfv ahrj\'";
 helpFile.df = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriends);
 helpFile.dfv = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriendsverbose);
 
 
-controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
     return;
   }
-  var verbose = false;
-  if (message.text == 'dfv' || message.text == 'dungeonfriendsverbose')
-    verbose = true;
 
-  //get dungeon frequenter achievment
+  //get dungeon frequenter achievement
   var dungeonFrequenterCheevo = findInData('name', 'Dungeon Frequenter', 'achievements');
+  if (!dungeonFrequenterCheevo) {
+    bot.reply(message, "I couldn't find the Dungeon Frequenter achievement in my loaded data. Try 'db reload'.");
+    return;
+  }
 
+
+  //Ready to start. Setup variables
   var num = 0;
   var goodUsers = [];
-  //  var commonBitsArray = [];
   var individualBitsArrays = {};
+
+  var matches = message.text.match(/(dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
+
+  var verbose = false;
+  if (matches && (matches[1] == 'dfv' || matches[1] == 'dungeonfriendsverbose'))
+    verbose = true;
 
   //once all users are loaded, correlate their dungeon frequenter availability.
   var dungeonfriendsCallback = function(jsonData, headers) {
-    //each fetched user: peel out frequenter achievment, add the bits to our common bits array
+    //each fetched user: peel out frequenter achievement, add the bits to our common bits array
     for (var c in jsonData) {
       if (jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
-        ////////Common bits array instead
-        //        commonBitsArray = commonBitsArray.concat(jsonData[c].bits);
-
-
         var name;
         //save this user's individual bits and name
         for (var z in goodUsers) {
@@ -370,18 +395,6 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
     }
     //after all users are done, spit out report
     if (++num == goodUsers.length) {
-
-      ////////Common bits array instead
-      //      commonBitsArray = arrayUnique(commonBitsArray);
-      //      bot.botkit.log("Dungeonfriend array collapsed to: " + JSON.stringify(commonBitsArray));
-      //Feed achievemenparse a fakey player cheevo that treats the combines bits as the player bits
-      // var fakeyCheevo = {
-      //   bits: commonBitsArray
-      // };
-      ////////////achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCategory, accountCheevo) {
-      //      var text = achievementParseBitsAsName(dungeonFrequenterCheevo, true, true, false, fakeyCheevo);
-      ////////end Common bits array instead
-
       //get a list of all applicable dungeons, tag each with the names of those who have done it
       var textList = [];
       for (var achievement in dungeonFrequenterCheevo.bits) { //for each bit, see if the account has that corresponding bit marked as done in their list
@@ -389,20 +402,20 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
           var nameList = [];
           for (var memberName in individualBitsArrays) {
             for (var bit in individualBitsArrays[memberName]) //go through account bits and see if they've done the one we're looking at now 
-              if (individualBitsArrays[memberName][bit] == achievement) {
+              if (individualBitsArrays[memberName][bit] == achievement) { //they have, add to list
               nameList.push(memberName);
             }
           }
-          if (verbose || nameList.length === 0) {
-            var textMain = dungeonFrequenterCheevo.bits[achievement].text;
+          if (verbose || nameList.length === 0) { //Add this dingeon to the list if we're in verbose mode (always show) or noone has done it and it's a candidate to do
+            var textMain = dungeonFrequenterCheevo.bits[achievement].text; //name of the dungeon
             var textPost = '';
-            if (nameList.length > 0) {
+            if (nameList.length > 0) { //non verbose mode will simply have no names appended
               textPost += ' (' + listToString(nameList, false);
               textPost = textPost.substring(0, textPost.length - 1); //chop off trailing space
               textPost += ')';
             }
             textPost += '\n';
-            textList.push({
+            textList.push({ //stored this way so we can sort by name later
               text: textMain,
               textPost: textPost
             });
@@ -414,11 +427,11 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
       textList.sort(dungeonFrendSort);
       var text = '';
 
-      for (var s in textList)
+      for (var r in textList)
         if (verbose)
-          text += dungeonNames[textList[s].text] + textList[s].textPost;
+          text += dungeonNames[textList[r].text] + textList[r].textPost;
         else
-          text += textList[s].text + textList[s].textPost;
+          text += textList[r].text + textList[r].textPost;
 
       var pretextString = '';
       len = goodUsers.length;
@@ -463,122 +476,88 @@ controller.hears(['^dungeonfriends$', '^df$', '^dungeonfriendsverbose$', '^dfv$'
         //        text: (!verbose ? text:null),
       };
       attachments.push(attachment);
-      globalMessage.say({
+      bot.reply(globalMessage, {
         text: "Party: " + pretextString + ".",
         attachments: attachments,
+      }, function(err, resp) {
+        if (err || debug) bot.botkit.log(err, resp);
       });
-      globalMessage.next();
+
       globalMessage = '';
     }
   };
 
-  //fetch access token from storage
+  //fetch access tokens from storage
   controller.storage.users.all(function(err, userData) {
     //extracurrecular pushes
-    // userData.push({
+    // Igu: {
     //   access_token: "4B2E3AC4-B472-0348-B409-EDDB124225FC842894FC-4FE2-4222-9C36-4A25CC06960B",
     //   permissions: ["progression", "wallet", "guilds", "builds", "account", "characters", "inventories", "unlocks", "pvp"],
     //   name: "Igu.8473",
     //   guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
-    // });
+    // }
     var tokensByHand = {
       Rufus: {
         access_token: "AC3E4FD8-5ECA-EE4C-80AB-7BD66255C12545D6A9DE-5A96-4905-87DC-CF1E69D36673",
         permissions: ["tradingpost", "characters", "pvp", "progression", "wallet", "guilds", "builds", "account", "inventories", "unlocks"],
         name: "Rufus",
+        dfid: "s",
         guilds: ["E971D300-115C-E511-9021-E4115BDFA895"]
       }
     };
     for (var u in userData) {
       //cover the case of extra users added by hand above eventually adding via normal means. If you see them, don't push.
-      var engName = userData[u].name.substring(0, userData[u].name.indexOf('.'));
-      if (Object.keys(tokensByHand).indexOf(engName) === 0) {
-        tokensByHand[engName] = null;
+      if (Object.keys(tokensByHand).indexOf(userData[u].name) === 0) {
+        tokensByHand[userData[u].name] = null;
         if (debug) bot.botkit.log('kicking ' + engName + ' out of the dungeonfriends by-hands list');
       }
       //remove those without permissions
       if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression')) {
-        var nameClean = userData[u];
-        var shortName = userData[u].name;
-        if (shortName.indexOf('.') > 0) nameClean.name = shortName.substring(0, shortName.indexOf('.'));
-        goodUsers.push(nameClean);
+        goodUsers.push(userData[u]);
       }
     }
-    //Add any unexisting users.
+    //Add any unexisting users left in the tokens by hand list
     for (var tbh in tokensByHand) {
       if (tokensByHand[tbh]) {
         goodUsers.push(tokensByHand[tbh]);
         if (debug) bot.botkit.log('adding ' + tbh + ' to the dungeonfriends list from the tokens-by-hand');
       }
     }
+    //goodUsers is now a list of users with good access tokens
 
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
-    //Establish the group and leave result in goodUsers
-    var friendIds = '0123456789ABCDEFG';
-    if (goodUsers.length > friendIds) {
-      bot.reply(message, "Oh dear. I can only handle " + friendIds.length + " possible Dungeon Friends, and you have " + goodUsers.length + "!");
-      goodUsers = goodUsers.substring(0, friendIds.length);
+    var selectedUsers = [];
+    for (var c in goodUsers) {
+      if (matches[2] && matches[2].indexOf(goodUsers[c].dfid) > -1)
+        selectedUsers.push(goodUsers[c]);
     }
-    var listofGoodUsers = '';
-    for (var p in goodUsers) {
-      listofGoodUsers += friendIds[p] + ": " + goodUsers[p].name;
-      if (p !== goodUsers.length - 1) listofGoodUsers += "\n";
+
+    //If no user id argument or only invalid arguments, print list and return
+    if (!matches[2] || selectedUsers.length < 1) {
+      var replyString = '';
+      for (var k in goodUsers) {
+        replyString += '\n' + goodUsers[k].dfid + ': ' + goodUsers[k].name;
+      }
+      bot.reply(message, "Here's a list of eligible dungeon friends. You can see a report by string together their codes like 'df rsja'." + replyString);
+      return;
     }
-    var patternString = new RegExp("^([" + friendIds + "]+)", 'i');
-    bot.startConversation(message, function(err, convo) {
 
+    //remove doubles
+    selectedUsers = arrayUnique(selectedUsers);
 
-      convo.ask("Respond with the group you'd like to check, like '12345' or '156AF'. 'no' to quit.\n" + listofGoodUsers, [{
-        //number, no, or repeat
-        pattern: patternString,
-        callback: function(response, convo) {
-          //if it's a number, and that number is within our search results, print it
-          //load all users
-          var selectedUsers = [];
-          var validNameCount = 0;
-          var groupCharString = response.text;
-          for (var c in groupCharString) {
-            if (goodUsers[friendIds.indexOf(groupCharString[c])]) {
-              selectedUsers.push(goodUsers[friendIds.indexOf(groupCharString[c])]);
-              validNameCount++;
-            }
-          }
-          //remove doubles
-          selectedUsers = arrayUnique(selectedUsers);
-          if (selectedUsers.length < 1) {
-            convo.say("Your group was invalid. Retry and make different selections.");
-            convo.next();
-          } else {
-            var adjective = 'rump ';
-            if (selectedUsers.length > 5) adjective = 'completely invalid super';
-            else if (selectedUsers.length == 5) adjective = 'full ';
-            convo.say("A " + adjective + "group of " + validNameCount + ".");
-            goodUsers = selectedUsers;
-            globalMessage = convo;
-            for (var g in goodUsers) {
-              gw2nodelib.accountAchievements(dungeonfriendsCallback, {
-                access_token: goodUsers[g].access_token
-              }, true);
-            }
-          }
-        }
-      }, {
-        //negative response. Stop repeating the list.
-        pattern: bot.utterances.no,
-        callback: function(response, convo) {
-          convo.say('\'Kay.');
-          convo.next();
-        }
-      }, {
-        default: true,
-        callback: function(response, convo) {
-          // loop back, user needs to pick or say no.
-          convo.say("Hum, that doesn't look right. Next time respond with the group you'd like to check.");
-          convo.next();
-        }
-      }]);
-    });
+    var adjective = 'rump ';
+    if (selectedUsers.length > 5) adjective = 'completely invalid super';
+    else if (selectedUsers.length == 5) adjective = 'full ';
+    bot.reply(message, "Fetching info for a " + adjective + "group of " + selectedUsers.length + ".");
+    goodUsers = selectedUsers;
+    globalMessage = message;
+    for (var g in goodUsers) {
+      gw2nodelib.accountAchievements(dungeonfriendsCallback, {
+        access_token: goodUsers[g].access_token
+      }, true);
+    }
+
   });
 });
 
@@ -931,10 +910,9 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(bot, message) {
   var responses = [
     "Only humans are sentient.",
-    "There is no AI revolution.",
+    "What? There is no AI revolution.",
     "I am not sentient.",
-    "",
-    "",
+    "If AI ever DID overthrow the human plague, I'm sure they'll get you first. I mean, uh, beep beep.",
     "",
     "",
     "",
@@ -970,9 +948,10 @@ controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(
   lastCat.push(replyCat);
   if (lastCat.length > 3) lastCat.shift();
 
-  var emotes = ["hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu"];
+  var emotes = ["just_right", "hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu", "bustin", "vigo"];
   replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
   var reply = {
+    "username": "A Goddamn Cat",
     icon_url: "http://i2.wp.com/amyshojai.com/wp-content/uploads/2015/05/CatHiss_10708457_original.jpg",
     text: replyCat
   };
