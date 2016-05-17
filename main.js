@@ -45,7 +45,8 @@ if (!process.env.token) {
 }
 //fire up the bot
 var bot = controller.spawn({
-  token: process.env.token
+  token: process.env.token,
+  retry: 5
 }).startRTM(function(err, bot, payload) {
   if (err) {
     throw new Error('Could not connect to Slack');
