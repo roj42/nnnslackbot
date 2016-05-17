@@ -160,7 +160,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', funct
           //negative response. Stop repeating the list.
           pattern: bot.utterances.no,
           callback: function(response, convo) {
-            convo.say('\'Kay.');
+            convo.say('¯\\_(ツ)_/¯');
             convo.next();
           }
         }, {
@@ -184,6 +184,8 @@ controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', funct
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.reply(message, 'You asked for it. Starting reload.');
   globalMessage = message;
+  prefixData = loadStaticDataFromFile('prefix.json');
+  sass = loadStaticDataFromFile('sass.json');
   reloadAllData(true);
 });
 
@@ -303,7 +305,7 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
               convo.ask('What one letter or number best describes you? Might I suggest ' + user.dfid + '?\n(say no to quit)', [{
                 pattern: bot.utterances.no,
                 callback: function(response, convo) {
-                  convo.say('Okay. Maybe try again later.');
+                  convo.say('¯\\_(ツ)_/¯');
                   convo.next();
                 }
               }, {
@@ -502,30 +504,25 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       if (len == 1) pretextString += " (all alone)";
 
       var fieldsFormatted = [];
-      // if (verbose) {
-      var half = Math.floor(textList.length / 2);
+      var half = Math.ceil(textList.length / 2);
       for (var s = 0; s < half; s++) {
         fieldsFormatted.push({
           "value": dungeonNames[textList[s].text] + textList[s].textPost,
           "short": true
         });
-        if ((s + half) <= textList.length)
+        if ((s + half) < textList.length)
           fieldsFormatted.push({
             "value": dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
             "short": true
           });
-        // text += dungeonNames[textList[s].text] + textList[s].textPost;
       }
-      // }
 
       var attachments = [];
       var attachment = { //assemble attachment
-        //        pretext: pretextString + "can party in any of the below for mutual benefit.",
         title: "Dungeon Friend Report",
         color: '#000000',
-        thumb_url: randomOneOf(acceptableQuaggans), //(!verbose ? randomOneOf(acceptableQuaggans):null),
+        thumb_url: randomOneOf(acceptableQuaggans),
         fields: fieldsFormatted,
-        //        text: (!verbose ? text:null),
       };
       attachments.push(attachment);
       bot.reply(globalMessage, {
@@ -548,7 +545,6 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       }
     }
     //goodUsers is now a list of users with good access tokens
-
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
     var selectedUsers = [];
@@ -900,7 +896,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       pattern: bot.utterances.no,
       default: true,
       callback: function(response, convo) {
-        convo.say('*Phew!*');
+        convo.say('¯\\_(ツ)_/¯');
         convo.next();
       }
     }]);
@@ -972,7 +968,7 @@ controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(
   lastCat.push(replyCat);
   if (lastCat.length > 3) lastCat.shift();
 
-  var emotes = ["just_right", "hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu", "bustin", "vigo"];
+  var emotes = ["ohdamn", "just_right", "hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu", "bustin", "vigo"];
   replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
   var reply = {
     "username": "A Goddamn Cat",
@@ -1011,7 +1007,7 @@ function doneRecipesCallback(apiKey) {
   var end = new Date().getTime();
   var time = end - start;
   if (globalMessage) {
-    bot.reply(globalMessage, "Finished loading the list of recipes. Starting on items.");
+    bot.reply(globalMessage, "Finished loading the list of recipes. I found " + Object.keys(gw2nodelib.data[apiKey]).length + ". Starting on items.");
   } else bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
   gw2nodelib.forgeRequest(function(forgeList) {
     if (debug) bot.botkit.log("unfiltered forgeitems: " + forgeList.length);
@@ -1085,6 +1081,7 @@ function decrementAndCheckDone(apiKey) {
 function reloadAllData(bypass) {
   gw2nodelib.data.recipes = [];
   gw2nodelib.data.items = [];
+  gw2nodelib.data.forged = [];
   recepesLoaded = false;
 
   gw2nodelib.data.achievements = [];
