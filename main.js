@@ -60,7 +60,7 @@ reloadAllData(false);
 
 
 ////HELP
-controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var matches = message.text.match(/help ([a-zA-Z ]*)/i);
   if (!matches || !matches[1] || !helpFile[matches[1].toLowerCase()]) bot.reply(message, "Help topics: " + listKeys(helpFile));
   else {
@@ -70,7 +70,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 });
 
 ////SASS
-controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var replySass = randomOneOf(sass);
   while (lastSass.indexOf(replySass) > -1) {
     if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
@@ -88,7 +88,7 @@ controller.hears(['^sass'], 'direct_message,direct_mention,mention', function(bo
 
 ////////////////recipe lookup. I apologize.
 helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
-controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //function to assemble an attahcment and call bot reply. Used when finally responding with a recipe
   var replyWithRecipeFor = function(itemToMake) {
     var attachments = assembleRecipeAttachment(itemToMake);
@@ -195,7 +195,7 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
 helpFile.quaggans = "fetch a list of all fetchable quaggan pictures. See help quaggan.";
 helpFile.quaggan = "Takes an argument. Lessdremoth pastes a url to a picture of that quaggan for slack to fetch. Also see help quaggans. Example: 'quaggan box'";
 
-controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   gw2nodelib.quaggans(function(jsonList) {
     if (jsonList.text || jsonList.error) {
       bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
@@ -207,7 +207,7 @@ controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,men
   });
 });
 
-controller.hears(['quaggan (.*)', 'quaggans (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var matches = message.text.match(/quaggans? (.*)/i);
   if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
   var name = removePunctuationAndToLower(matches[1]);
@@ -230,7 +230,7 @@ helpFile.access = "Set up your guild wars account to allow lessdremoth to read d
 //   bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
 // });
 
-controller.hears(['access token help', 'help access', 'help access token'], 'direct_message,mention,direct_message', function(bot, message) {
+controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
@@ -239,7 +239,7 @@ controller.hears(['access token help', 'help access', 'help access token'], 'dir
   });
 });
 
-controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', function(bot, message) {
+controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,ambient', function(bot, message) {
   //collect information about the user token and basic account info for use later.
   controller.storage.users.get(message.user, function(err, user) {
     var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
@@ -269,79 +269,83 @@ controller.hears(['access token(.*)'], 'direct_mention,mention,direct_message', 
       bot.botkit.log("access token tokenInfo fetch: " + JSON.stringify(tokenInfo));
       if (tokenInfo.error || tokenInfo.text) {
         bot.reply(message, "I got an error looking up your token and did not save it. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.");
-      } else {
-        user.permissions = tokenInfo.permissions;
-        gw2nodelib.account(function(accountInfo) {
-          if (debug) bot.botkit.log(JSON.stringify(accountInfo));
-          if (accountInfo.error || accountInfo.text) {
-            bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
+        return;
+      }
+      user.permissions = tokenInfo.permissions;
+
+      gw2nodelib.account(function(accountInfo) {
+        bot.botkit.log("access token accountInfo fetch: " + JSON.stringify(accountInfo));
+
+        if (debug) bot.botkit.log(JSON.stringify(accountInfo));
+        if (accountInfo.error || accountInfo.text) {
+          bot.reply(message, "I got an error looking up your account information. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.\ntext from API: " + accountInfo.text + "\nerror: " + accountInfo.error);
+          return;
+        }
+
+        if (accountInfo.name && accountInfo.name.indexOf('.') > 0) user.name = accountInfo.name.substring(0, accountInfo.name.indexOf('.'));
+        else user.name = accountInfo.name;
+        user.guilds = accountInfo.guilds;
+
+        //Fetch user data to check for doubles.
+        controller.storage.users.all(function(err, userData) {
+
+          //assemble list of ids in use, skip their existing one if it's already in the list
+          var idsInUse = [];
+          for (var u in userData)
+            if (!user.dfid || user.dfid != userData[u].dfid)
+              idsInUse.push(userData[u].dfid);
+          console.log("ids in use " + listToString(idsInUse));
+          //set user dfid to a reasonable default or the old one
+          user.dfid = (user.dfid ? user.dfid : removePunctuationAndToLower(user.name[0]));
+
+          //Scramble the id name if its in use to present a workable default
+          while (idsInUse.indexOf(user.dfid) > -1) {
+            var nextChar = user.dfid;
+            nextChar = String.fromCharCode(nextChar.charCodeAt() + 1);
+            if (!nextChar.match(/\w/i)) nextChar = 'a';
+            user.dfid = nextChar;
           }
 
-          if (accountInfo.name.indexOf('.') > 0) user.name = accountInfo.name.substring(0, accountInfo.name.indexOf('.'));
-          else user.name = accountInfo.name;
-          user.guilds = accountInfo.guilds;
+          bot.startConversation(message, function(err, convo) {
 
-          //Fetch user data to check for doubles.
-          controller.storage.users.all(function(err, userData) {
-
-            //assemble list of ids in use, skip their existing one if it's already in the list
-            var idsInUse = [];
-            for (var u in userData)
-              if (!user.dfid || user.dfid != userData[u].dfid)
-                idsInUse.push(userData[u].dfid);
-            console.log("ids in use " + listToString(idsInUse));
-            //set user dfid to a reasonable default or the old one
-            user.dfid = (user.dfid ? user.dfid : removePunctuationAndToLower(user.name[0]));
-
-            //Scramble the id name if its in use to present a workable default
-            while (idsInUse.indexOf(user.dfid) > -1) {
-              var nextChar = user.dfid;
-              nextChar = String.fromCharCode(nextChar.charCodeAt() + 1);
-              if (!nextChar.match(/\w/i)) nextChar = 'a';
-              user.dfid = nextChar;
-            }
-
-            bot.startConversation(message, function(err, convo) {
-
-              convo.ask('What one letter or number best describes you? Might I suggest ' + user.dfid + '?\n(say no to quit)', [{
-                pattern: bot.utterances.no,
-                callback: function(response, convo) {
-                  convo.say('¯\\_(ツ)_/¯');
-                  convo.next();
-                }
-              }, {
-                pattern: new RegExp(/^(\w)$/i),
-                callback: function(response, convo) {
-                  if (idsInUse.indexOf(response.text) > -1) {
-                    convo.say('That appears to be in use:\n' + listToString(idsInUse));
-                    convo.repeat();
-                    convo.next();
-                  } else {
-                    user.dfid = response.text;
-                    controller.storage.users.save(user, function(err, id) {
-                      if (err)
-                        bot.reply(message, "I got an error while saving: " + err);
-                      else
-                        bot.reply(message, 'Done! You are \'' + user.dfid + '\'. Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
-                      convo.next();
-                    });
-                  }
-                }
-              }, {
-                pattern: new RegExp(/.*/i),
-                default: true,
-                callback: function(response, convo) {
-                  convo.say("I didn't get that. One letter/number.");
+            convo.ask('What one letter or number best describes you? Might I suggest ' + user.dfid + '?\n(say no to quit)', [{
+              pattern: bot.utterances.no,
+              callback: function(response, convo) {
+                convo.say('¯\\_(ツ)_/¯');
+                convo.next();
+              }
+            }, {
+              pattern: new RegExp(/^(\w)$/i),
+              callback: function(response, convo) {
+                if (idsInUse.indexOf(response.text) > -1) {
+                  convo.say('That appears to be in use:\n' + listToString(idsInUse));
                   convo.repeat();
                   convo.next();
+                } else {
+                  user.dfid = response.text;
+                  controller.storage.users.save(user, function(err, id) {
+                    if (err)
+                      bot.reply(message, "I got an error while saving: " + err);
+                    else
+                      bot.reply(message, 'Done! You are \'' + user.dfid + '\'. Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
+                    convo.next();
+                  });
                 }
-              }]);
-            });
+              }
+            }, {
+              pattern: new RegExp(/.*/i),
+              default: true,
+              callback: function(response, convo) {
+                convo.say("I didn't get that. One letter/number.");
+                convo.repeat();
+                convo.next();
+              }
+            }]);
           });
-        }, {
-          access_token: user.access_token
-        }, true);
-      }
+        });
+      }, {
+        access_token: user.access_token
+      }, true);
     }, {
       access_token: user.access_token
     }, true);
@@ -402,7 +406,7 @@ helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the 
 helpFile.df = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriends);
 helpFile.dfv = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriendsverbose);
 
-controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -429,16 +433,23 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
 
   //once all users are loaded, correlate their dungeon frequenter availability.
   var dungeonfriendsCallback = function(jsonData, headers) {
+    var name;
+    //save this user's individual bits and name
+    for (var z in goodUsers) {
+      if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
+        name = goodUsers[z].name;
+        if (jsonData.error || jsonData.text) {
+          bot.reply(globalMessage, "I got an error looking up the data for " + name + ". They will be omitted from the results.");
+          //no need to exit. it will find nothing in jsonData and exit, unless this is the last one, then it will assemble the report.
+          goodUsers[z].error = true;
+        }
+        break;
+      }
+    }
+
     //each fetched user: peel out frequenter achievement, add the bits to our common bits array
     for (var c in jsonData) {
-      if (jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
-        var name;
-        //save this user's individual bits and name
-        for (var z in goodUsers) {
-          if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
-            name = goodUsers[z].name;
-          }
-        }
+      if (jsonData[c].id && jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
         if (name) individualBitsArrays[name] = jsonData[c].bits;
         break;
       }
@@ -494,6 +505,9 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       }
 
       acceptableQuaggans = arrayUnique(acceptableQuaggans);
+      for(var e in goodUsers)
+        if(goodUsers[e].error)
+          goodUsers.splice(e,1);
 
       var pretextString = '';
       len = goodUsers.length;
@@ -657,7 +671,7 @@ cheevoList.jpr = {
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nSupported so far: ";
 helpFile.cheevo += listToString(Object.keys(cheevoList));
 
-controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -784,7 +798,7 @@ controller.hears(['cheevo(.*)'], 'direct_message,direct_mention,mention', functi
 /////CHARACTERS
 helpFile.deaths = "Display a report of characters on your account, and their career deaths.";
 helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
-controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (!user || !user.access_token || !userHasPermission(user, 'characters')) {
       bot.botkit.log('ERROR: characters: no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
@@ -839,7 +853,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
 helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
 helpFile.suffix = "Alias for prefix. " + JSON.stringify(helpFile.prefix);
 
-controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^prefix (.*)', '^suffix (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var matches = message.text.match(/(prefix|suffix) (['\w]+)\s?(\d{1,2})?\s?(\w*)$/i);
   if (!matches) {
     bot.reply(message, 'No match. Ask me "help prefix" for formatting help.');
@@ -859,15 +873,19 @@ controller.hears(['prefix (.*)', 'suffix (.*)'], 'direct_message,direct_mention,
 });
 
 /////TOGGLE
-controller.hears(['^toggle'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^toggle'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var replyString = '(╯°□°)╯︵ ┻━┻';
   if (toggle) toggle = false;
-  else toggle = true;
-  bot.reply(message, "So toggled.");
+  else {
+    toggle = true;
+    replyString = '┬─┬﻿ ノ( ゜-゜ノ)';
+  }
+  bot.reply(message, "So toggled.\n" + replyString);
 });
 
 helpFile.hello = "Lessdremoth will say hi back.";
 helpFile.hi = "Lessdremoth will say hi back.";
-controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^hello', '^hi'], 'direct_message,direct_mention,mention', function(bot, message) {
   if (message.user && message.user == 'U0T3J3J9W') {
     bot.reply(message, 'Farrrrt Pizza');
     addReaction(message, 'pizza');
@@ -881,13 +899,13 @@ controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', funct
 });
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
-controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.startConversation(message, function(err, convo) {
 
     convo.ask('Are you sure you want me to shutdown?', [{
       pattern: bot.utterances.yes,
       callback: function(response, convo) {
-        convo.say('Bye!');
+        convo.say('(╯°□°)╯︵ ┻━┻');
         convo.next();
         setTimeout(function() {
           process.exit();
@@ -906,7 +924,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
 
 helpFile.uptime = "Lessdremoth will display some basic uptime information.";
 helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
-controller.hears(['uptime', 'who are you'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 
   var hostname = os.hostname();
   var uptime = formatUptime(process.uptime());
@@ -944,7 +962,7 @@ controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(b
 });
 
 
-controller.hears(['catfact'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^catfact'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var catFacts = ["Cats are delicious.",
     "It takes over 400 stationary cats to completely stop an average truck going 30 mph.",
     "Your cats don't love you.",
@@ -1096,7 +1114,7 @@ function reloadAllData(bypass) {
   gw2nodelib.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
   if (globalMessage) bot.reply(globalMessage, "Starting to load achievements.");
   gw2nodelib.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-  if (globalMessage) bot.reply(globalMessage, "Starting to load achievementsCategories.");
+  if (globalMessage) bot.reply(globalMessage, "Starting to load achievement categories.");
   gw2nodelib.load("achievementsCategories", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);

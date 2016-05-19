@@ -22,7 +22,7 @@ var config = {
 	dao: { //roj42 - define useful parts of each return JSON item
 		items: ["name", "id", "description", "level", "chat_link", "icon"],
 		recipes: ["output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
-		achievements: ["id", "name", "description", "requirement", "icon", "bits","tiers"],
+		achievements: ["id", "name", "description", "requirement", "icon", "bits", "tiers"],
 		achievementsCategories: ["id", "name", "icon", "achievements"]
 	},
 };
@@ -133,6 +133,8 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 				var msg = ((typeof response !== 'undefined') ? '[Status Code ' + response.statusCode + '] ' : '') + 'There was an error requesting the API (URL ' + url + ')' + ((error !== null) ? ': ' + error : '');
 				callback({
 					'error': msg
+				}, {
+					options: options
 				});
 				return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
 				// throw new Gw2ApiLibException(msg);
