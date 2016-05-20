@@ -125,6 +125,10 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       bot.reply(message, "No item names contain that exact text.");
     } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
       replyWithRecipeFor(itemSearchResults[0]);
+    } else if (searchTerm == 'bolt') { //BOLT
+      for (var sr in itemSearchResults)
+        if (itemSearchResults[sr].name == 'Bolt')
+          replyWithRecipeFor(itemSearchResults[sr]);
     } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
       var itemNameFirst = itemSearchResults[0].name;
       var itemNameLast = itemSearchResults[itemSearchResults.length - 1].name;
@@ -608,7 +612,7 @@ function achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCa
   }
   for (var achievement in gameCheevo.bits) { //for each bit, see if the account has that corresponding bit marked as done in their list
     if (gameCheevo.bits[achievement].text) { // almost always exists, but you never know.
-      var doneByUser;
+      var doneByUser = false;
       if (accountCheevo) { // see if this particular bit 
         doneByUser = accountCheevo.done; //default that catches bitless cheevos: is the base cheevo done?
         for (var bit in accountCheevo.bits) //go through account bits and see if they've done the one we're looking at now 
@@ -667,6 +671,12 @@ cheevoList.jpr = {
   category: true,
   random: true
 };
+cheevoList.darkharvest = {
+  name: 'Dark Harvest',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
 
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nSupported so far: ";
 helpFile.cheevo += listToString(Object.keys(cheevoList));
@@ -704,17 +714,16 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
 
       var category = [];
       //get all cheevos in the category. Push lone cheevos to the category list
-      if (debug) bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
+      bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
       if (cheevoToDisplay.category) {
         category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
-        if (debug) bot.botkit.log("I found this category:" + JSON.stringify(category));
+        bot.botkit.log("I found this category:" + JSON.stringify(category));
       } else {
         category.achievements = [];
         var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
-        if (debug) bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
+        bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
         category.achievements.push(loneCheevo.id);
       }
-
 
       var attachments = [];
       var text = '';
@@ -1023,12 +1032,9 @@ controller.hears(['^toggle'], 'direct_message,direct_mention,mention,ambient', f
 helpFile.hello = "Lessdremoth will say hi back.";
 helpFile.hi = "Lessdremoth will say hi back.";
 controller.hears(['^hello', '^hi'], 'direct_message,direct_mention,mention', function(bot, message) {
-  if (message.user && message.user == 'U0T3J3J9W') {
-    bot.reply(message, 'Farrrrt Pizza');
-    addReaction(message, 'pizza');
-    setTimeout(function() {
-      addReaction(message, 'dash');
-    }, 500);
+  if (message.user && message.user == 'U1AGDSX3K') {
+    bot.reply(message, "Hi, roj. You're the best");
+    addReaction(message, 'gir');
   } else {
     bot.reply(message, 'Hello.');
     addReaction(message, 'robot_face');
@@ -1124,7 +1130,7 @@ controller.hears(['^catfact'], 'direct_message,direct_mention,mention,ambient', 
   lastCat.push(replyCat);
   if (lastCat.length > 3) lastCat.shift();
 
-  var emotes = ["ohdamn", "just_right", "hello", "eyebulge", "facepalm", "gir", "squirrel", "piggy", "count", "coollink", "frasier", "cookie_monster", "butt", "gary_busey", "fu", "bustin", "vigo"];
+  var emotes = ["hello", "eyebulge", "facepalm", "gir", "coollink", "frasier", "butt", "gary_busey", "fu", "bustin"];
   replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
   var reply = {
     "username": "A Goddamn Cat",
