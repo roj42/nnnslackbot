@@ -178,7 +178,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
 });
 
 //////DATA
-controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^db reload'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to lauch for real');
 });
 
@@ -505,9 +505,9 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       }
 
       acceptableQuaggans = arrayUnique(acceptableQuaggans);
-      for(var e in goodUsers)
-        if(goodUsers[e].error)
-          goodUsers.splice(e,1);
+      for (var e in goodUsers)
+        if (goodUsers[e].error)
+          goodUsers.splice(e, 1);
 
       var pretextString = '';
       len = goodUsers.length;
@@ -807,44 +807,36 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
     }
     gw2nodelib.characters(function(jsonList) {
       if (jsonList.text || jsonList.error) {
-        bot.reply(message, "Oops. I got this error when asking for a list of your characters: " + (jsonList.text ? jsonList.text : jsonList.error));
+        bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
       } else {
         bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters.');
-        gw2nodelib.characters(function(jsonList) {
-          if (jsonList.text || jsonList.error) {
-            bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
-          } else {
-            var attachments = [];
-            var attachment = {
-              color: '#000000',
-              thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
-              fields: [],
-            };
-            var totalDeaths = 0;
-            for (var n in jsonList) {
-              if (debug) bot.botkit.log("char :" + jsonList[n]);
-              attachment.fields.push({
-                title: jsonList[n].name,
-                value: jsonList[n].deaths,
-                short: true,
-              });
-              totalDeaths += jsonList[n].deaths;
-            }
-            attachment.title = 'Death Report: ' + totalDeaths + ' total deaths.';
-            attachments.push(attachment);
-            bot.reply(message, {
-              attachments: attachments,
-            }, function(err, resp) {
-              if (err || debug) bot.botkit.log(err, resp);
-            });
-          }
-        }, {
-          access_token: user.access_token,
-          ids: listToString(jsonList, true)
+        var attachments = [];
+        var attachment = {
+          color: '#000000',
+          thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
+          fields: [],
+        };
+        var totalDeaths = 0;
+        for (var n in jsonList) {
+          if (debug) bot.botkit.log("char :" + jsonList[n]);
+          attachment.fields.push({
+            value: jsonList[n].name + '\n' + (jsonList[n].race == 'Charr' ? 'Filthy Charr' : jsonList[n].race) + ' ' + jsonList[n].profession,
+            title: jsonList[n].deaths,
+            short: true,
+          });
+          totalDeaths += jsonList[n].deaths;
+        }
+        attachment.title = 'Death Report: ' + totalDeaths + ' total deaths.';
+        attachments.push(attachment);
+        bot.reply(message, {
+          attachments: attachments,
+        }, function(err, resp) {
+          if (err || debug) bot.botkit.log(err, resp);
         });
       }
     }, {
-      access_token: user.access_token
+      access_token: user.access_token,
+      ids: "all"
     });
   });
 });
@@ -870,6 +862,151 @@ controller.hears(['^prefix (.*)', '^suffix (.*)'], 'direct_message,direct_mentio
       bot.reply(message, printPrefixes(prefixes));
     }
   }
+});
+
+////Profession report
+helpFile.professionReport = "Collate all known accounts characters by profession";
+helpFile.pr = "Alias for professionReport. " + JSON.stringify(helpFile.professionReport);
+controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+
+  //Setup variables
+  var num = 0;
+  var goodUsers = [];
+  var classes = {
+    'Warrior': {
+      num: 0,
+      user: []
+    },
+    'Guardian': {
+      num: 0,
+      user: []
+    },
+    'Revenant': {
+      num: 0,
+      user: []
+    },
+    'Engineer': {
+      num: 0,
+      user: []
+    },
+    'Thief': {
+      num: 0,
+      user: []
+    },
+    'Ranger': {
+      num: 0,
+      user: []
+    },
+    'Elementalist': {
+      num: 0,
+      user: []
+    },
+    'Necromancer': {
+      num: 0,
+      user: []
+    },
+    'Mesmer': {
+      num: 0,
+      user: []
+    }
+  };
+
+  //once all users are loaded, correlate their professions.
+  var professionReportCallback = function(jsonData, headers) {
+    var name;
+    //save this user classes and name
+    for (var z in goodUsers) {
+      if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
+        name = goodUsers[z].name;
+        if (jsonData.error || jsonData.text) {
+          bot.reply(globalMessage, "I got an error looking up the data for " + name + ". They will be omitted from the results.");
+          //no need to exit. it will find nothing in jsonData and exit, unless this is the last one, then it will assemble the report.
+          goodUsers[z].error = true;
+        }
+        break;
+      }
+    }
+    for (var c in jsonData) {
+      classes[jsonData[c].profession].num++;
+      classes[jsonData[c].profession].user.push(name);
+    }
+
+
+    //after all users are done, spit out report
+    if (++num == goodUsers.length) {
+      var acceptableQuaggans = [
+        "https://static.staticwars.com/quaggans/helmut.jpg",
+        "https://static.staticwars.com/quaggans/knight.jpg",
+        "https://static.staticwars.com/quaggans/hoodie-up.jpg",
+        "https://static.staticwars.com/quaggans/lollipop.jpg"
+      ];
+
+      acceptableQuaggans = arrayUnique(acceptableQuaggans);
+
+      //remove errored users
+      for (var e in goodUsers)
+        if (goodUsers[e].error)
+          goodUsers.splice(e, 1);
+
+      var pretextString = '';
+      len = goodUsers.length;
+      for (var i = 0; i < len; i++) {
+        pretextString += goodUsers[i].name;
+        if (i == len - 2) pretextString += " and ";
+        else if (i !== len - 1) pretextString += ", ";
+      }
+      if (len == 1) pretextString += " (all alone)";
+
+      var fieldsFormatted = [];
+      for (var s in classes) {
+        var plural = (s == 'Thief' ? 'Thieves' : s + 's');
+        fieldsFormatted.push({
+          "title": classes[s].num + ' ' + (classes[s].num != 1 ? plural : s),
+          "value": listToString(classes[s].user),
+          "short": true
+        });
+      }
+
+      var attachments = [];
+      var attachment = { //assemble attachment
+        color: '#000000',
+        thumb_url: randomOneOf(acceptableQuaggans),
+        fields: fieldsFormatted,
+      };
+      attachments.push(attachment);
+      bot.reply(globalMessage, {
+        text: "Collating the professions of: " + pretextString + ".",
+        attachments: attachments,
+      }, function(err, resp) {
+        if (err || debug) bot.botkit.log(err, resp);
+      });
+
+      globalMessage = '';
+    }
+  };
+
+  //fetch access tokens from storage
+  controller.storage.users.all(function(err, userData) {
+    for (var u in userData) {
+      //remove those without permissions
+      if (userData[u].access_token && userHasPermission(userData[u], 'characters')) {
+        goodUsers.push(userData[u]);
+      }
+    }
+    //goodUsers is now a list of users with good access tokens
+    bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for profession report.");
+
+    //If no user id argument or only invalid arguments, print list and return
+
+    globalMessage = message;
+    for (var g in goodUsers) {
+      gw2nodelib.characters(professionReportCallback, {
+        access_token: goodUsers[g].access_token,
+        ids: 'all'
+      }, true);
+    }
+
+  });
 });
 
 /////TOGGLE
@@ -999,7 +1136,10 @@ controller.hears(['^catfact'], 'direct_message,direct_mention,mention,ambient', 
 
 prefixData.Nuprin = {
   "type": "standard",
-  "minlevel": 0,
+  "minlevel": {
+    num: 0,
+    user: ''
+  },
   "maxlevel": 20,
   "stats": ["Little", "Yellow", "Different"]
 };
