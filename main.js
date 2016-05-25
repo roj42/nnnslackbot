@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
 var debug = false; //for debug messages, passe to api and botkit
-var recepesLoaded = false; //To signal the bot that the async data load is finished.
+var recipiesLoaded = false; //To signal the bot that the async data load is finished.
 var achievementsLoaded = false;
 var achievementsCategoriesLoaded = false;
 var start; //holds start time for data loading
@@ -20,7 +20,7 @@ var helpFile = [];
 var sass = loadStaticDataFromFile('sass.json');
 var lastSass = [];
 var lastCat = [];
-
+var lastRiker = [];
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
@@ -113,7 +113,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
   };
 
   var matches = message.text.match(/craft (.*)/i);
-  if (!recepesLoaded) { //still loading
+  if (!recipiesLoaded) { //still loading
     bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
   } else if (!matches || !matches[0]) { //weird input? Should be impossible to get here.
     bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
@@ -182,8 +182,8 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
 });
 
 //////DATA
-controller.hears(['^db reload'], 'direct_message,direct_mention,mention', function(bot, message) {
-  bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to lauch for real');
+controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
+  bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to launch for real');
 });
 
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -376,8 +376,8 @@ var dungeonNames = {
   "Manor Explorable—Seraph Path": "CM2 Seraph",
   "Manor Explorable—Butler's Path": "CM3 Butler",
   "Twilight Arbor Story": "TAS",
-  "Twilight Explorable—Leurent's Path": "TAF Leurent",
-  "Twilight Explorable—Vevina's Path": "TAU Vevina",
+  "Twilight Explorable—Leurent's Path": "TAU Leurent",
+  "Twilight Explorable—Vevina's Path": "TAF Vevina",
   "Twilight Explorable—Aetherpath": "TAAE Aether",
   "Sorrow's Embrace Story": "SES",
   "Sorrow's Explorable—Fergg's Path": "SE1 Fergg",
@@ -677,6 +677,108 @@ cheevoList.darkharvest = {
   includeDone: true,
   includeUndone: true,
 };
+cheevoList.bo = {
+  name: 'Bo',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.fixrupper = {
+  name: 'Fix-r-Upper',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.glintsbastion = {
+  name: "Glint's Bastion",
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.horologicus = {
+  name: 'Horologicus',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardheadwrap = {
+  name: 'Mistward Headwrap',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardlegguards = {
+  name: 'Mistward Legguards',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardpauldrons = {
+  name: 'Mistward Pauldrons',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardplate = {
+  name: 'Mistward Plate',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardwarboots = {
+  name: 'Mistward Warboots',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.mistwardwarfists = {
+  name: 'Mistward Warfists',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.wildabandon = {
+  name: 'Wild Abandon',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.northwind = {
+  name: 'The North Wind',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.ydalir = {
+  name: 'Ydalir',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.yggdrasil = {
+  name: 'Yggdrasil',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.fashionforward = {
+  name: 'Fashion Forward',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.ff = {
+  name: 'Fashion Forward',
+  category: false,
+  includeDone: true,
+  includeUndone: true,
+};
+cheevoList.fashion = {
+  name: 'Fashion',
+  category: true,
+  includeDone: true,
+  includeUndone: true,
+};
 
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nSupported so far: ";
 helpFile.cheevo += listToString(Object.keys(cheevoList));
@@ -803,7 +905,93 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
   });
 });
 
+//Dailies
+helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
+helpFile.today = "Prints a report of the daily achievements for today.";
+helpFile.tomorrow = "Prints a report of the daily achievements for tomorrow.";
+controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  if (!achievementsLoaded) { //still loading
+    bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
+    return;
+  }
+  var printToday = true;
+  var printTomorrow = true;
+  if (message.text == 'today')
+    printTomorrow = false;
+  if (message.text.indexOf('tomorrow') >= 0)
+    printToday = false;
+  var dailiesCallback = function(todayList, header) {
+    gw2nodelib.dailiesTomorrow(function(tomorrowList, header) {
+      var levelEightiesOnly = function(arrayItem) {
+        return arrayItem.level.max == 80 && findInData('id', arrayItem.id, 'achievements');
+      };
+      todayPvEs = todayList.pve.filter(levelEightiesOnly);
+      tomorrowPvEs = tomorrowList.pve.filter(levelEightiesOnly);
+      console.log(JSON.stringify(todayPvEs));
 
+      var fieldsFormatted = [];
+      if (printToday) {
+        fieldsFormatted.push({
+          "title": "Today's Daily Achievements",
+          //"value": day.name,
+          "short": false
+        });
+        for (var d in todayPvEs) {
+          var day = findInData('id', todayPvEs[d].id, 'achievements');
+          if (day && day.name) {
+            console.log("day: " + day.name);
+            if (todayPvEs.length > 4 && todayPvEs[d].required_access.length == 1)
+              day.name = day.name + (todayPvEs[d].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+            fieldsFormatted.push({
+              //            "title": ,
+              "value": day.name,
+              "short": false
+            });
+          } else bot.botkit.log("Nameless achievement: " + JSON.stringify(day));
+        }
+      }
+      if (printTomorrow) {
+        fieldsFormatted.push({
+          "title": "Tomorow's Daily Achievements",
+          //"value": day.name,
+          "short": false
+        });
+
+        for (var t in tomorrowPvEs) {
+          var morrow = findInData('id', tomorrowPvEs[t].id, 'achievements');
+          if (morrow && morrow.name) {
+            if (tomorrowPvEs.length > 4 && tomorrowPvEs[t].required_access.length == 1)
+              morrow.name = morrow.name + (tomorrowPvEs[t].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+            fieldsFormatted.push({
+              //            "title": ,
+              "value": morrow.name,
+              "short": false
+            });
+          } else bot.botkit.log("Nameless achievement: " + JSON.stringify(morrow));
+        }
+      }
+
+      var attachments = [];
+      var attachment = { //assemble attachment
+        color: '#000000',
+        thumb_url: "https://wiki.guildwars2.com/images/1/14/Daily_Achievement.png",
+        fields: fieldsFormatted,
+      };
+      attachments.push(attachment);
+      bot.reply(message, {
+        attachments: attachments,
+      }, function(err, resp) {
+        if (err || debug) bot.botkit.log(err, resp);
+      });
+
+
+    }, {}, true);
+
+  };
+
+  gw2nodelib.dailies(dailiesCallback, {}, true);
+
+});
 /////CHARACTERS
 helpFile.deaths = "Display a report of characters on your account, and their career deaths.";
 helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
@@ -929,6 +1117,7 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
         name = goodUsers[z].name;
         if (jsonData.error || jsonData.text) {
           bot.reply(globalMessage, "I got an error looking up the data for " + name + ". They will be omitted from the results.");
+          bot.botkit.log("error: " + jsonData.error + "\ntext: " + jsonData.text);
           //no need to exit. it will find nothing in jsonData and exit, unless this is the last one, then it will assemble the report.
           goodUsers[z].error = true;
         }
@@ -936,8 +1125,10 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
       }
     }
     for (var c in jsonData) {
-      classes[jsonData[c].profession].num++;
-      classes[jsonData[c].profession].user.push(name);
+      if (jsonData[c].profession && classes[jsonData[c].profession]) {
+        classes[jsonData[c].profession].num++;
+        classes[jsonData[c].profession].user.push(name);
+      } else bot.botkit.log("Unknown profession?" + JSON.stringify(jsonData[c]));
     }
 
 
@@ -1018,6 +1209,82 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
   });
 });
 
+var rikerText =
+  [
+    "I dream of a galaxy where your eyes are the stars and the universe worships the night.",
+    "I love surprise parties!",
+    "Even Klingons need love now and then.",
+    "Smooth as an android's bottom.",
+    "You are the most beautiful woman in the galaxy... ",
+    "You are the heart in my day and the soul in my night.",
+    "You'd be a big hit in London.",
+    "What's a knockout like you doing in a computer-generated gin joint like this?",
+    "I've only been there once, but they've got this great club.",
+    "No, the name of my ship is the Lollipop.",
+    "When in Rome, eh?",
+    "What about plain old basic sex?",
+    "Brussels is lovely this time of the year. Isn't it?",
+    "What's your name? Tell me you love jazz.",
+    "You wouldn't believe the dreams I was having.",
+    "I know this perfect little vacation spot...",
+    "You're new around here, aren't you?",
+    "I can see why your father wants to marry you off.",
+    "Certain cultures consider perfume an aphrodisiac.",
+    "Yes, I find you very attractive.",
+    "The last time we met, you were looking for a husband. Did you have any luck?",
+    "By the way, I'm looking forward to meeting your parents.",
+    "I think my horsemanship is a little rusty for the Himalayas.",
+    "Let's get out of here.",
+    "Eternity never looked so lovely."
+  ];
+
+var rikerPics = [
+  "http://i.onionstatic.com/avclub/4417/61/16x9/960.jpg",
+  "http://33.media.tumblr.com/ce5f4363c4119b2e6e80c7df6190c80c/tumblr_mnq7bukwaH1ss4r0qo3_250.gif",
+  "https://lh3.googleusercontent.com/-WdLMM23r23Q/VQN9VTMchoI/AAAAAAAAAP4/aenzDHMoTqc/s576-Ic42/sttng_s01e11_mr_riker_.png",
+  "http://img3.wikia.nocookie.net/__cb20060728050040/memoryalpha/fr/images/thumb/5/5a/Riker_en_tunique_(Angel_One).jpg/500px-Riker_en_tunique_(Angel_One).jpg",
+  "http://media.tumblr.com/311831084f8078641d3ab8d9490b934a/tumblr_inline_n8q7nyYosy1qapo7v.jpg",
+  "http://farm8.staticflickr.com/7206/6876865698_d308d422d9_z.jpg"
+];
+
+controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var replyker = randomOneOf(rikerText);
+  while (lastRiker.indexOf(replyker) > -1) {
+    if (debug) bot.botkit.log('dropping recent Cat: ' + replyker);
+    replyker = randomOneOf(catFacts);
+  }
+  lastRiker.push(replyker);
+  if (lastRiker.length > 3) lastRiker.shift();
+
+  var reply = {
+    "username": "Command her, Riker",
+    icon_url: randomOneOf(rikerPics),
+    text: replyker
+  };
+  bot.reply(message, reply);
+
+});
+
+controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var replyker = randomOneOf(rikerText);
+  while (lastRiker.indexOf(replyker) > -1) {
+    if (debug) bot.botkit.log('dropping recent Cat: ' + replyker);
+    replyker = randomOneOf(catFacts);
+  }
+  lastRiker.push(replyker);
+  if (lastRiker.length > 3) lastRiker.shift();
+
+  var reply = {
+    "username": "Command her, Riker",
+    icon_url: randomOneOf(rikerPics),
+    text: replyker
+  };
+  bot.reply(message, reply);
+
+});
+
+
+
 /////TOGGLE
 controller.hears(['^toggle'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var replyString = '(╯°□°)╯︵ ┻━┻';
@@ -1089,6 +1356,21 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
   bot.reply(message, printPrefixes(prefixes));
 });
 
+controller.hears(['\barah\b'], 'direct_message,ambient', function(bot, message) {
+  var responses = [
+    "ARAHENGE YOU GLAD TO... oh, nevermind.",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ];
+  bot.reply(message, randomOneOf(responses));
+});
+
 controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(bot, message) {
   var responses = [
     "Only humans are sentient.",
@@ -1104,8 +1386,10 @@ controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(b
   bot.reply(message, randomOneOf(responses));
 });
 
+controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  if (message.text == 'dogfact')
+    bot.reply(message, "Dogs are great. Here's a catfact.");
 
-controller.hears(['^catfact'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var catFacts = ["Cats are delicious.",
     "It takes over 400 stationary cats to completely stop an average truck going 30 mph.",
     "Your cats don't love you.",
@@ -1120,7 +1404,8 @@ controller.hears(['^catfact'], 'direct_message,direct_mention,mention,ambient', 
     "http://i.imgur.com/PRN9l9C.jpg",
     "http://i.imgur.com/RxNcmYD.jpg",
     "http://i.imgur.com/pAr3u8b.jpg",
-    "http://i.imgur.com/tLhbW4M.jpg"
+    "http://i.imgur.com/tLhbW4M.jpg",
+    "https://s-media-cache-ak0.pinimg.com/236x/66/35/f8/6635f8377e8da24a2ef2d2813e12029c.jpg"
   ];
   var replyCat = randomOneOf(catFacts);
   while (lastCat.indexOf(replyCat) > -1) {
@@ -1165,7 +1450,7 @@ function errorCallback(msg) {
     bot.reply(globalMessage, "Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.');
   }
   bot.botkit.log("error loading: " + msg);
-  recepesLoaded = false;
+  recipiesLoaded = false;
 }
 //recipes
 function doneRecipesCallback(apiKey) {
@@ -1195,7 +1480,7 @@ function doneRecipesCallback(apiKey) {
       var end = new Date().getTime();
       var time = end - start;
       bot.botkit.log("Item list from recipes loaded. Data has " + Object.keys(gw2nodelib.data.items).length + " items: " + time + "ms");
-      recepesLoaded = true;
+      recipiesLoaded = true;
       decrementAndCheckDone(apiKey);
     };
     gw2nodelib.load("items", {
@@ -1247,7 +1532,7 @@ function reloadAllData(bypass) {
   gw2nodelib.data.recipes = [];
   gw2nodelib.data.items = [];
   gw2nodelib.data.forged = [];
-  recepesLoaded = false;
+  recipiesLoaded = false;
 
   gw2nodelib.data.achievements = [];
   gw2nodelib.data.achievementsCategories = [];
@@ -1322,6 +1607,7 @@ function findInData(key, value, apiKey) {
 
 //add the given emoji to given message
 function addReaction(message, emoji) {
+  bot.botkit.log(JSON.stringify(message));
   bot.api.reactions.add({
     timestamp: message.ts,
     channel: message.channel,
@@ -1564,15 +1850,20 @@ function getBaseIngredients(ingredients) {
   //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
   for (var i = 0; i < ingredients.length; i++) { //Length changes. Careful, friend
     var makeableIngredient = findInData('output_item_id', ingredients[i].item_id, 'recipes');
-    if (!makeableIngredient) { //if it's not made, base ingredient 
-      if (debug) bot.botkit.log(findInData('id', ingredients[i].item_id, 'items').name + " is a base ingredient "); //Ex1: 1 vial of blood
+    //special cutout for jewelry, ignore the transmog types that change tiers of gems, so we don't always see piled of the lowest tier gem
+    //if it makes an upgrade component that is a gem, ignore.
+    var outputItem = findInData('id', ingredients[i].item_id, 'items');
+    var jewelryTransmog = makeableIngredient && outputItem && outputItem.type && outputItem.type == "UpgradeComponent" && outputItem.details && outputItem.details.type && outputItem.details.type == "Gem";
+
+    if (!makeableIngredient || jewelryTransmog) { //if it's not made, base ingredient. Also refineable jewelry
+      if (debug) bot.botkit.log(findInData('id', ingredients[i].item_id, 'items').name + " is a " + (jewelryTransmog ? "jewelry transmog" : "base ingredient")); //Ex1: 1 vial of blood
       addIngredient(baseIngredients, ingredients[i]);
     } else { //Ex1: an axe blade
       if (debug) bot.botkit.log("need " + ingredients[i].count + " of " + findInData('id', ingredients[i].item_id, 'items').name + '(' + makeableIngredient.output_item_count + ')');
       //Add parts of this sub-recipe to the ingredients list
       var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
       var listItem;
-      if (debug) listItem = findInData('id', ingredients[i].item_id, 'items').name;
+      if (debug) listItem = outputItem.name;
       //Check if we have any in extra ingredients
       if (debug) bot.botkit.log('see if we already have any of the ' + ingredientsNeeded + ' ' + listItem + '(s) we need');
       for (var x in extraIngredients) {

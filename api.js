@@ -17,13 +17,15 @@ var config = {
 		items: 'items',
 		recipes: 'recipes',
 		account: 'account',
-		tokeninfo: 'tokeninfo'
+		tokeninfo: 'tokeninfo',
+		dailies: 'achievements/daily',
+		dailiesTomorrow: 'achievements/daily/tomorrow'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
-		items: ["text","error","name", "id", "description", "level", "chat_link", "icon"],
-		recipes: ["text","error","output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
-		achievements: ["text","error","id", "name", "description", "requirement", "icon", "bits", "tiers"],
-		achievementsCategories: ["text","error","id", "name", "icon", "achievements"]
+		items: ["text", "error", "name", "id", "description", "level", "chat_link", "icon","details","type"],
+		recipes: ["text", "error", "output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
+		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers"],
+		achievementsCategories: ["text", "error", "id", "name", "icon", "achievements"]
 	},
 };
 
