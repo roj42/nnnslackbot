@@ -21,6 +21,7 @@ var sass = loadStaticDataFromFile('sass.json');
 var lastSass = [];
 var lastCat = [];
 var lastRiker = [];
+var cheevoList = {};
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
@@ -206,7 +207,7 @@ controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,men
     } else {
       bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
       bot.reply(message, "Tell Lessdremoth quaggan <quaggan name> to preview!");
-      bot.reply(message, listToString(jsonList));
+      bot.reply(message, jsonList.join(", "));
     }
   });
 });
@@ -298,7 +299,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
           for (var u in userData)
             if (!user.dfid || user.dfid != userData[u].dfid)
               idsInUse.push(userData[u].dfid);
-          console.log("ids in use " + listToString(idsInUse));
+          console.log("ids in use " + idsInUse.join(", "));
           //set user dfid to a reasonable default or the old one
           user.dfid = (user.dfid ? user.dfid : removePunctuationAndToLower(user.name[0]));
 
@@ -322,7 +323,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
               pattern: new RegExp(/^(\w)$/i),
               callback: function(response, convo) {
                 if (idsInUse.indexOf(response.text) > -1) {
-                  convo.say('That appears to be in use:\n' + listToString(idsInUse));
+                  convo.say('That appears to be in use:\n' + idsInUse.join(", "));
                   convo.repeat();
                   convo.next();
                 } else {
@@ -331,7 +332,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
                     if (err)
                       bot.reply(message, "I got an error while saving: " + err);
                     else
-                      bot.reply(message, 'Done! You are \'' + user.dfid + '\'. Saved for later. Your access token provided me with these permissions:\n' + listToString(user.permissions));
+                      bot.reply(message, 'Done! You are \'' + user.dfid + '\'. Saved for later. Your access token provided me with these permissions:\n' + user.permissions.join(", "));
                     convo.next();
                   });
                 }
@@ -476,8 +477,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
             var textMain = dungeonFrequenterCheevo.bits[achievement].text; //name of the dungeon
             var textPost = '';
             if (nameList.length > 0) { //non verbose mode will simply have no names appended
-              textPost += ' (' + listToString(nameList, false);
-              textPost = textPost.substring(0, textPost.length - 1); //chop off trailing space
+              textPost += ' (' + nameList.join(", ");
               textPost += ')';
             }
             textPost += '\n';
@@ -539,6 +539,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       var attachments = [];
       var attachment = { //assemble attachment
         title: "Dungeon Friend Report",
+        fallback: "Dungeon Friend Report",
         color: '#000000',
         thumb_url: randomOneOf(acceptableQuaggans),
         fields: fieldsFormatted,
@@ -643,7 +644,7 @@ function findInAccount(id, accountAchievements) {
 
 
 /////Cheevos
-var cheevoList = {};
+// var cheevoList = {};
 cheevoList.dungeonexplore = {
   name: 'Dungeons',
   category: true,
@@ -652,13 +653,6 @@ cheevoList.dungeonexplore = {
   exclude: ['Dungeon Master', 'Hobby Dungeon Explorer', 'Dungeon Frequenter']
 };
 cheevoList.de = cheevoList.dungeonexplore;
-cheevoList.dungeonfrequenter = {
-  name: 'Dungeon Frequenter',
-  includeDone: false,
-  includeUndone: true,
-  category: false
-};
-cheevoList.df = cheevoList.dungeonfrequenter;
 cheevoList.jumpingpuzzles = {
   name: 'Jumping Puzzles',
   includeDone: false,
@@ -671,117 +665,8 @@ cheevoList.jpr = {
   category: true,
   random: true
 };
-cheevoList.darkharvest = {
-  name: 'Dark Harvest',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.bo = {
-  name: 'Bo',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.fixrupper = {
-  name: 'Fix-r-Upper',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.glintsbastion = {
-  name: "Glint's Bastion",
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.horologicus = {
-  name: 'Horologicus',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardheadwrap = {
-  name: 'Mistward Headwrap',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardlegguards = {
-  name: 'Mistward Legguards',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardpauldrons = {
-  name: 'Mistward Pauldrons',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardplate = {
-  name: 'Mistward Plate',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardwarboots = {
-  name: 'Mistward Warboots',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.mistwardwarfists = {
-  name: 'Mistward Warfists',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.wildabandon = {
-  name: 'Wild Abandon',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.northwind = {
-  name: 'The North Wind',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.ydalir = {
-  name: 'Ydalir',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.yggdrasil = {
-  name: 'Yggdrasil',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.fashionforward = {
-  name: 'Fashion Forward',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.ff = {
-  name: 'Fashion Forward',
-  category: false,
-  includeDone: true,
-  includeUndone: true,
-};
-cheevoList.fashion = {
-  name: 'Fashion',
-  category: true,
-  includeDone: true,
-  includeUndone: true,
-};
 
-helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nSupported so far: ";
-helpFile.cheevo += listToString(Object.keys(cheevoList));
+helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
 
 controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
@@ -802,106 +687,115 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
       bot.reply(message, "I didn't quite get that. Maybe ask \'help cheevo\'?");
       return;
     }
-    var cheevoToDisplay = cheevoList[matches[1]];
-    //we're here with a valid thing to look up, accesstoken, and data ready.
-    gw2nodelib.accountAchievements(function(accountAchievements) {
-      if (accountAchievements.text || accountAchievements.error) {
-        bot.reply(message, "Oops. I got this error when asking for your achievements: " + (accountAchievements.text ? accountAchievements.text : accountAchievements.error));
-        return;
-      }
-      if (debug) bot.botkit.log("I found " + Object.keys(accountAchievements).length + ' character cheevos.');
-      //for report totals
-      var current = 0;
-      var max = 0;
+    if (cheevoList[matches[1]]) { //placeholder always true if we're here
 
-      var category = [];
-      //get all cheevos in the category. Push lone cheevos to the category list
-      bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
-      if (cheevoToDisplay.category) {
-        category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
-        bot.botkit.log("I found this category:" + JSON.stringify(category));
-      } else {
-        category.achievements = [];
-        var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
-        bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
-        category.achievements.push(loneCheevo.id);
-      }
-
-      var attachments = [];
-      var text = '';
-      //assemble list of achievement names
-
-      if (cheevoToDisplay.random) { //cutout. Just pick a cheevo at random.
-        var randomNum;
-        var alreadyDone = true;
-        //keep picking until we find one the user has not done.
-        while (alreadyDone) {
-          randomNum = Math.floor(Math.random() * category.achievements.length);
-          var acctCheevo = findInAccount(category.achievements[randomNum], accountAchievements);
-          if (!acctCheevo || !acctCheevo.done) {
-            alreadyDone = false;
-          }
+      var cheevoToDisplay = cheevoList[matches[1]];
+      //we're here with a valid thing to look up, accesstoken, and data ready.
+      gw2nodelib.accountAchievements(function(accountAchievements) {
+        if (accountAchievements.text || accountAchievements.error) {
+          bot.reply(message, "Oops. I got this error when asking for your achievements: " + (accountAchievements.text ? accountAchievements.text : accountAchievements.error));
+          return;
         }
-        var randomCheevo = findInData('id', category.achievements[randomNum], 'achievements'); //find the achievement to get the name
-        //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
-        var desc = randomCheevo.description.replace(/(\.)$/, '');
-        desc += '!';
-        var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
-        bot.reply(message, "Go do '" + randomCheevo.name + "'.\n" + desc + "\n" + url);
-      } else {
-        for (var n in category.achievements) { //for each acievment in the category list
-          var gameCheevo = findInData('id', category.achievements[n], 'achievements'); //find the achievement to get the name
-          if (gameCheevo) {
-            if (debug) bot.botkit.log("I found this gw cheevo: " + gameCheevo.name);
-            var includeSubCheevo = true; //exclude any category cheevos specifically left out
-            for (var i in cheevoToDisplay.exclude) {
-              if (gameCheevo.name == cheevoToDisplay.exclude[i])
-                includeSubCheevo = false;
-            }
+        if (debug) bot.botkit.log("I found " + Object.keys(accountAchievements).length + ' character cheevos.');
+        //for report totals
+        var current = 0;
+        var max = 0;
 
-            if (includeSubCheevo) { //Display this cheevo's parts.
-              var rollupCheevo = findInAccount(gameCheevo.id, accountAchievements); //See if the account is done with this achievement
-              if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
-                current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
-                max += rollupCheevo.max; //add the max to the running total of max
-                text += gameCheevo.name + ' - DONE (' + rollupCheevo.max + ')\n';
-              } else { //list parts (if any)
-                //Running total; each bit or single bitless achievement that is done adds to current
-                var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
-                var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
-                for (var str in doneList) {
-                  text += doneList[str] + '\n';
+        var category = [];
+        //get all cheevos in the category. Push lone cheevos to the category list
+        bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
+        if (cheevoToDisplay.category) {
+          category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
+          bot.botkit.log("I found this category:" + JSON.stringify(category));
+        } else {
+          category.achievements = [];
+          var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
+          bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
+          category.achievements.push(loneCheevo.id);
+        }
+
+        var attachments = [];
+        var text = '';
+        //assemble list of achievement names
+
+        if (cheevoToDisplay.random) { //cutout. Just pick a cheevo at random.
+          var randomNum;
+          var alreadyDone = true;
+          //keep picking until we find one the user has not done.
+          while (alreadyDone) {
+            randomNum = Math.floor(Math.random() * category.achievements.length);
+            var acctCheevo = findInAccount(category.achievements[randomNum], accountAchievements);
+            if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
+              alreadyDone = false;
+            }
+          }
+          var randomCheevo = findInData('id', category.achievements[randomNum], 'achievements'); //find the achievement to get the name
+          //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
+          var desc = randomCheevo.description.replace(/(\.)$/, '');
+          desc += '!';
+          var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
+          bot.reply(message, "Go do '" + randomCheevo.name + "'.\n" + desc + "\n" + url);
+        } else {
+          for (var n in category.achievements) { //for each acievment in the category list
+            var gameCheevo = findInData('id', category.achievements[n], 'achievements'); //find the achievement to get the name
+            if (gameCheevo) {
+              if (debug) bot.botkit.log("I found this gw cheevo: " + gameCheevo.name);
+              var includeSubCheevo = true; //exclude any category cheevos specifically left out
+              for (var i in cheevoToDisplay.exclude) {
+                if (gameCheevo.name == cheevoToDisplay.exclude[i])
+                  includeSubCheevo = false;
+              }
+
+              if (includeSubCheevo) { //Display this cheevo's parts.
+                var rollupCheevo = findInAccount(gameCheevo.id, accountAchievements); //See if the account is done with this achievement
+                if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
+                  current += rollupCheevo.current;
+                  //current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
+                  max += rollupCheevo.max; //add the max to the running total of max
+                  
+                  text += gameCheevo.name + ' - DONE (' + rollupCheevo.max +(rollupCheevo.repeated && rollupCheevo.repeated > 1? ') ('+rollupCheevo.repeated+' times':'') +')\n';
+
+                } else { //list parts (if any)
+                  //Running total; each bit or single bitless achievement that is done adds to current
+                  var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
+                  var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
+                  for (var str in doneList) {
+                    text += doneList[str] +(accountCheevo.repeated && accountCheevo.repeated > 1? ' ('+accountCheevo.repeated+' times)':'') + '\n';
+                  }
+                  if (accountCheevo) {
+                    current += accountCheevo.current;
+                  }
+                  max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
                 }
-                if (accountCheevo) current += accountCheevo.current;
-                max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
               }
             }
           }
-        }
 
-        var pretextString; //Helper text to you know if we're listing done or not done items
-        if (!cheevoToDisplay.includeUndone || !cheevoToDisplay.includeDone)
-          if (cheevoToDisplay.includeUndone) pretextString = 'You have yet to do the following:';
-          else if (cheevoToDisplay.includeDone) pretextString = 'You have completed the following:';
-        var attachment = { //assemble attachment
-          pretext: pretextString,
-          //example: Dungeon Frequenter Report 5 of 8
-          title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : ''),
-          color: '#000000',
-          thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
-          fields: [],
-          text: text,
-        };
-        attachments.push(attachment);
-        bot.reply(message, {
-          attachments: attachments,
-        }, function(err, resp) {
-          if (err || debug) bot.botkit.log(err, resp);
-        });
-      }
-    }, {
-      access_token: user.access_token
-    }, true);
+          var pretextString = "Here is your progress:"; //Helper text to you know if we're listing done or not done items
+          if (!cheevoToDisplay.includeUndone || !cheevoToDisplay.includeDone)
+            if (cheevoToDisplay.includeUndone) pretextString = 'You have yet to do the following:';
+            else if (cheevoToDisplay.includeDone) pretextString = 'You have completed the following:';
+          var attachment = { //assemble attachment
+            fallback: "Achievement report for "+cheevoToDisplay.name,
+            pretext: pretextString,
+            //example: Dungeon Frequenter Report 5 of 8 (5 times) - Done 4 times
+            title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : ''),
+            color: '#000000',
+            thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+            fields: [],
+            text: text,
+          };
+          attachments.push(attachment);
+          bot.reply(message, {
+            attachments: attachments,
+          }, function(err, resp) {
+            if (err || debug) bot.botkit.log(err, resp);
+          });
+        }
+      }, {
+        access_token: user.access_token
+      }, true);
+    }
   });
 });
 
@@ -909,7 +803,7 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
 helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
 helpFile.today = "Prints a report of the daily achievements for today.";
 helpFile.tomorrow = "Prints a report of the daily achievements for tomorrow.";
-controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   if (!achievementsLoaded) { //still loading
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
     return;
@@ -927,7 +821,6 @@ controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,dir
       };
       todayPvEs = todayList.pve.filter(levelEightiesOnly);
       tomorrowPvEs = tomorrowList.pve.filter(levelEightiesOnly);
-      console.log(JSON.stringify(todayPvEs));
 
       var fieldsFormatted = [];
       if (printToday) {
@@ -939,12 +832,12 @@ controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,dir
         for (var d in todayPvEs) {
           var day = findInData('id', todayPvEs[d].id, 'achievements');
           if (day && day.name) {
-            console.log("day: " + day.name);
+            var dayLabel = day.name;
             if (todayPvEs.length > 4 && todayPvEs[d].required_access.length == 1)
-              day.name = day.name + (todayPvEs[d].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+              dayLabel += (todayPvEs[d].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
             fieldsFormatted.push({
               //            "title": ,
-              "value": day.name,
+              "value": dayLabel,
               "short": false
             });
           } else bot.botkit.log("Nameless achievement: " + JSON.stringify(day));
@@ -960,11 +853,12 @@ controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,dir
         for (var t in tomorrowPvEs) {
           var morrow = findInData('id', tomorrowPvEs[t].id, 'achievements');
           if (morrow && morrow.name) {
+            var morrowLabel = morrow.name;
             if (tomorrowPvEs.length > 4 && tomorrowPvEs[t].required_access.length == 1)
-              morrow.name = morrow.name + (tomorrowPvEs[t].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+              morrowLabel += (tomorrowPvEs[t].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
             fieldsFormatted.push({
               //            "title": ,
-              "value": morrow.name,
+              "value": morrowLabel,
               "short": false
             });
           } else bot.botkit.log("Nameless achievement: " + JSON.stringify(morrow));
@@ -973,6 +867,7 @@ controller.hears(['^daily$', '^today$', '(.*)tomorrow(.*)'], 'direct_message,dir
 
       var attachments = [];
       var attachment = { //assemble attachment
+        fallback: 'Daily Achievements',
         color: '#000000',
         thumb_url: "https://wiki.guildwars2.com/images/1/14/Daily_Achievement.png",
         fields: fieldsFormatted,
@@ -1009,6 +904,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
         bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters.');
         var attachments = [];
         var attachment = {
+          fallback: 'A character death report'+(user.name?" for "+user.name:'')+'.',
           color: '#000000',
           thumb_url: "https://cdn4.iconfinder.com/data/icons/proglyphs-signs-and-symbols/512/Poison-512.png",
           fields: [],
@@ -1162,13 +1058,14 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
         var plural = (s == 'Thief' ? 'Thieves' : s + 's');
         fieldsFormatted.push({
           "title": classes[s].num + ' ' + (classes[s].num != 1 ? plural : s),
-          "value": listToString(classes[s].user),
+          "value": classes[s].user.join(", "),
           "short": true
         });
       }
 
       var attachments = [];
       var attachment = { //assemble attachment
+        fallback:'A Profession Report',
         color: '#000000',
         thumb_url: randomOneOf(acceptableQuaggans),
         fields: fieldsFormatted,
@@ -1209,44 +1106,9 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
   });
 });
 
-var rikerText =
-  [
-    "I dream of a galaxy where your eyes are the stars and the universe worships the night.",
-    "I love surprise parties!",
-    "Even Klingons need love now and then.",
-    "Smooth as an android's bottom.",
-    "You are the most beautiful woman in the galaxy... ",
-    "You are the heart in my day and the soul in my night.",
-    "You'd be a big hit in London.",
-    "What's a knockout like you doing in a computer-generated gin joint like this?",
-    "I've only been there once, but they've got this great club.",
-    "No, the name of my ship is the Lollipop.",
-    "When in Rome, eh?",
-    "What about plain old basic sex?",
-    "Brussels is lovely this time of the year. Isn't it?",
-    "What's your name? Tell me you love jazz.",
-    "You wouldn't believe the dreams I was having.",
-    "I know this perfect little vacation spot...",
-    "You're new around here, aren't you?",
-    "I can see why your father wants to marry you off.",
-    "Certain cultures consider perfume an aphrodisiac.",
-    "Yes, I find you very attractive.",
-    "The last time we met, you were looking for a husband. Did you have any luck?",
-    "By the way, I'm looking forward to meeting your parents.",
-    "I think my horsemanship is a little rusty for the Himalayas.",
-    "Let's get out of here.",
-    "Eternity never looked so lovely."
-  ];
-
-var rikerPics = [
-  "http://i.onionstatic.com/avclub/4417/61/16x9/960.jpg",
-  "http://33.media.tumblr.com/ce5f4363c4119b2e6e80c7df6190c80c/tumblr_mnq7bukwaH1ss4r0qo3_250.gif",
-  "https://lh3.googleusercontent.com/-WdLMM23r23Q/VQN9VTMchoI/AAAAAAAAAP4/aenzDHMoTqc/s576-Ic42/sttng_s01e11_mr_riker_.png",
-  "http://img3.wikia.nocookie.net/__cb20060728050040/memoryalpha/fr/images/thumb/5/5a/Riker_en_tunique_(Angel_One).jpg/500px-Riker_en_tunique_(Angel_One).jpg",
-  "http://media.tumblr.com/311831084f8078641d3ab8d9490b934a/tumblr_inline_n8q7nyYosy1qapo7v.jpg",
-  "http://farm8.staticflickr.com/7206/6876865698_d308d422d9_z.jpg"
-];
-
+var rikerText = loadStaticDataFromFile('riker.json');
+var rikerPics = loadStaticDataFromFile('rikerPics.json');
+saveStaticDataToFile('rikerPics.json', rikerPics);
 controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var replyker = randomOneOf(rikerText);
   while (lastRiker.indexOf(replyker) > -1) {
@@ -1316,7 +1178,10 @@ controller.hears(['^shutdown'], 'direct_message,direct_mention,mention', functio
       pattern: bot.utterances.yes,
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
-        convo.next();
+        setTimeout(function() {
+          convo.say("FINE.");
+          convo.next();
+        }, 500);
         setTimeout(function() {
           process.exit();
         }, 3000);
@@ -1500,19 +1365,35 @@ function doneAllOtherCallback(apiKey) {
   } else bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2nodelib.data[apiKey]).length + ": " + time + "ms");
   decrementAndCheckDone(apiKey);
   if (apiKey == 'achievementsCategories') {
-    achievementsCategoriesLoaded = true;
     //to make this work, you need a global cheevoList
-    // for (var t in gw2nodelib.data.achievementsCategories) {
-    //   var code = removePunctuationAndToLower(gw2nodelib.data.achievementsCategories[t].name).replace(/\s/g, '');
-    //   cheevoList[code] = {
-    //     name: gw2nodelib.data.achievementsCategories[t].name,
-    //     includeDone: true,
-    //     includeUndone: true,
-    //     category: true
-    //   };
-    // }
+    for (var t in gw2nodelib.data.achievementsCategories) {
+      var code = removePunctuationAndToLower(gw2nodelib.data.achievementsCategories[t].name).replace(/\s/g, '');
+      if (!cheevoList[code]) {
+        cheevoList[code] = {
+          name: gw2nodelib.data.achievementsCategories[t].name,
+          includeDone: true,
+          includeUndone: true,
+          category: true
+        };
+      }
+    }
+    achievementsCategoriesLoaded = true;
   }
-  if (apiKey == 'achievements') achievementsLoaded = true;
+  if (apiKey == 'achievements') {
+    for (var a in gw2nodelib.data.achievements) {
+      //to make this work, you need a global cheevoList
+      var acode = removePunctuationAndToLower(gw2nodelib.data.achievements[a].name).replace(/\s/g, '');
+      if (!cheevoList[acode]) {
+        cheevoList[acode] = {
+          name: gw2nodelib.data.achievements[a].name,
+          includeDone: true,
+          includeUndone: true,
+          category: false
+        };
+      }
+    }
+    achievementsLoaded = true;
+  }
 }
 
 function randomOneOf(list) {
@@ -1630,26 +1511,13 @@ function listKeys(jsonArray) {
   return outstring.substring(0, outstring.length - 2);
 }
 
-//Stringify a list to just text and commas. Optionally skip trailing space
-function listToString(jsonList, skipSpace) {
-  //  if (debug) bot.botkit.log("jsonList: " + JSON.stringify(jsonList));
-  var outstring = "",
-    len = Object.keys(jsonList).length;
-  for (var i = 0; i < len; i++) {
-    outstring += jsonList[i];
-    if (i !== len - 1) outstring += ",";
-    if (!skipSpace) outstring += " ";
-  }
-  return outstring;
-}
-
 //////Prefix search helper functions. Prefix data looks like
 //name = {"type": "standard", "stats": ["Little", "Yellow", "Different"] }
 //Stringify a list of prefix data with its associated 'stats' with newline
 function printPrefixes(prefixes) {
   var outMessage = "";
   for (var key in prefixes) {
-    outMessage += key + ": " + listToString(prefixes[key].stats) + "\n";
+    outMessage += key + ": " + prefixes[key].stats.join(", ") + "\n";
   }
   return outMessage;
 }

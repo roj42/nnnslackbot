@@ -47,18 +47,6 @@ var daoLoad = function(apiKey, rawJsonItem) {
 	return daoAppliedItem;
 };
 
-var listToString = function(jsonList, skipSpace) {
-	//  if (debug) console.log("jsonList: " + JSON.stringify(jsonList));
-	var outstring = "",
-		len = Object.keys(jsonList).length;
-	for (var i = 0; i < len; i++) {
-		outstring += jsonList[i];
-		if (i !== len - 1) outstring += ",";
-		if (!skipSpace) outstring += " ";
-	}
-	return outstring;
-};
-
 
 // Set up the cache to work with or without a file; defaults to without
 var fs = null;
@@ -295,8 +283,7 @@ module.exports = function() {
 		var saveList = [];
 		if (fetchParams.ids && fetchParams.ids != 'all') { //Fetching a subset, unless 'all', which indicates paging
 			saveList = fetchParams.ids.slice(0);
-			fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
-			// fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
+			fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
 		}
 		var loopCallback = function(jsonList, headers) { //single fetch at a time up, iterate on self
 			if (jsonList.text || jsonList.error) { //hopefully this is a network hiccup, try again
@@ -336,7 +323,7 @@ module.exports = function() {
 				// track progress
 				if (fetchParams.ids && fetchParams.ids != 'all') {
 					fetchParams.page += fetchParams.page_size;
-					fetchParams.ids = listToString(saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size), true);
+					fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
 					if (!fetchParams.ids && fetchParams.ids != 'all') { //cover the hopefully-impossible case that the slice left this empty. Make sure by-ids path is still triggered
 						fetchParams.ids = '0';
 					}
