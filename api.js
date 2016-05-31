@@ -24,7 +24,7 @@ var config = {
 	dao: { //roj42 - define useful parts of each return JSON item
 		items: ["text", "error", "name", "id", "description", "level", "chat_link", "icon","details","type"],
 		recipes: ["text", "error", "output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
-		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers"],
+		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers","flags"],
 		achievementsCategories: ["text", "error", "id", "name", "icon", "achievements"]
 	},
 };
