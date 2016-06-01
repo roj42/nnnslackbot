@@ -123,15 +123,17 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       bot.reply(message, "No item names contain that exact text.");
     } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
       replyWithRecipeFor(itemSearchResults[0]);
-    } else if (searchTerm == 'bolt') { //BOLT
-      for (var sr in itemSearchResults)
-        if (itemSearchResults[sr].name == 'Bolt')
-          replyWithRecipeFor(itemSearchResults[sr]);
     } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
       var itemNameList = [];
-      for(var n in itemSearchResults)
+      for (var n in itemSearchResults)
         itemNameList.push(itemSearchResults[n].name);
-      bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n'+itemNameList.join(", "));
+      bot.reply(message, {
+        attachments: {
+          attachment: {
+            text: "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+          }
+        }
+      });
     } else { //10 items or less, allow user to choose
       bot.startConversation(message, function(err, convo) {
         var listofItems = '';
@@ -681,7 +683,6 @@ cheevoList.jpr = {
 };
 
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
-
 controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
@@ -711,11 +712,7 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
         bot.botkit.log("Account fetch error for user " + message.user + "." + (accountAchievements.text ? " Text:" + accountAchievements.text : '') + (accountAchievements.error ? "\nError:" + accountAchievements.error : ''));
         return;
       }
-      bot.botkit.log("Character cheevo count:" + accountAchievements.length);
-
       cheevoSearchString = matches[1].replace(/\s+/g, '');
-      bot.reply(message, "I will search for " + cheevoSearchString);
-
       //Look up the string.
       var cheevoToDisplay; //try a loop with contains:
       var possibleMatches = [];
@@ -723,34 +720,107 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
         var cheeCat = gw2nodelib.data.achievementsCategories[c];
         if (cheeCat.name) {
           var cleanCat = removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
-          if (cleanCat.indexOf(cheevoSearchString) > -1)
+          if (cleanCat == cheevoSearchString) {
+            cheevoToDisplay = cheeCat;
+            possibleMatches = [cheeCat];
+            break;
+          } else if (cleanCat.indexOf(cheevoSearchString) > -1)
             possibleMatches.push(cheeCat);
         }
       }
-      for (var ch in gw2nodelib.data.achievements) {
-        var chee = gw2nodelib.data.achievements[ch];
-        if (chee.name) {
-          var cleanChee = removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
-          if (cleanChee.indexOf(cheevoSearchString) > -1)
-            possibleMatches.push(chee);
+      if (!cheevoToDisplay) {
+        for (var ch in gw2nodelib.data.achievements) {
+          var chee = gw2nodelib.data.achievements[ch];
+          if (chee.name) {
+            var cleanChee = removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
+            if (cleanChee == cheevoSearchString) {
+              cheevoToDisplay = chee;
+              possibleMatches = [chee];
+              break;
+            } else if (cleanChee.indexOf(cheevoSearchString) > -1)
+              possibleMatches.push(chee);
+          }
         }
       }
-
       if (possibleMatches.length < 1) {
-        bot.reply(message, "No Achievements or Achievement Categories with that name, or anything like that name.\n¯\\_(ツ)_/¯");
+        bot.reply(message, "No Achievements or Achievement Categories contain that phrase.  ¯\\_(ツ)_/¯");
         return;
       } else if (possibleMatches.length == 1) {
         cheevoToDisplay = possibleMatches[0];
+        bot.reply(message, "Good news. I found:\n" + JSON.stringify(cheevoToDisplay));
+        //            globalMessage = message;
+      } else if (possibleMatches.length > 10) {
+        var itemNameList = [];
+        for (var n in possibleMatches)
+          itemNameList.push(possibleMatches[n].name);
+        bot.reply(message, {
+          attachments: {
+            attachment: {
+              text: "Woah. I found " + possibleMatches.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+            }
+          }
+        });
       } else {
-        bot.reply(message, "I found " + possibleMatches.length + " achievements with a similar name.\n" + possibleMatches[0].name + " to " + possibleMatches[possibleMatches.length - 1].name);
-        //Choose code
-        cheevoToDisplay = possibleMatches[0];
+        bot.startConversation(message, function(err, convo) {
+          var askNum = 2;
+          var listofItems = '';
+          for (var i in possibleMatches) {
+            var descString = '';
+            if (possibleMatches[i].requirement) {
+              descString = possibleMatches[i].requirement;
+            } else if (possibleMatches[i].description) {
+              descString = possibleMatches[i].description;
+            } else if (possibleMatches[i].achievements) {
+              descString = 'Category (' + possibleMatches[i].achievements.length + ' achievements).';
+            }
+            listofItems += '\n' + [i] + ": " + possibleMatches[i].name + (descString ? " - " + descString : '');
+          }
+          convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+            //number, no, or repeat
+            pattern: new RegExp(/^(\d{1,2})/i),
+            callback: function(response, convo) {
+              //if it's a number, and that number is within our search results, print it
+              var matches = response.text.match(/^(\d{1,2})/i);
+              var selection = matches[0];
+              if (selection < possibleMatches.length) {
+                cheevoToDisplay = possibleMatches[selection];
+                convo.say("Good news. I found:\n" + JSON.stringify(cheevoToDisplay));
+              } else if (askNum-- > 0) {
+                convo.say("Choose a valid number.");
+                convo.repeat();
+              } else
+                convo.say("Oh well.");
+              convo.next();
+            }
+          }, {
+            //negative response. Stop repeating the list.
+            pattern: bot.utterances.no,
+            callback: function(response, convo) {
+              convo.say('¯\\_(ツ)_/¯');
+              convo.next();
+            }
+          }, {
+            default: true,
+            callback: function(response, convo) {
+              // loop back, user needs to pick or say no.
+              if (askNum-- > 0) {
+                convo.say("Choose a number of the recipe you'd like to see.");
+                convo.repeat();
+              } else
+                convo.say("Be serious.");
+              convo.next();
+            }
+          }]);
+        });
       }
-      // }
-      bot.reply(message, "Good news. I found: " + cheevoToDisplay.name);
+      //        globalMessage = null;
     }, {
       access_token: user.access_token
     }, true);
+
+
+
+    ///////////////////////////////////////
     return;
 
     //we're here with a valid thing to look up, accesstoken, and data ready.
@@ -1345,16 +1415,16 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-  "add lookup / display for bits of type item and skin to cheevos",
-  "add slot/weight convo to crafting",
-  "neaten fractal dailies ?",
-  "logging",
-  "add sass from slack"
+    "add lookup / display for bits of type item and skin to cheevos",
+    "add slot/weight convo to crafting",
+    "neaten fractal dailies ?",
+    "logging",
+    "add sass from slack"
   ];
-  bot.reply(message,todoList.join("\n"));
+  bot.reply(message, todoList.join("\n"));
 });
 
-controller.hears(['^little', 'yellow', 'different', 'nuprin', 'headache'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+controller.hears(['^little', 'yellow', 'two of these', 'nuprin', 'headache'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 
   var prefixes = prefixSearch('nuprin');
   // if (prefixes)
@@ -1557,7 +1627,7 @@ function findInData(key, value, apiKey) {
 
 //add the given emoji to given message
 function addReaction(message, emoji) {
-  bot.botkit.log("Add reation to: "+JSON.stringify(message));
+  bot.botkit.log("Add reation to: " + JSON.stringify(message));
   bot.api.reactions.add({
     timestamp: message.ts,
     channel: message.channel,
@@ -1652,10 +1722,11 @@ function filterPrefixesByLevel(prefixList, level) {
 //For a given item, find its base ingredients and prepare an attachment displaying it
 function assembleRecipeAttachment(itemToDisplay) {
   var ingredients;
-  //is it a standard reci?pe
-  var foundRecipe = findInData('output_item_id', itemToDisplay.id, 'recipes');
-  if (foundRecipe) {
-    ingredients = getBaseIngredients(foundRecipe.ingredients);
+  //is it a standard recipe
+  if (!itemToDisplay.forged) {
+    var foundRecipe = findInData('output_item_id', itemToDisplay.id, 'recipes');
+    if (foundRecipe)
+      ingredients = getBaseIngredients(foundRecipe.ingredients);
   } else { //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
     var forgeRecipe = findInData('output_item_id', itemToDisplay.id, 'forged');
     if (forgeRecipe)
@@ -1747,28 +1818,37 @@ function removePunctuationAndToLower(string) {
 
 function randomHonoriffic(inName, userId) {
   if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
-  else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"])
+  else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
 }
 
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
 function findCraftableItemByName(searchName) {
   var itemsFound = [];
   var cleanSearch = removePunctuationAndToLower(searchName);
+  var exactMatch = [];
   if (debug) bot.botkit.log("findCraftableItemByName: " + cleanSearch);
   for (var i in gw2nodelib.data.items) {
     cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name);
-    if (debug && i == 1) bot.botkit.log("Sample Item: " + cleanItemName + '\n' + JSON.stringify(gw2nodelib.data.items[i]));
     if (cleanItemName.includes(cleanSearch)) {
       if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes')) {
+        if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
+          console.log('exact match recipie ' + cleanSearch);
+          exactMatch.push(gw2nodelib.data.items[i]);
+        }
         itemsFound.push(gw2nodelib.data.items[i]);
-      } else if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'forged')) {
-        var forgedItem = gw2nodelib.data.items[i];
+      }
+      if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'forged')) {
+        var forgedItem = JSON.parse(JSON.stringify(gw2nodelib.data.items[i]));
         forgedItem.forged = true;
-        itemsFound.push(forgedItem);
+        if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
+          console.log('exact match forged ' + cleanSearch);
+          exactMatch.push(forgedItem);
+        } else itemsFound.push(forgedItem);
       } else if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
     }
   }
-  return itemsFound;
+  if (exactMatch) return exactMatch
+  else return itemsFound;
 }
 
 function getBaseIngredients(ingredients) {
