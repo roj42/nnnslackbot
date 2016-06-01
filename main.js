@@ -128,9 +128,10 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
         if (itemSearchResults[sr].name == 'Bolt')
           replyWithRecipeFor(itemSearchResults[sr]);
     } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-      var itemNameFirst = itemSearchResults[0].name;
-      var itemNameLast = itemSearchResults[itemSearchResults.length - 1].name;
-      bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n(from ' + itemNameFirst + ' to ' + itemNameLast + ')');
+      var itemNameList = [];
+      for(var n in itemSearchResults)
+        itemNameList.push(itemSearchResults[n].name);
+      bot.reply(message, "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n'+itemNameList.join(", "));
     } else { //10 items or less, allow user to choose
       bot.startConversation(message, function(err, convo) {
         var listofItems = '';
@@ -238,7 +239,7 @@ controller.hears(['^access token help', '^help access', '^help access token'], '
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
-      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid,user.id) + ". You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
+      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ". You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
     }
   });
 });
@@ -246,7 +247,7 @@ controller.hears(['^access token help', '^help access', '^help access token'], '
 controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,ambient', function(bot, message) {
   //collect information about the user token and basic account info for use later.
   controller.storage.users.get(message.user, function(err, user) {
-    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid,user.id) + ", let's get you set up.");
+    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", let's get you set up.");
 
     var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
     if (message.text.length > 12 && !matches) { // they put SOMETHING in, but it was mangled
@@ -968,7 +969,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
       if (jsonList.text || jsonList.error) {
         bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
       } else {
-        bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters, '+user.dfid + randomHonoriffic(user.dfid, user.id));
+        bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters, ' + user.dfid + randomHonoriffic(user.dfid, user.id));
         var attachments = [];
         var attachment = {
           fallback: 'A character death report' + (user.name ? " for " + user.name : '') + '.',
@@ -1207,7 +1208,7 @@ controller.hears(['^toggle'], 'direct_message,direct_mention,mention,ambient', f
 
 helpFile.hello = "Lessdremoth will say hi back.";
 helpFile.hi = "Lessdremoth will say hi back.";
-controller.hears(['hello', 'hi'], 'direct_message,dire;ct_mention,mention', function(bot, message) {
+controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
   if (message.user && message.user == 'U1AGDSX3K') {
     bot.reply(message, "Hi, roj. You're the best");
     addReaction(message, 'gir');
@@ -1340,6 +1341,17 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
     text: replyCat
   };
   bot.reply(message, reply);
+});
+
+controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var todoList = [
+  "add lookup / display for bits of type item and skin to cheevos",
+  "add slot/weight convo to crafting",
+  "neaten fractal dailies ?",
+  "logging",
+  "add sass from slack"
+  ];
+  bot.reply(message,todoList.join("\n"));
 });
 
 controller.hears(['^little', 'yellow', 'different', 'nuprin', 'headache'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -1545,7 +1557,7 @@ function findInData(key, value, apiKey) {
 
 //add the given emoji to given message
 function addReaction(message, emoji) {
-  bot.botkit.log(JSON.stringify(message));
+  bot.botkit.log("Add reation to: "+JSON.stringify(message));
   bot.api.reactions.add({
     timestamp: message.ts,
     channel: message.channel,
@@ -1553,7 +1565,7 @@ function addReaction(message, emoji) {
   }, function(err, res) {
     if (err) {
       bot.reply(message, "I'm having trouble adding reactions.");
-      bot.botkit.log('Failed to add emoji reaction :(', err);
+      bot.botkit.log('Failed to add emoji reaction :(', err, res);
     }
   });
 }
@@ -1734,8 +1746,8 @@ function removePunctuationAndToLower(string) {
 }
 
 function randomHonoriffic(inName, userId) {
-  if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$';
-  else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly","-base","-face"])
+  if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
+  else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"])
 }
 
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
