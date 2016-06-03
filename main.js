@@ -683,7 +683,8 @@ cheevoList.jpr = {
 };
 
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
-controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+helpFile.cheevor = "Display a random achievement from a category, or random part of an achievement. Use as a suggestion for what to do next.";
+controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -691,12 +692,18 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
   }
   //fetch access token from storage
   controller.storage.users.get(message.user, function(err, user) {
+    if (err) {
+      bot.reply(message, "I got an error loading your data. Try again later");
+      bot.botkit.log("Error:cheevo no user data " + JSON.stringify(err));
+      return;
+    }
     bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", it's like this. Cheevos are in development. Expect dissapointment.");
 
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/cheevo\s?([\s\w]*)$/i);
-    if (!matches || !matches[1]) {
-      bot.reply(message, "I didn't quite get that. Maybe ask \'help cheevo\'?");
+    var matches = removePunctuationAndToLower(message.text).match(/(cheevor|cheevo)\s?([\s\w]*)$/i);
+    var isRandom = matches[1] == 'cheevor';
+    if (!matches || !matches[2]) {
+      bot.reply(message, "I didn't quite get that. Maybe ask \'help " + (isRandom ? 'cheevor' : 'cheevo') + "\'?");
       return;
     }
     //precheck: access token.
@@ -712,43 +719,46 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
         bot.botkit.log("Account fetch error for user " + message.user + "." + (accountAchievements.text ? " Text:" + accountAchievements.text : '') + (accountAchievements.error ? "\nError:" + accountAchievements.error : ''));
         return;
       }
-      cheevoSearchString = matches[1].replace(/\s+/g, '');
+      cheevoSearchString = matches[2].replace(/\s+/g, '');
       //Look up the string.
-      var cheevoToDisplay; //try a loop with contains:
+      var cheevoToDisplay; //try a loop with contains
       var possibleMatches = [];
+      var exactMatches = [];
       for (var c in gw2nodelib.data.achievementsCategories) {
         var cheeCat = gw2nodelib.data.achievementsCategories[c];
         if (cheeCat.name) {
           var cleanCat = removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
           if (cleanCat == cheevoSearchString) {
-            cheevoToDisplay = cheeCat;
-            possibleMatches = [cheeCat];
+            exactMatches.push(cheeCat);
             break;
-          } else if (cleanCat.indexOf(cheevoSearchString) > -1)
+          } else if (cleanCat.includes(cheevoSearchString))
             possibleMatches.push(cheeCat);
         }
       }
-      if (!cheevoToDisplay) {
-        for (var ch in gw2nodelib.data.achievements) {
-          var chee = gw2nodelib.data.achievements[ch];
-          if (chee.name) {
-            var cleanChee = removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
-            if (cleanChee == cheevoSearchString) {
-              cheevoToDisplay = chee;
-              possibleMatches = [chee];
-              break;
-            } else if (cleanChee.indexOf(cheevoSearchString) > -1)
-              possibleMatches.push(chee);
-          }
+      for (var ch in gw2nodelib.data.achievements) {
+        var chee = gw2nodelib.data.achievements[ch];
+        if (chee.name) {
+          var cleanChee = removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
+          if (cleanChee == cheevoSearchString) {
+            exactMatches.push(chee);
+            break;
+          } else if (cleanChee.includes(cheevoSearchString))
+            possibleMatches.push(chee);
         }
       }
+      if (exactMatches.length > 0) //cutout for categories or achievements with exact names.
+        possibleMatches = exactMatches;
       if (possibleMatches.length < 1) {
         bot.reply(message, "No Achievements or Achievement Categories contain that phrase.  ¯\\_(ツ)_/¯");
         return;
       } else if (possibleMatches.length == 1) {
-        cheevoToDisplay = possibleMatches[0];
-        bot.reply(message, "Good news. I found:\n" + JSON.stringify(cheevoToDisplay));
-        //            globalMessage = message;
+        globalMessage = message;
+        if (isRandom)
+          displayRandomCheevoCallback(accountAchievements, possibleMatches[0]);
+        else if (possibleMatches[0].achievements)
+          displayCategoryCallback(accountAchievements, possibleMatches[0]);
+        else
+          displayCheevoCallback(accountAchievements, possibleMatches[0]);
       } else if (possibleMatches.length > 10) {
         var itemNameList = [];
         for (var n in possibleMatches)
@@ -771,7 +781,7 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
             } else if (possibleMatches[i].description) {
               descString = possibleMatches[i].description;
             } else if (possibleMatches[i].achievements) {
-              descString = 'Category (' + possibleMatches[i].achievements.length + ' achievements).';
+              descString = 'Category with ' + possibleMatches[i].achievements.length + ' achievements.';
             }
             listofItems += '\n' + [i] + ": " + possibleMatches[i].name + (descString ? " - " + descString : '');
           }
@@ -780,11 +790,16 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
             pattern: new RegExp(/^(\d{1,2})/i),
             callback: function(response, convo) {
               //if it's a number, and that number is within our search results, print it
-              var matches = response.text.match(/^(\d{1,2})/i);
+              var matches = response.text.match(/^(\d{1,})/i);
               var selection = matches[0];
               if (selection < possibleMatches.length) {
-                cheevoToDisplay = possibleMatches[selection];
-                convo.say("Good news. I found:\n" + JSON.stringify(cheevoToDisplay));
+                globalMessage = convo;
+                if (isRandom)
+                  displayRandomCheevoCallback(accountAchievements, possibleMatches[selection]);
+                else if (possibleMatches[selection].achievements)
+                  displayCategoryCallback(accountAchievements, possibleMatches[selection]);
+                else
+                  displayCheevoCallback(accountAchievements, possibleMatches[selection]);
               } else if (askNum-- > 0) {
                 convo.say("Choose a valid number.");
                 convo.repeat();
@@ -817,126 +832,228 @@ controller.hears(['^cheevo(.*)'], 'direct_message,direct_mention,mention,ambient
     }, {
       access_token: user.access_token
     }, true);
-
-
-
-    ///////////////////////////////////////
-    return;
-
-    //we're here with a valid thing to look up, accesstoken, and data ready.
-    gw2nodelib.accountAchievements(function(accountAchievements) {
-      if (accountAchievements.text || accountAchievements.error) {
-        bot.reply(message, "Oops. I got this error when asking for your achievements: " + (accountAchievements.text ? accountAchievements.text : accountAchievements.error));
-        return;
-      }
-      if (debug) bot.botkit.log("I found " + Object.keys(accountAchievements).length + ' character cheevos.');
-      //for report totals
-      var current = 0;
-      var max = 0;
-      var repeated = 0;
-      var category = [];
-      //get all cheevos in the category. Push lone cheevos to the category list
-      bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
-      if (cheevoToDisplay.category) {
-        category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
-        bot.botkit.log("I found this category:" + JSON.stringify(category));
-      } else {
-        category.achievements = [];
-        var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
-        bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
-        category.achievements.push(loneCheevo.id);
-      }
-
-      var attachments = [];
-      var text = '';
-      //assemble list of achievement names
-
-      if (cheevoToDisplay.random) { //cutout. Just pick a cheevo at random from the category
-        var randomNum;
-        var alreadyDone = true;
-        //keep picking until we find one the user has not done.
-        while (alreadyDone) {
-          randomNum = Math.floor(Math.random() * category.achievements.length);
-          var acctCheevo = findInAccount(category.achievements[randomNum], accountAchievements);
-          if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
-            alreadyDone = false;
-          }
-        }
-        var randomCheevo = findInData('id', category.achievements[randomNum], 'achievements'); //find the achievement to get the name
-        //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
-        var desc = randomCheevo.description.replace(/(\.)$/, '');
-        desc += '!';
-        var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
-        bot.reply(message, "Go do '" + randomCheevo.name + "'.\n" + desc + "\n" + url);
-      } else {
-        for (var n in category.achievements) { //for each acievment in the category list
-          var gameCheevo = findInData('id', category.achievements[n], 'achievements'); //find the achievement to get the name
-          if (gameCheevo) {
-            if (debug) bot.botkit.log("I found this gw cheevo: " + gameCheevo.name);
-            var includeSubCheevo = true; //exclude any category cheevos specifically left out
-            for (var i in cheevoToDisplay.exclude) {
-              if (gameCheevo.name == cheevoToDisplay.exclude[i])
-                includeSubCheevo = false;
-            }
-
-            if (includeSubCheevo) { //Display this cheevo's parts.
-              var rollupCheevo = findInAccount(gameCheevo.id, accountAchievements); //See if the account is done with this achievement
-              if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
-                current += rollupCheevo.current;
-                //current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
-                max += rollupCheevo.max; //add the max to the running total of max
-                var timesRollupStr = '';
-                if (cheevoToDisplay.category && rollupCheevo.repeated && rollupCheevo.repeated > 0)
-                  timesRollupStr += ' (' + rollupCheevo.repeated + (rollupCheevo.repeated == 1 ? ' time' : ' times') + ')';
-                text += gameCheevo.name + ' - DONE (' + rollupCheevo.max + ')' + timesRollupStr + '\n';
-
-              } else { //list parts (if any)
-                //Running total; each bit or single bitless achievement that is done adds to current
-                var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
-                var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
-                for (var str in doneList) {
-                  text += doneList[str] + '\n';
-                }
-                if (accountCheevo) {
-                  if (accountCheevo.repeated) repeated = +accountCheevo.repeated + repeated;
-                  current += accountCheevo.current;
-                }
-                max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
-              }
-            }
-          }
-        }
-
-        var pretextString = "Here is your progress:"; //Helper text to you know if we're listing done or not done items
-        if (!cheevoToDisplay.includeUndone || !cheevoToDisplay.includeDone)
-          if (cheevoToDisplay.includeUndone) pretextString = 'You have yet to do the following:';
-          else if (cheevoToDisplay.includeDone) pretextString = 'You have completed the following:';
-        var timesStr = '';
-        if (!cheevoToDisplay.category && repeated > 0)
-          timesStr += ' - previously done ' + repeated + (repeated == 1 ? ' time' : ' times');
-        var attachment = { //assemble attachment
-          fallback: "Achievement report for " + cheevoToDisplay.name,
-          pretext: pretextString,
-          //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
-          title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
-          color: '#000000',
-          thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
-          fields: [],
-          text: text,
-        };
-        attachments.push(attachment);
-        bot.reply(message, {
-          attachments: attachments,
-        }, function(err, resp) {
-          if (err || debug) bot.botkit.log(err, resp);
-        });
-      }
-    }, {
-      access_token: user.access_token
-    }, true);
   });
 });
 
+function replyWith(messageToSend) {
+  if (!globalMessage) return;
+  if (globalMessage.say) //convo
+    globalMessage.say(messageToSend);
+  else
+    bot.reply(globalMessage, messageToSend);
+  globalMessage = null;
+}
+
+//must be a category Just pick a cheevo at random from the category
+function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
+  // if (!cheevoToDisplay.achievements) {
+  //   bot.botkit.log("Error: called random on a non-category achievement");
+  //   replyWith("Sorry, can't give you a random Achievement unless it's from a Category");
+  //   return;
+  // }
+  var randomNum;
+  var alreadyDone = true;
+  if (cheevoToDisplay.achievements) { //choose random achievement from sub category
+    //keep picking until we find one the user has not done.
+    while (alreadyDone) {
+      randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
+      var acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
+      if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
+        alreadyDone = false;
+      }
+    }
+    var randomCheevo = findInData('id', cheevoToDisplay.achievements[randomNum], 'achievements'); //find the achievement to get the name
+    //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
+    var desc = randomCheevo.description.replace(/(\.)$/, '');
+    desc += '!';
+    var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
+    replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
+  } else if (cheevoToDisplay.bits) { //choose random part of an achievment
+    var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+    while (alreadyDone) {
+      randomNum = Math.floor(Math.random() * cheevoToDisplay.bits.length);
+      if (!acctCheevo || !acctCheevo.bits) {
+        alreadyDone = false;
+      } else {
+        for (var bit in acctCheevo.bits) { //go through account bits and see if they've done the one we've randoed
+          if (acctCheevo.bits[bit] == randomNum)
+            alreadyDone = false;
+        }
+      }
+    }
+    replyWith("Randumb: " + JSON.stringify(cheevoToDisplay.bits[randomNum]));
+  } else {
+    replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
+  }
+}
+
+function displayCategoryCallback(accountAchievements, cheevoToDisplay) {
+  var title = cheevoToDisplay.name + " Report"; // + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
+
+  //assemble list of achievements
+  var achievementList = []; //list of achievement IDs
+  if (cheevoToDisplay.achievements)
+    achievementList = cheevoToDisplay.achievements;
+  else achievementList.push(cheevoToDisplay.id);
+
+  attachment = {};
+  attachment = { //assemble attachment
+    fallback: "Achievement report for " + cheevoToDisplay.name,
+    pretext: '',
+    //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+    title: title,
+    color: '#AA129F',
+    thumb_url: (cheevoToDisplay.icon ? cheevoToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+    fields: [],
+    text: "Good news. I found:\n" + JSON.stringify(cheevoToDisplay)
+  };
+  replyWith({
+    text: '',
+    attachments: {
+      attachment: attachment
+    }
+  });
+}
+
+function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
+  var title = cheevoToDisplay.name + " Report"; // + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
+
+  //assemble list of achievements
+  // var achievementList = []; //list of achievement IDs
+  // if (cheevoToDisplay.achievements)
+  //   achievementList = cheevoToDisplay.achievements;
+  // else achievementList.push(cheevoToDisplay.id);
+
+  attachment = {};
+  attachment = { //assemble attachment
+    fallback: "Achievement report for " + cheevoToDisplay.name,
+    pretext: '',
+    //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+    title: title,
+    color: '#F0AC1B',
+    thumb_url: (cheevoToDisplay.icon ? cheevoToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+    fields: [],
+    text: "Good news. I found:\n" + JSON.stringify(cheevoToDisplay) + '\nYou: ' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
+  };
+  replyWith({
+    text: '',
+    attachments: {
+      attachment: attachment
+    }
+  });
+}
+/*
+var old = gw2nodelib.accountAchievements(function(accountAchievements) {
+    if (accountAchievements.text || accountAchievements.error) {
+      bot.reply(message, "Oops. I got this error when asking for your achievements: " + (accountAchievements.text ? accountAchievements.text : accountAchievements.error));
+      return;
+    }
+    if (debug) bot.botkit.log("I found " + Object.keys(accountAchievements).length + ' character cheevos.');
+    //for report totals
+    var current = 0;
+    var max = 0;
+    var repeated = 0;
+    var category = [];
+    //get all cheevos in the category. Push lone cheevos to the category list
+    bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
+    if (cheevoToDisplay.category) {
+      category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
+      bot.botkit.log("I found this category:" + JSON.stringify(category));
+    } else {
+      category.achievements = [];
+      var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
+      bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
+      category.achievements.push(loneCheevo.id);
+    }
+
+    var attachments = [];
+    var text = '';
+    //assemble list of achievement names
+
+    if (cheevoToDisplay.random) { //cutout. Just pick a cheevo at random from the category
+      var randomNum;
+      var alreadyDone = true;
+      //keep picking until we find one the user has not done.
+      while (alreadyDone) {
+        randomNum = Math.floor(Math.random() * category.achievements.length);
+        var acctCheevo = findInAccount(category.achievements[randomNum], accountAchievements);
+        if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
+          alreadyDone = false;
+        }
+      }
+      var randomCheevo = findInData('id', category.achievements[randomNum], 'achievements'); //find the achievement to get the name
+ in     //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
+      var desc = randomCheevo.description.replace(/(\.)$/, '');
+      desc += '!';
+      var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
+      bot.reply(message, "Go do '" + randomCheevo.name + "'.\n" + desc + "\n" + url);
+    } else {
+      for (var n in category.achievements) { //for each acievment in the category list
+        var gameCheevo = findInData('id', category.achievements[n], 'achievements'); //find the achievement to get the name
+        if (gameCheevo) {
+          if (debug) bot.botkit.log("I found this gw cheevo: " + gameCheevo.name);
+          var includeSubCheevo = true; //exclude any category cheevos specifically left out
+          for (var i in cheevoToDisplay.exclude) {
+            if (gameCheevo.name == cheevoToDisplay.exclude[i])
+              includeSubCheevo = false;
+          }
+
+          if (includeSubCheevo) { //Display this cheevo's parts.
+            var rollupCheevo = findInAccount(gameCheevo.id, accountAchievements); //See if the account is done with this achievement
+            if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
+              current += rollupCheevo.current;
+              //current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
+              max += rollupCheevo.max; //add the max to the running total of max
+              var timesRollupStr = '';
+              if (cheevoToDisplay.category && rollupCheevo.repeated && rollupCheevo.repeated > 0)
+                timesRollupStr += ' (' + rollupCheevo.repeated + (rollupCheevo.repeated == 1 ? ' time' : ' times') + ')';
+              text += gameCheevo.name + ' - DONE (' + rollupCheevo.max + ')' + timesRollupStr + '\n';
+
+            } else { //list parts (if any)
+              //Running total; each bit or single bitless achievement that is done adds to current
+              var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
+              var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
+              for (var str in doneList) {
+                text += doneList[str] + '\n';
+              }
+              if (accountCheevo) {
+                if (accountCheevo.repeated) repeated = +accountCheevo.repeated + repeated;
+                current += accountCheevo.current;
+              }
+              max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
+            }
+          }
+        }
+      }
+
+      var pretextString = "Here is your progress:"; //Helper text to you know if we're listing done or not done items
+      if (!cheevoToDisplay.includeUndone || !cheevoToDisplay.includeDone)
+        if (cheevoToDisplay.includeUndone) pretextString = 'You have yet to do the following:';
+        else if (cheevoToDisplay.includeDone) pretextString = 'You have completed the following:';
+      var timesStr = '';
+      if (!cheevoToDisplay.category && repeated > 0)
+        timesStr += ' - previously done ' + repeated + (repeated == 1 ? ' time' : ' times');
+      var attachment = { //assemble attachment
+        fallback: "Achievement report for " + cheevoToDisplay.name,
+        pretext: pretextString,
+        //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+        title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
+        color: '#000000',
+        thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+        fields: [],
+        text: text,
+      };
+      attachments.push(attachment);
+      bot.reply(message, {
+        attachments: attachments,
+      }, function(err, resp) {
+        if (err || debug) bot.botkit.log(err, resp);
+      });
+    }
+  }, {
+    access_token: user.access_token
+  }, true);
+*/
 //Dailies
 helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
 helpFile.today = "Prints a report of the daily achievements for today.";
@@ -971,8 +1088,8 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
           var day = findInData('id', todayPvEs[d].id, 'achievements');
           if (day && day.name) {
             var dayLabel = day.name;
-            if (todayPvEs.length > 4 && todayPvEs[d].required_access.length == 1)
-              dayLabel += (todayPvEs[d].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+            if (todayPvEs[d].required_access.length == 1)
+              dayLabel += (todayPvEs[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
             fieldsFormatted.push({
               //            "title": ,
               "value": dayLabel,
@@ -992,8 +1109,8 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
           var morrow = findInData('id', tomorrowPvEs[t].id, 'achievements');
           if (morrow && morrow.name) {
             var morrowLabel = morrow.name;
-            if (tomorrowPvEs.length > 4 && tomorrowPvEs[t].required_access.length == 1)
-              morrowLabel += (tomorrowPvEs[t].required_access == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+            if (tomorrowPvEs[t].required_access.length == 1)
+              morrowLabel += (tomorrowPvEs[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
             fieldsFormatted.push({
               //            "title": ,
               "value": morrowLabel,
@@ -1025,6 +1142,8 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
   gw2nodelib.dailies(dailiesCallback, {}, true);
 
 });
+
+
 /////CHARACTERS
 helpFile.deaths = "Display a report of characters on your account, and their career deaths.";
 helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
@@ -1297,7 +1416,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
         setTimeout(function() {
-          convo.say("FINE.");
+          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room."]));
           convo.next();
         }, 500);
         setTimeout(function() {
@@ -1341,6 +1460,22 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
   var prefixes = prefixSearch('berserker');
   // if (prefixes)
   bot.reply(message, printPrefixes(prefixes));
+});
+
+controller.hears(['^why'], 'direct_message,ambient', function(bot, message) {
+  var responses = [
+    "Because you touch yourself at night.",
+    "¯\\_(ツ)_/¯",
+    "Why not?",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ];
+  bot.reply(message, randomOneOf(responses));
 });
 
 controller.hears(['\barah\b'], 'direct_message,ambient', function(bot, message) {
@@ -1416,6 +1551,9 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
     "add lookup / display for bits of type item and skin to cheevos",
+    "fix up globalmessage shenannegans (replae with replyWith)",
+    "add collection icon when icon is missing",
+    "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
     "neaten fractal dailies ?",
     "logging",
@@ -1847,7 +1985,7 @@ function findCraftableItemByName(searchName) {
       } else if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
     }
   }
-  if (exactMatch) return exactMatch
+  if (exactMatch) return exactMatch;
   else return itemsFound;
 }
 
