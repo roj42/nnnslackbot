@@ -613,45 +613,6 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
   });
 });
 
-
-function achievementParseBitsAsName(gameCheevo, includeUndone, includeDone, isCategory, accountCheevo) {
-  //Cover Two cases of cheevo: 'standard' cheevos, and those with bits that define their parts 
-  if (debug) {
-    bot.botkit.log('acct cheevo:' + JSON.stringify(accountCheevo));
-    bot.botkit.log('gameCheevo:' + JSON.stringify(gameCheevo));
-    bot.botkit.log('flags: includeUndone is' + includeUndone + ', includeDone is' + includeDone + ', iscategory is ' + isCategory);
-  }
-  var text = [];
-  //has no bits so we're only concerned if you're done this base cheevo. We'll add a fakey bit so that it's added according to done logic below.
-  if (gameCheevo.flags && gameCheevo.flags.indexOf('CategoryDisplay') > -1) //Meta Achievement. Display nothing.
-    return '';
-  if (!gameCheevo.bits) {
-    gameCheevo.bits = [{
-      text: gameCheevo.name
-    }];
-  }
-  for (var achievement in gameCheevo.bits) { //for each bit, see if the account has that corresponding bit marked as done in their list
-    if (gameCheevo.bits[achievement].text) { // almost always exists, but you never know.
-      var doneByUser = false;
-      if (accountCheevo) { // see if this particular bit 
-        doneByUser = accountCheevo.done; //default that catches bitless cheevos: is the base cheevo done?
-        for (var bit in accountCheevo.bits) //go through account bits and see if they've done the one we're looking at now
-          if (accountCheevo.bits[bit] == achievement)
-          doneByUser = true;
-      }
-      var doneIndicator = (includeUndone && includeDone && doneByUser) ? ' - DONE' : ''; //Are we displaying both? If so, indicate done items with the done indicator
-      //if we're showing done, and the user has it, add it
-      //if we're showing undone and the user doesn't have it, add it.
-      //append the already worked out done indicator
-      if ((includeDone && doneByUser) || (includeUndone && !doneByUser)) {
-        //Category cheevos will have many achievements to display, so prepend the main name to each bit
-        text.push(((isCategory && gameCheevo.bits.length > 1) ? gameCheevo.name + ' - ' : '') + gameCheevo.bits[achievement].text + doneIndicator);
-      }
-    }
-  }
-  return text; //return the list
-}
-
 //find an achievement in the freshly fetched account achievements by id
 function findInAccount(id, accountAchievements) {
   for (var t in accountAchievements) {
@@ -828,11 +789,6 @@ function replyWith(messageToSend, keepGlobalMessage) {
 
 //must be a category Just pick a cheevo at random from the category
 function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
-  // if (!cheevoToDisplay.achievements) {
-  //   bot.botkit.log("Error: called random on a non-category achievement");
-  //   replyWith("Sorry, can't give you a random Achievement unless it's from a Category");
-  //   return;
-  // }
   var randomNum;
   var alreadyDone = true;
   var acctCheevo;
@@ -851,7 +807,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
     desc += '!';
     var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
     replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
-  } else if (cheevoToDisplay.bits) { //choose random part of an achievment
+  } else if (cheevoToDisplay.bits) { //choose random part of an achievement
     acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
     while (alreadyDone) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.bits.length);
@@ -870,25 +826,58 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   }
 }
 
-function displayCategoryCallback(accountAchievements, cheevoToDisplay) {
-  var title = cheevoToDisplay.name + " Report"; // + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
+function displayCategoryCallback(accountAchievements, categoryToDisplay) {
 
-  //assemble list of achievements
-  var achievementList = []; //list of achievement IDs
-  if (cheevoToDisplay.achievements)
-    achievementList = cheevoToDisplay.achievements;
-  else achievementList.push(cheevoToDisplay.id);
+  //go through each achievement in the category, get name, if done by user: sum progress
+  var numDone = 0;
+  var totalAchievements = categoryToDisplay.achievements.length;
+  var partsCurrentSum = 0;
+  var partsMaxSum = 0;
+  var achievementTextList = [];
+  for (var a in categoryToDisplay.achievements) {
+    var gameAchievement = findInData('id', categoryToDisplay.achievements[a], 'achievements');
+    if (!gameAchievement) { //if we don't have the game data, skip it
+      achievementTextList.push("No Achievement found in data - id  " + categoryToDisplay.achievements[a]);
+      continue;
+    }
+    var name = 'Nameless Achievement';
+    var doneProgress = '';
+    var repeat = '';
+    if (gameAchievement.name) name = gameAchievement.name;
+    var acctCheevo = findInAccount(categoryToDisplay.achievements[a], accountAchievements);
+    if (acctCheevo && typeof acctCheevo.current == 'number' && typeof acctCheevo.max == 'number') {
+      partsCurrentSum += acctCheevo.current;
+      partsMaxSum += acctCheevo.max;
+      doneProgress = " - " + acctCheevo.current + "/" + acctCheevo.max;
+      if (acctCheevo.done) {
+        numDone++;
+        doneProgress = ' (Done)';
+      }
+      if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = " (" + acctCheevo.repeated + " repeats)";
+    } else //not done/progressed, add highest tier count as a 'max' and show 0 of that amount
+    if (gameAchievement.tiers) {
+      var tierMax = gameAchievement.tiers[gameAchievement.tiers.length - 1].count;
+      doneProgress = " - 0/" + tierMax;
+      partsMaxSum += tierMax;
+    }
+
+    achievementTextList.push(name + doneProgress + repeat);
+  }
+
+  var title = categoryToDisplay.name + " Report" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : '');
+  var pretext = '';
+  if (partsCurrentSum > 0) pretext = "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).";
 
   attachment = {};
   attachment = { //assemble attachment
-    fallback: "Achievement report for " + cheevoToDisplay.name,
-    pretext: '',
+    fallback: title,
+    pretext: pretext,
     //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
     title: title,
     color: '#AA129F',
-    thumb_url: (cheevoToDisplay.icon ? cheevoToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+    thumb_url: (categoryToDisplay.icon ? categoryToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
     fields: [],
-    text: "Good news. I found:\n" + JSON.stringify(cheevoToDisplay)
+    text: achievementTextList.join('\n')
   };
   replyWith({
     text: '',
@@ -899,24 +888,31 @@ function displayCategoryCallback(accountAchievements, cheevoToDisplay) {
 }
 
 function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
-  var title = cheevoToDisplay.name + " Report"; // + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
-
-  //assemble list of achievements
-  // var achievementList = []; //list of achievement IDs
-  // if (cheevoToDisplay.achievements)
-  //   achievementList = cheevoToDisplay.achievements;
-  // else achievementList.push(cheevoToDisplay.id);
+  //setup all but the bits
+  var pretext = '';
+  var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+  var current = 0;
+  var max = 0;
+  var repeat = '';
+  if (!acctCheevo) pretext = 'You have not made any progress on this achievement)';
+  else {
+    if (typeof acctCheevo.current == 'number') current = acctCheevo.current;
+    if (typeof acctCheevo.max == 'number') max = acctCheevo.max;
+    if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = " (" + acctCheevo.repeated + " repeats)";
+  }
+  var title = cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + repeat;
+  var text = (cheevoToDisplay &&cheevoToDisplay.l ength>0 ?cheevoToDisplay.description:cheevoToDisplay.requirement);
 
   attachment = {};
   attachment = { //assemble attachment
-    fallback: "Achievement report for " + cheevoToDisplay.name,
-    pretext: '',
+    fallback: title,
+    pretext: pretext,
     //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
     title: title,
     color: '#F0AC1B',
-    thumb_url: (cheevoToDisplay.icon ? cheevoToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+    thumb_url: getIconForParentCategory(cheevoToDisplay),
     fields: [],
-    text: "Good news. I found:\n" + JSON.stringify(cheevoToDisplay) + '\nYou: ' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
+    text: text +"\n" + JSON.stringify(cheevoToDisplay) + '\nYou:\n' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
   };
   replyWith({
     text: '',
@@ -924,119 +920,14 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
       attachment: attachment
     }
   });
+
 }
-/*
-var old = gw2nodelib.accountAchievements(function(accountAchievements) {
-    if (accountAchievements.text || accountAchievements.error) {
-      bot.reply(message, "Oops. I got this error when asking for your achievements: " + (accountAchievements.text ? accountAchievements.text : accountAchievements.error));
-      return;
-    }
-    if (debug) bot.botkit.log("I found " + Object.keys(accountAchievements).length + ' character cheevos.');
-    //for report totals
-    var current = 0;
-    var max = 0;
-    var repeated = 0;
-    var category = [];
-    //get all cheevos in the category. Push lone cheevos to the category list
-    bot.botkit.log("trying to look up: " + JSON.stringify(cheevoToDisplay));
-    if (cheevoToDisplay.category) {
-      category = findInData('name', cheevoToDisplay.name, 'achievementsCategories');
-      bot.botkit.log("I found this category:" + JSON.stringify(category));
-    } else {
-      category.achievements = [];
-      var loneCheevo = findInData('name', cheevoToDisplay.name, 'achievements');
-      bot.botkit.log("I found this cheevo: " + JSON.stringify(loneCheevo));
-      category.achievements.push(loneCheevo.id);
-    }
 
-    var attachments = [];
-    var text = '';
-    //assemble list of achievement names
+function getIconForParentCategory(cheevo) {
+  if(cheevo.icon) return cheevo.icon;
+  else return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
+}
 
-    if (cheevoToDisplay.random) { //cutout. Just pick a cheevo at random from the category
-      var randomNum;
-      var alreadyDone = true;
-      //keep picking until we find one the user has not done.
-      while (alreadyDone) {
-        randomNum = Math.floor(Math.random() * category.achievements.length);
-        var acctCheevo = findInAccount(category.achievements[randomNum], accountAchievements);
-        if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
-          alreadyDone = false;
-        }
-      }
-      var randomCheevo = findInData('id', category.achievements[randomNum], 'achievements'); //find the achievement to get the name
- in     //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
-      var desc = randomCheevo.description.replace(/(\.)$/, '');
-      desc += '!';
-      var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
-      bot.reply(message, "Go do '" + randomCheevo.name + "'.\n" + desc + "\n" + url);
-    } else {
-      for (var n in category.achievements) { //for each acievment in the category list
-        var gameCheevo = findInData('id', category.achievements[n], 'achievements'); //find the achievement to get the name
-        if (gameCheevo) {
-          if (debug) bot.botkit.log("I found this gw cheevo: " + gameCheevo.name);
-          var includeSubCheevo = true; //exclude any category cheevos specifically left out
-          for (var i in cheevoToDisplay.exclude) {
-            if (gameCheevo.name == cheevoToDisplay.exclude[i])
-              includeSubCheevo = false;
-          }
-
-          if (includeSubCheevo) { //Display this cheevo's parts.
-            var rollupCheevo = findInAccount(gameCheevo.id, accountAchievements); //See if the account is done with this achievement
-            if (cheevoToDisplay.includeDone && rollupCheevo && rollupCheevo.done === true) { //if they're done and we're showing 'dones' don't list out all the parts
-              current += rollupCheevo.current;
-              //current += rollupCheevo.current; //add the current count of this base achievement to the running total of dones
-              max += rollupCheevo.max; //add the max to the running total of max
-              var timesRollupStr = '';
-              if (cheevoToDisplay.category && rollupCheevo.repeated && rollupCheevo.repeated > 0)
-                timesRollupStr += ' (' + rollupCheevo.repeated + (rollupCheevo.repeated == 1 ? ' time' : ' times') + ')';
-              text += gameCheevo.name + ' - DONE (' + rollupCheevo.max + ')' + timesRollupStr + '\n';
-
-            } else { //list parts (if any)
-              //Running total; each bit or single bitless achievement that is done adds to current
-              var accountCheevo = findInAccount(gameCheevo.id, accountAchievements); //does this account have this cheevo?
-              var doneList = achievementParseBitsAsName(gameCheevo, cheevoToDisplay.includeUndone, cheevoToDisplay.includeDone, cheevoToDisplay.category, accountCheevo);
-              for (var str in doneList) {
-                text += doneList[str] + '\n';
-              }
-              if (accountCheevo) {
-                if (accountCheevo.repeated) repeated = +accountCheevo.repeated + repeated;
-                current += accountCheevo.current;
-              }
-              max += gameCheevo.tiers[gameCheevo.tiers.length - 1].count; //add the total needed for completion to max
-            }
-          }
-        }
-      }
-
-      var pretextString = "Here is your progress:"; //Helper text to you know if we're listing done or not done items
-      if (!cheevoToDisplay.includeUndone || !cheevoToDisplay.includeDone)
-        if (cheevoToDisplay.includeUndone) pretextString = 'You have yet to do the following:';
-        else if (cheevoToDisplay.includeDone) pretextString = 'You have completed the following:';
-      var timesStr = '';
-      if (!cheevoToDisplay.category && repeated > 0)
-        timesStr += ' - previously done ' + repeated + (repeated == 1 ? ' time' : ' times');
-      var attachment = { //assemble attachment
-        fallback: "Achievement report for " + cheevoToDisplay.name,
-        pretext: pretextString,
-        //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
-        title: cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + timesStr,
-        color: '#000000',
-        thumb_url: (category.icon ? category.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
-        fields: [],
-        text: text,
-      };
-      attachments.push(attachment);
-      bot.reply(message, {
-        attachments: attachments,
-      }, function(err, resp) {
-        if (err || debug) bot.botkit.log(err, resp);
-      });
-    }
-  }, {
-    access_token: user.access_token
-  }, true);
-*/
 //Dailies
 helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
 helpFile.today = "Prints a report of the daily achievements for today.";
@@ -1490,7 +1381,7 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
     "add lookup / display for bits of type item and skin to cheevos",
     "fix up globalmessage shenannegans (replae with replyWith)",
     "add collection icon when icon is missing",
-    "break out reload so you can reload achievments separately?",
+    "break out reload so you can reload achievements separately?",
     "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
     "neaten fractal dailies ?",
@@ -1620,7 +1511,7 @@ function decrementAndCheckDone(apiKey) {
     if (globalMessage)
       bot.reply(globalMessage, "All loading complete.");
     globalMessage = null;
-    bot.botkit.log('Finished loading all items after ' + apiKey + '.');
+    bot.botkit.log('Finished loading all apikeys after ' + apiKey + '.');
   }
 }
 
