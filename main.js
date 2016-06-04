@@ -13,6 +13,8 @@ var os = require('os');
 var fs = require('fs');
 // var winston = require('winston');
 var gw2nodelib = require('./api.js');
+gw2nodelib.setCacheTime(3600, 'achievements');
+gw2nodelib.setCacheTime(3600, 'achievementsCategories');
 gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
 var helpFile = [];
@@ -661,28 +663,6 @@ function findInAccount(id, accountAchievements) {
 
 
 /////Cheevos
-// var cheevoList = {};
-cheevoList.dungeonexplore = {
-  name: 'Dungeons',
-  category: true,
-  includeDone: true,
-  includeUndone: false,
-  exclude: ['Dungeon Master', 'Hobby Dungeon Explorer', 'Dungeon Frequenter']
-};
-cheevoList.de = cheevoList.dungeonexplore;
-cheevoList.jumpingpuzzles = {
-  name: 'Jumping Puzzles',
-  includeDone: false,
-  includeUndone: true,
-  category: true
-};
-cheevoList.jp = cheevoList.jumpingpuzzles;
-cheevoList.jpr = {
-  name: 'Jumping Puzzles',
-  category: true,
-  random: true
-};
-
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
 helpFile.cheevor = "Display a random achievement from a category, or random part of an achievement. Use as a suggestion for what to do next.";
 controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -836,13 +816,14 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
   });
 });
 
-function replyWith(messageToSend) {
+function replyWith(messageToSend, keepGlobalMessage) {
   if (!globalMessage) return;
   if (globalMessage.say) //convo
     globalMessage.say(messageToSend);
   else
     bot.reply(globalMessage, messageToSend);
-  globalMessage = null;
+  if (!keepGlobalMessage)
+    globalMessage = null;
 }
 
 //must be a category Just pick a cheevo at random from the category
@@ -857,7 +838,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   var acctCheevo;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
     //keep picking until we find one the user has not done.
-      acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
+    acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
     while (alreadyDone) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
       if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
@@ -1117,7 +1098,6 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
               morrowLabel += (tomorrowPvEs[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
           } else morrowLabel = "Nameless Achievement - id " + tomorrowPvEs[t].id;
           fieldsFormatted.push({
-            //            "title": ,
             "value": morrowLabel,
             "short": false
           });
@@ -1227,44 +1207,8 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
   //Setup variables
   var num = 0;
   var goodUsers = [];
-  var classes = {
-    'Warrior': {
-      num: 0,
-      user: []
-    },
-    'Guardian': {
-      num: 0,
-      user: []
-    },
-    'Revenant': {
-      num: 0,
-      user: []
-    },
-    'Engineer': {
-      num: 0,
-      user: []
-    },
-    'Thief': {
-      num: 0,
-      user: []
-    },
-    'Ranger': {
-      num: 0,
-      user: []
-    },
-    'Elementalist': {
-      num: 0,
-      user: []
-    },
-    'Necromancer': {
-      num: 0,
-      user: []
-    },
-    'Mesmer': {
-      num: 0,
-      user: []
-    }
-  };
+  var classes = [];
+
 
   //once all users are loaded, correlate their professions.
   var professionReportCallback = function(jsonData, headers) {
@@ -1283,12 +1227,16 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
       }
     }
     for (var c in jsonData) {
-      if (jsonData[c].profession && classes[jsonData[c].profession]) {
+      if (jsonData[c].profession) {
+        if (!classes[jsonData[c].profession])
+          classes[jsonData[c].profession] = {
+            num: 0,
+            user: []
+          };
         classes[jsonData[c].profession].num++;
         classes[jsonData[c].profession].user.push(name);
       } else bot.botkit.log("Unknown profession?" + JSON.stringify(jsonData[c]));
     }
-
 
     //after all users are done, spit out report
     if (++num == goodUsers.length) {
@@ -1470,7 +1418,7 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 controller.hears(['^why'], 'direct_message,ambient', function(bot, message) {
   var responses = [
     "Because you touch yourself at night.",
-    "¯\\_(ツ)_/¯",
+    "Dunno. Why? ¯\\_(ツ)_/¯",
     "Why not?",
     "",
     "",
@@ -1542,8 +1490,7 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
     "add lookup / display for bits of type item and skin to cheevos",
     "fix up globalmessage shenannegans (replae with replyWith)",
     "add collection icon when icon is missing",
-    "break out reload so you can reload achievments separately",
-    "lower timeout on achievement data",
+    "break out reload so you can reload achievments separately?",
     "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
     "neaten fractal dailies ?",
