@@ -194,6 +194,7 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
   sass = loadStaticDataFromFile('sass.json');
   rikerText = loadStaticDataFromFile('riker.json');
   rikerPics = loadStaticDataFromFile('rikerPics.json');
+  catFacts = loadStaticDataFromFile("catFacts.json");
   reloadAllData(true);
 });
 
@@ -853,11 +854,12 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   // }
   var randomNum;
   var alreadyDone = true;
+  var acctCheevo;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
     //keep picking until we find one the user has not done.
+      acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
     while (alreadyDone) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
-      var acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
       if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
         alreadyDone = false;
       }
@@ -869,7 +871,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
     var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
     replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
   } else if (cheevoToDisplay.bits) { //choose random part of an achievment
-    var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+    acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
     while (alreadyDone) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.bits.length);
       if (!acctCheevo || !acctCheevo.bits) {
@@ -1072,7 +1074,7 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
   var dailiesCallback = function(todayList, header) {
     gw2nodelib.dailiesTomorrow(function(tomorrowList, header) {
       var levelEightiesOnly = function(arrayItem) {
-        return arrayItem.level.max == 80 && findInData('id', arrayItem.id, 'achievements');
+        return arrayItem.level.max == 80;
       };
       todayPvEs = todayList.pve.filter(levelEightiesOnly);
       tomorrowPvEs = tomorrowList.pve.filter(levelEightiesOnly);
@@ -1086,16 +1088,17 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
         });
         for (var d in todayPvEs) {
           var day = findInData('id', todayPvEs[d].id, 'achievements');
+          var dayLabel;
           if (day && day.name) {
-            var dayLabel = day.name;
+            dayLabel = day.name;
             if (todayPvEs[d].required_access.length == 1)
               dayLabel += (todayPvEs[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-            fieldsFormatted.push({
-              //            "title": ,
-              "value": dayLabel,
-              "short": false
-            });
-          } else bot.botkit.log("Nameless achievement: " + JSON.stringify(day));
+          } else dayLabel = "Nameless Achievement - id  " + todayPvEs[d].id;
+          fieldsFormatted.push({
+            //            "title": ,
+            "value": dayLabel,
+            "short": false
+          });
         }
       }
       if (printTomorrow) {
@@ -1107,16 +1110,18 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
 
         for (var t in tomorrowPvEs) {
           var morrow = findInData('id', tomorrowPvEs[t].id, 'achievements');
+          var morrowLabel;
           if (morrow && morrow.name) {
-            var morrowLabel = morrow.name;
+            morrowLabel = morrow.name;
             if (tomorrowPvEs[t].required_access.length == 1)
               morrowLabel += (tomorrowPvEs[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-            fieldsFormatted.push({
-              //            "title": ,
-              "value": morrowLabel,
-              "short": false
-            });
-          } else bot.botkit.log("Nameless achievement: " + JSON.stringify(morrow));
+          } else morrowLabel = "Nameless Achievement - id " + tomorrowPvEs[t].id;
+          fieldsFormatted.push({
+            //            "title": ,
+            "value": morrowLabel,
+            "short": false
+          });
+
         }
       }
 
@@ -1420,10 +1425,10 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
           convo.next();
         }, 500);
         setTimeout(function() {
-          // saveStaticDataToFile(sass.json,sass);
-          // saveStaticDataToFile(riker.json,rikerText);
-          // saveStaticDataToFile(rikerPics.json,rikerPics);
-          // saveStaticDataToFile(sass.json,sass);
+          // saveStaticDataToFile("sass.json",sass);
+          // saveStaticDataToFile("riker.json",rikerText);
+          // saveStaticDataToFile("rikerPics.json",rikerPics);
+          // saveStaticDataToFile("catFacts.json",catFacts);
           process.exit();
         }, 3000);
       }
@@ -1508,28 +1513,12 @@ controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(b
   bot.reply(message, randomOneOf(responses));
 });
 
+var catFacts = loadStaticDataFromFile("catFacts.json");
 var lastCat = [];
 controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   if (message.text == 'dogfact')
     bot.reply(message, "Dogs are great. Here's a catfact.");
 
-  var catFacts = ["Cats are delicious.",
-    "It takes over 400 stationary cats to completely stop an average truck going 30 mph.",
-    "Your cats don't love you.",
-    "Kittens: A renewable fuel.",
-    "A cät ønce bit my sister... No realli!",
-    "Did you know: If all the cats on the planet were to suddenly dissappear, that would be great.",
-    "The Egyptians worshipped cats, and look what happened to them.",
-    "If a cat had a chance he'd eat you and everyone you care about.",
-    "Toxoplasmosis is a brain parasite cats carry that makes you walk into traffic. Did YOUR cat talk to you about toxoplasmosis before joining your household?",
-    "Cats evolved in the desert. They need no water to live and will instead drink your blood.",
-    "'Mu' is an east asian term meaning nothing, not, nothingness, un-, is not, has not, not any. Cats can say only this, reflecting their role as agents of undoing.",
-    "http://i.imgur.com/PRN9l9C.jpg",
-    "http://i.imgur.com/RxNcmYD.jpg",
-    "http://i.imgur.com/pAr3u8b.jpg",
-    "http://i.imgur.com/tLhbW4M.jpg",
-    "https://s-media-cache-ak0.pinimg.com/236x/66/35/f8/6635f8377e8da24a2ef2d2813e12029c.jpg"
-  ];
   var replyCat = randomOneOf(catFacts);
   while (lastCat.indexOf(replyCat) > -1) {
     if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
@@ -1553,6 +1542,8 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
     "add lookup / display for bits of type item and skin to cheevos",
     "fix up globalmessage shenannegans (replae with replyWith)",
     "add collection icon when icon is missing",
+    "break out reload so you can reload achievments separately",
+    "lower timeout on achievement data",
     "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
     "neaten fractal dailies ?",
