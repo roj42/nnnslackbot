@@ -901,7 +901,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
     if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = " (" + acctCheevo.repeated + " repeats)";
   }
   var title = cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + repeat;
-  var text = (cheevoToDisplay &&cheevoToDisplay.l ength>0 ?cheevoToDisplay.description:cheevoToDisplay.requirement);
+  var text = (cheevoToDisplay && cheevoToDisplay.length > 0 ? cheevoToDisplay.description : cheevoToDisplay.requirement);
 
   attachment = {};
   attachment = { //assemble attachment
@@ -912,7 +912,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
     color: '#F0AC1B',
     thumb_url: getIconForParentCategory(cheevoToDisplay),
     fields: [],
-    text: text +"\n" + JSON.stringify(cheevoToDisplay) + '\nYou:\n' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
+    text: text + "\n" + JSON.stringify(cheevoToDisplay) + '\nYou:\n' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
   };
   replyWith({
     text: '',
@@ -924,7 +924,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
 }
 
 function getIconForParentCategory(cheevo) {
-  if(cheevo.icon) return cheevo.icon;
+  if (cheevo.icon) return cheevo.icon;
   else return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
 }
 
@@ -939,9 +939,9 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
   }
   var printToday = true;
   var printTomorrow = true;
-  if (message.text == 'today')
+  if (message.text.toLowerCase() == 'today')
     printTomorrow = false;
-  if (message.text.indexOf('tomorrow') >= 0)
+  if (message.text.toLowerCase() =='tomorrow')
     printToday = false;
   var dailiesCallback = function(todayList, header) {
     gw2nodelib.dailiesTomorrow(function(tomorrowList, header) {
@@ -1226,6 +1226,57 @@ controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,menti
   };
   bot.reply(message, reply);
 
+});
+
+helpFile.sample = "Shows a sample attachment.";
+controller.hears(['^sample'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var attachments = [];
+  attachment = { //assemble attachment
+    fallback: 'This is sample fallback text.',
+    pretext: 'This is sample pretext above the thing',
+    title: 'This is the title. ',
+    color: '#F0AC1B',
+    thumb_url: "http://icons.iconarchive.com/icons/hopstarter/gloss-mac/256/Burn-icon.png",
+    text: "None of this can be formatted, apparently. <b>Nope</b> *Nope*. This is the text. We can also display an image instead of that black and yellow thumb, but it'll take up the whole space and be below everything. Toggle to flip.",
+    author_name: "There can be an 'Author' Name (and link), and image.",
+    author_icon: "http://images2.fanpop.com/image/photos/9200000/Moose-Eddie-frasier-9288166-176-160.jpg",
+    footer: "There's also a footer down here, with icon and timestamp.",
+    footer_icon: "https://platform.slack-edge.com/img/default_application_icon.png",
+    "ts": message.ts
+  };
+  if (!toggle) {
+    attachment.image_url = "http://www.noupe.com/wp-content/uploads/2014/04/funny_icons_toilet.png";
+    attachment.text += '\n(I left off the fields since the image is large, but attachments can have both.)';
+  } else {
+     attachment.fields = [{
+      title: "This is a Field",
+      value: "This text is its 'value'. Fields can be type long and take up the whole width, or:",
+      short: false
+    }, {
+      title: "Field Title Two",
+      value: "Or short and put in a pair of columns",
+      short: true
+    }, {
+      title: "Really Long Text Title And Value on a Short Field",
+      value: "Fields are always separated by a little space, and the short ones line up in the space needed for the largest.",
+      short: true
+    }, {
+      title: "Another Field",
+      value: "The color bar is also customizable. This one's #F0AC1B. A message can have more than one attachment, but each attachment is denoted by its single color bar.",
+      short: false
+    }];
+  }
+  attachments.push(attachment);
+  attachments.push({
+    text: 'a second attachment with only text.',
+    color: '#000000'
+  });
+  bot.reply(message,{
+    text: '',
+    "username": "Username is Changeable",
+    icon_url: "http://2.bp.blogspot.com/-2LwDu1XiyBQ/TsWG3vO99GI/AAAAAAAABL4/j6f8EtRPR-Y/s1600/Ep86.jpg",
+    attachments: attachments
+  });
 });
 
 /////TOGGLE
