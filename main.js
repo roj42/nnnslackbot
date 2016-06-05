@@ -933,24 +933,35 @@ helpFile.daily = "Prints a report of the daily achievements for today and tomorr
 helpFile.today = "Prints a report of the daily achievements for today.";
 helpFile.tomorrow = "Prints a report of the daily achievements for tomorrow.";
 controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  if (!achievementsLoaded) { //still loading
-    bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-    return;
-  }
+
   var printToday = true;
   var printTomorrow = true;
-  if (message.text.toLowerCase() == 'today')
+  var doneToday = false;
+  var doneTomorrow = false;
+  if (message.text.toLowerCase() == 'today') {
     printTomorrow = false;
-  if (message.text.toLowerCase() =='tomorrow')
+    doneTomorrow = true;
+  }
+  if (message.text.toLowerCase() == 'tomorrow') {
     printToday = false;
-  var dailiesCallback = function(todayList, header) {
-    gw2nodelib.dailiesTomorrow(function(tomorrowList, header) {
-      var levelEightiesOnly = function(arrayItem) {
-        return arrayItem.level.max == 80;
-      };
-      todayPvEs = todayList.pve.filter(levelEightiesOnly);
-      tomorrowPvEs = tomorrowList.pve.filter(levelEightiesOnly);
+    doneToday = true;
+  }
+  var levelEightiesOnly = function(arrayItem) {
+    return arrayItem.level.max == 80;
+  };
 
+  var todayPvEs;
+  var tomorrowPvEs;
+  var dailiesCallback = function(dailyList, header) {
+    if (header.options.day == 'today') {
+      todayPvEs = dailyList.pve.filter(levelEightiesOnly);
+      doneToday = true;
+    } else if (header.options.day == 'tomorrow') {
+      tomorrowPvEs = dailyList.pve.filter(levelEightiesOnly);
+      doneTomorrow = true;
+    }
+
+    if (doneTomorrow && doneToday) {
       var fieldsFormatted = [];
       if (printToday) {
         fieldsFormatted.push({
@@ -1009,13 +1020,17 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
       }, function(err, resp) {
         if (err || debug) bot.botkit.log(err, resp);
       });
-
-
-    }, {}, true);
-
+    }
   };
 
-  gw2nodelib.dailies(dailiesCallback, {}, true);
+  if (printToday)
+    gw2nodelib.dailies(dailiesCallback, {
+      day: 'today'
+    }, true);
+  if (printTomorrow)
+    gw2nodelib.dailiesTomorrow(dailiesCallback, {
+      day: 'tomorrow'
+    }, true);
 
 });
 
@@ -1248,7 +1263,7 @@ controller.hears(['^sample'], 'direct_message,direct_mention,mention,ambient', f
     attachment.image_url = "http://www.noupe.com/wp-content/uploads/2014/04/funny_icons_toilet.png";
     attachment.text += '\n(I left off the fields since the image is large, but attachments can have both.)';
   } else {
-     attachment.fields = [{
+    attachment.fields = [{
       title: "This is a Field",
       value: "This text is its 'value'. Fields can be type long and take up the whole width, or:",
       short: false
@@ -1271,7 +1286,7 @@ controller.hears(['^sample'], 'direct_message,direct_mention,mention,ambient', f
     text: 'a second attachment with only text.',
     color: '#000000'
   });
-  bot.reply(message,{
+  bot.reply(message, {
     text: '',
     "username": "Username is Changeable",
     icon_url: "http://2.bp.blogspot.com/-2LwDu1XiyBQ/TsWG3vO99GI/AAAAAAAABL4/j6f8EtRPR-Y/s1600/Ep86.jpg",
