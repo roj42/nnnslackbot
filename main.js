@@ -933,6 +933,10 @@ helpFile.daily = "Prints a report of the daily achievements for today and tomorr
 helpFile.today = "Prints a report of the daily achievements for today.";
 helpFile.tomorrow = "Prints a report of the daily achievements for tomorrow.";
 controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  if (!achievementsLoaded) { //still loading
+    bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
+    return;
+  }
 
   var printToday = true;
   var printTomorrow = true;
