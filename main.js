@@ -639,15 +639,24 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
       bot.botkit.log("Error:cheevo no user data " + JSON.stringify(err));
       return;
     }
-    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", it's like this. Cheevos are in development. Expect dissapointment.");
+    var lookupSass = [
+      'let me get right on that for you.',
+      'I am sworn to look up your achievements.',
+      "I'll check.",
+      "let's do this.",
+      "I'm on it.",
+      "I guess I can."
+    ];
+    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", " + randomOneOf(lookupSass));
 
     //precheck - input scrub a bit
     var matches = removePunctuationAndToLower(message.text).match(/(cheevor|cheevo)\s?([\s\w]*)$/i);
-    var isRandom = matches[1] == 'cheevor';
     if (!matches || !matches[2]) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help " + (isRandom ? 'cheevor' : 'cheevo') + "\'?");
       return;
     }
+    var isRandom = matches[1] == 'cheevor';
+
     //precheck: access token.
     if (!user || !user.access_token || !userHasPermission(user, 'account')) {
       bot.botkit.log('ERROR: cheevo no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
@@ -708,7 +717,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
         bot.reply(message, {
           attachments: {
             attachment: {
-              text: "Woah. I found " + possibleMatches.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+              text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
             }
           }
         });
@@ -725,9 +734,14 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
             } else if (possibleMatches[i].achievements) {
               descString = 'Category with ' + possibleMatches[i].achievements.length + ' achievements.';
             }
+            if (descString.length > 32) {
+              descString = descString.slice(0, 32);
+              descString += '...';
+            }
+
             listofItems += '\n' + [i] + ": " + possibleMatches[i].name + (descString ? " - " + descString : '');
           }
-          convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+          convo.ask('I found multiple achievements with that name. Which number you mean? (say no to quit)' + listofItems, [{
             //number, no, or repeat
             pattern: new RegExp(/^(\d{1,2})/i),
             callback: function(response, convo) {
@@ -820,7 +834,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
         }
       }
     }
-    replyWith("Randumb: " + JSON.stringify(cheevoToDisplay.bits[randomNum]));
+    replyWith("Go forth and get...\n" + displayBit(cheevoToDisplay.bits[randomNum]), false);
   } else {
     replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
   }
@@ -846,14 +860,21 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
     if (gameAchievement.name) name = gameAchievement.name;
     var acctCheevo = findInAccount(categoryToDisplay.achievements[a], accountAchievements);
     if (acctCheevo && typeof acctCheevo.current == 'number' && typeof acctCheevo.max == 'number') {
-      partsCurrentSum += acctCheevo.current;
+      if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) {
+        repeat = " (repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once') + ")";
+        //on a repeat, add to the total as if we've done it once, despite current progress
+        partsCurrentSum += acctCheevo.max;
+      } else {
+        //otehrwise, add our current progress to it.
+        partsCurrentSum += acctCheevo.current;
+      }
       partsMaxSum += acctCheevo.max;
       doneProgress = " - " + acctCheevo.current + "/" + acctCheevo.max;
       if (acctCheevo.done) {
         numDone++;
-        doneProgress = ' (Done)';
+        if (typeof acctCheevo.repeated != 'number' || acctCheevo.repeated <= 0) //append 'done' if we're not mid-repeat.
+          doneProgress += ' (Done)';
       }
-      if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = " (" + acctCheevo.repeated + " repeats)";
     } else //not done/progressed, add highest tier count as a 'max' and show 0 of that amount
     if (gameAchievement.tiers) {
       var tierMax = gameAchievement.tiers[gameAchievement.tiers.length - 1].count;
@@ -863,10 +884,16 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
 
     achievementTextList.push(name + doneProgress + repeat);
   }
-
-  var title = categoryToDisplay.name + " Report" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : '');
   var pretext = '';
-  if (partsCurrentSum > 0) pretext = "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).";
+  var fields = [];
+
+  title = categoryToDisplay.name + " Report";
+  if (partsCurrentSum > 0)
+    fields.push({
+      title: "Total" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : ''),
+      value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%)."
+    });
+
 
   attachment = {};
   attachment = { //assemble attachment
@@ -876,7 +903,7 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
     title: title,
     color: '#AA129F',
     thumb_url: (categoryToDisplay.icon ? categoryToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
-    fields: [],
+    fields: fields,
     text: achievementTextList.join('\n')
   };
   replyWith({
@@ -894,14 +921,57 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
   var current = 0;
   var max = 0;
   var repeat = '';
-  if (!acctCheevo) pretext = 'You have not made any progress on this achievement)';
-  else {
+  if (acctCheevo) {
     if (typeof acctCheevo.current == 'number') current = acctCheevo.current;
     if (typeof acctCheevo.max == 'number') max = acctCheevo.max;
-    if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = " (" + acctCheevo.repeated + " repeats)";
+    if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = ", repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once');
   }
-  var title = cheevoToDisplay.name + " Report" + (current + max > 0 ? ': ' + current + ' of ' + max : '') + repeat;
-  var text = (cheevoToDisplay && cheevoToDisplay.length > 0 ? cheevoToDisplay.description : cheevoToDisplay.requirement);
+  var title = cheevoToDisplay.name + " Report";
+  var text = '';
+
+  //Load bits to desplay into data first.
+  var cheevoBits = [];
+  for (var b in cheevoToDisplay.bits) {
+    var doneFlag = false;
+    if (acctCheevo && acctCheevo.bits) {
+      for (var bit in acctCheevo.bits) { //go through account bits and see if they've done the one we've randoed
+        if (acctCheevo.bits[bit] == b) {
+          doneFlag = true;
+          break;
+        }
+      }
+    }
+    cheevoBits.push(displayBit(cheevoToDisplay.bits[b], doneFlag));
+  }
+  var fields = [];
+
+  fields.push({
+    title: "Total: " + current + ' of ' + max + (max > 0 ? " (" + Math.floor(current / max * 100) + "%)" : '') + repeat,
+  });
+
+  if (cheevoToDisplay.description.length > 0)
+    fields.push({
+      title: "Description",
+      value: cheevoToDisplay.description
+    });
+  if (cheevoToDisplay.requirement.length > 0)
+    fields.push({
+      title: "Requirement",
+      value: cheevoToDisplay.requirement
+    });
+
+  if (!toggle) {
+    //raw data for debug
+    fields.push({
+      title: "Raw Cheevo",
+      value: JSON.stringify(cheevoToDisplay)
+    });
+    //raw data for debug
+    fields.push({
+      title: "Raw Progress",
+      value: (acctCheevo ? JSON.stringify(acctCheevo) : "Not done")
+    });
+  }
 
   attachment = {};
   attachment = { //assemble attachment
@@ -911,8 +981,8 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
     title: title,
     color: '#F0AC1B',
     thumb_url: getIconForParentCategory(cheevoToDisplay),
-    fields: [],
-    text: text + "\n" + JSON.stringify(cheevoToDisplay) + '\nYou:\n' + JSON.stringify(findInAccount(cheevoToDisplay.id, accountAchievements))
+    fields: fields,
+    text: text + "\n" + cheevoBits.join('\n')
   };
   replyWith({
     text: '',
@@ -923,9 +993,27 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
 
 }
 
+//TODO: if the achievement itself has no icon, search for a category it is in and use that, failing that, the hero icon
 function getIconForParentCategory(cheevo) {
   if (cheevo.icon) return cheevo.icon;
-  else return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
+  else {
+    for (var cat in gw2nodelib.data.achievementsCategories) {
+      if (gw2nodelib.data.achievementsCategories[cat].achievements.indexOf(cheevo.id) >= 0 && gw2nodelib.data.achievementsCategories[cat].icon)
+        return gw2nodelib.data.achievementsCategories[cat].icon;
+    }
+  }
+
+  //default
+  return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
+}
+
+function displayBit(bit, doneFlag) {
+
+  //bits have three types: icon, skin, and text
+  if (bit.type == 'Text')
+    return bit.text + (doneFlag ? " - DONE" : '');
+  else
+    return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
 }
 
 //Dailies
@@ -1449,8 +1537,9 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
     "add lookup / display for bits of type item and skin to cheevos",
-    "fix up globalmessage shenannegans (replae with replyWith)",
+    "fix up globalmessage shenannegans (replace with replyWith?)",
     "add collection icon when icon is missing",
+    "Bank Command, collate all banked items and load, then add to items",
     "break out reload so you can reload achievements separately?",
     "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
@@ -1848,7 +1937,7 @@ function assembleRecipeAttachment(itemToDisplay) {
 
 //for string 'normalization before comparing in searches'
 function removePunctuationAndToLower(string) {
-  var punctuationless = string.replace(/['!"#$%&\\'()\*+,\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
+  var punctuationless = string.replace(/['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
   var finalString = punctuationless.replace(/\s{2,}/g, " ");
   return finalString.toLowerCase();
 }
