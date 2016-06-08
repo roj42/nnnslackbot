@@ -622,11 +622,11 @@ function findInAccount(id, accountAchievements) {
   }
 }
 
-
 /////Cheevos
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
 helpFile.cheevor = "Display a random achievement from a category, or random part of an achievement. Use as a suggestion for what to do next.";
-controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+helpFile.cheevof = "Display a 'full' achievement. If you choose an achievement (not a category), displays tiers, and rewards.";
+controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //precheck: account achievements loaded 
   if (!achievementsLoaded || !achievementsCategoriesLoaded) {
     bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -650,12 +650,13 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
     bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", " + randomOneOf(lookupSass));
 
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/(cheevor|cheevo)\s?([\s\w]*)$/i);
+    var matches = removePunctuationAndToLower(message.text).match(/(cheevor|cheevof|cheevo)\s?([\s\w]*)$/i);
     if (!matches || !matches[2]) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help " + (isRandom ? 'cheevor' : 'cheevo') + "\'?");
       return;
     }
     var isRandom = matches[1] == 'cheevor';
+    var isFull = matches[1] == 'cheevof';
 
     //precheck: access token.
     if (!user || !user.access_token || !userHasPermission(user, 'account')) {
@@ -709,7 +710,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
         else if (possibleMatches[0].achievements)
           displayCategoryCallback(accountAchievements, possibleMatches[0]);
         else
-          displayCheevoCallback(accountAchievements, possibleMatches[0]);
+          displayCheevoCallback(accountAchievements, possibleMatches[0], isFull);
       } else if (possibleMatches.length > 10) {
         var itemNameList = [];
         for (var n in possibleMatches)
@@ -755,7 +756,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)'], 'direct_message,direct_mention
                 else if (possibleMatches[selection].achievements)
                   displayCategoryCallback(accountAchievements, possibleMatches[selection]);
                 else
-                  displayCheevoCallback(accountAchievements, possibleMatches[selection]);
+                  displayCheevoCallback(accountAchievements, possibleMatches[selection], isFull);
               } else if (askNum-- > 0) {
                 convo.say("Choose a valid number.");
                 convo.repeat();
@@ -914,7 +915,7 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
   });
 }
 
-function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
+function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
   //setup all but the bits
   var pretext = '';
   var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
@@ -945,20 +946,45 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
   }
   var fields = [];
 
-  fields.push({
-    title: "Total: " + current + ' of ' + max + (max > 0 ? " (" + Math.floor(current / max * 100) + "%)" : '') + repeat,
-  });
+  var totalString = '';
+  if(max>1)
+    totalString = "Total: " + current + ' of ' + max + (max > 0 ? " (" + Math.floor(current / max * 100) + "%)" : '') + repeat;
+  else
+    totalString = (acctCheevo && acctCheevo.done?"":"Not ") + "Complete";
+  var summaryField = {
+    title: totalString,
+    value: ''
+  };
 
   if (cheevoToDisplay.description.length > 0)
-    fields.push({
-      title: "Description",
-      value: cheevoToDisplay.description
-    });
+    summaryField.value += "\nDescription: " + cheevoToDisplay.description.replace(/(<.?c(?:=@flavor)?>)/g, "").replace(/(<br>)/g, "\n");
   if (cheevoToDisplay.requirement.length > 0)
-    fields.push({
-      title: "Requirement",
-      value: cheevoToDisplay.requirement
-    });
+    summaryField.value += "\nRequirement: " + cheevoToDisplay.requirement.replace(/(<.?c(?:=@flavor)?>)/g, "").replace(/(<br>)/g, "\n");
+
+  fields.push(summaryField);
+
+  if (cheevoToDisplay.tiers && isFull) { //there's aways a tiers, but whatever.
+    var tierField = {
+      title: 'Tiers',
+      value: '#\tPoints'
+    };
+    for (var tier in cheevoToDisplay.tiers) {
+      tierField.value += '\n'+cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
+    }
+
+    fields.push(tierField);
+  }
+
+  if(cheevoToDisplay.rewards && isFull){
+    var rewardField = {
+      title:"Rewards",
+      value: ""
+    };
+    for(var reward in cheevoToDisplay.rewards){
+      rewardField.value +='\n'+displayBit(cheevoToDisplay.rewards[reward])
+    }
+    fields.push(rewardField);
+  }
 
   if (!toggle) {
     //raw data for debug
@@ -993,7 +1019,6 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay) {
 
 }
 
-//TODO: if the achievement itself has no icon, search for a category it is in and use that, failing that, the hero icon
 function getIconForParentCategory(cheevo) {
   if (cheevo.icon) return cheevo.icon;
   else {
@@ -1002,18 +1027,30 @@ function getIconForParentCategory(cheevo) {
         return gw2nodelib.data.achievementsCategories[cat].icon;
     }
   }
-
   //default
   return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
 }
 
 function displayBit(bit, doneFlag) {
+  //covers achievement bits and rewards. Rewards have a count Types are:
+  //Text: simple text
+  //Item and id {"type":"Item","id":78252,"count":1}
+  //Coins: a count of coins (in copper) {"type":"Coins","count":50000}]}
+  //mastery Tyria or maguuma {"type": "Mastery","region": "Tyria"}
+  //Skin and id (no count) {"type": "Skin","id": 208}
+  //Minipet and id (no count) {"type": "Minipet","id": 12}
 
-  //bits have three types: icon, skin, and text
   if (bit.type == 'Text')
     return bit.text + (doneFlag ? " - DONE" : '');
-  else
-    return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
+  if(bit.type == 'Coins'){
+    var gold = Math.floor(bit.count/10000);
+    var silver = Math.floor((bit.count%10000)/100);
+    var copper = Math.floor(bit.count%100);
+    return "Coins: "+(gold>0?gold+'g ':'')+(silver>0?silver+'s ':'')+(copper>0?copper+'c ':'');
+  }
+  if(bit.type == 'Mastery')
+    return bit.region + " " + bit.type;
+  return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
 }
 
 //Dailies
@@ -1418,7 +1455,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
         setTimeout(function() {
-          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room."]));
+          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.","And in case you forgot, today WAS MY ​*BIRTHDAY*​!"]));
           convo.next();
         }, 500);
         setTimeout(function() {
@@ -1538,12 +1575,11 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
   var todoList = [
     "add lookup / display for bits of type item and skin to cheevos",
     "fix up globalmessage shenannegans (replace with replyWith?)",
-    "add collection icon when icon is missing",
+    "fetch and display fractal dailies",
     "Bank Command, collate all banked items and load, then add to items",
     "break out reload so you can reload achievements separately?",
     "Scan achievements for low-hanging achievement fruit",
     "add slot/weight convo to crafting",
-    "neaten fractal dailies ?",
     "logging",
     "add sass from slack"
   ];
@@ -1950,15 +1986,17 @@ function randomHonoriffic(inName, userId) {
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
 function findCraftableItemByName(searchName) {
   var itemsFound = [];
-  var cleanSearch = removePunctuationAndToLower(searchName);
+  var cleanSearch = removePunctuationAndToLower(searchName).replace(/\s+/g, '');
   var exactMatch = [];
   if (debug) bot.botkit.log("findCraftableItemByName: " + cleanSearch);
   for (var i in gw2nodelib.data.items) {
-    cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name);
+    var cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name).replace(/\s+/g, '');
+    if(cleanItemName.startsWith('light'))
+      debugger;
     if (cleanItemName.includes(cleanSearch)) {
       if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes')) {
         if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
-          console.log('exact match recipie ' + cleanSearch);
+          if (debug) bot.botkit.log('exact match recipie ' + cleanSearch);
           exactMatch.push(gw2nodelib.data.items[i]);
         }
         itemsFound.push(gw2nodelib.data.items[i]);
@@ -1967,13 +2005,13 @@ function findCraftableItemByName(searchName) {
         var forgedItem = JSON.parse(JSON.stringify(gw2nodelib.data.items[i]));
         forgedItem.forged = true;
         if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
-          console.log('exact match forged ' + cleanSearch);
+          if (debug) bot.botkit.log('exact match forged ' + cleanSearch);
           exactMatch.push(forgedItem);
         } else itemsFound.push(forgedItem);
       } else if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
     }
   }
-  if (exactMatch) return exactMatch;
+  if (exactMatch.length > 0) return exactMatch;
   else return itemsFound;
 }
 
