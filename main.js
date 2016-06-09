@@ -86,6 +86,19 @@ controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', fun
 });
 
 
+/*If that's the feature, that's doable. craftasc <prefix> <weight> <slot>
+
+Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
+
+where weight is light/med/heavy/weapon or a substring thereof or 'any'
+
+and slot is a big six armor slot or a weapon type or 'any'
+
+and searches for any any any return sass.
+
+Maybe add some alt names for the weights. Light/lite/cloth/scholar, medium/med/leather/adventurer, heavy/hev/plate/solider
+*/
+
 ////////////////recipe lookup. I apologize.
 helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
 controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -767,7 +780,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
             callback: function(response, convo) {
               // loop back, user needs to pick or say no.
               if (askNum-- > 0) {
-                convo.say("Choose a number of the recipe you'd like to see.");
+                convo.say("Choose a number of the achievement you'd like to see.");
                 convo.repeat();
               } else
                 convo.say("Be serious.");
@@ -862,7 +875,7 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
       }
       partsMaxSum += acctCheevo.max;
       doneProgress = " - " + acctCheevo.current + "/" + acctCheevo.max;
-      if (acctCheevo.done) {
+      if (acctCheevo.done || repeat.length > 0) {
         numDone++;
         if (typeof acctCheevo.repeated != 'number' || acctCheevo.repeated <= 0) //append 'done' if we're not mid-repeat.
           doneProgress += ' (Done)';
@@ -883,7 +896,7 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
   if (partsCurrentSum > 0)
     fields.push({
       title: "Total" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : ''),
-      value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%)."
+      value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).\nRepeats count as their max value."
     });
 
 
@@ -973,7 +986,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
       value: ""
     };
     for (var reward in cheevoToDisplay.rewards) {
-      rewardField.value += '\n' + displayBit(cheevoToDisplay.rewards[reward])
+      rewardField.value += '\n' + displayBit(cheevoToDisplay.rewards[reward]);
     }
     fields.push(rewardField);
   }
@@ -1450,18 +1463,40 @@ controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', funct
   }
 });
 
-controller.hears(['^debug'], 'direct_message,', function(bot, message) {
+controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
   var replyMessage = 'no debugs right now';
   if (message.user && message.user == 'U1AGDSX3K') {
+    bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
     // var itemsWithRarity = [];
     // for(var i in gw2nodelib.data.items){
     //   if(gw2nodelib.data.items[i].rarity)
     //     itemsWithRarity.push(gw2nodelib.data.items[i].name + ": "+gw2nodelib.data.items[i].rarity);
     // }
     // replyMessage = "found:\n"+itemsWithRarity.join('\n'));
+    var listy = [];
+    for(var i in gw2nodelib.data.achievements){
+      if(gw2nodelib.data.achievements[i].flags && gw2nodelib.data.achievements[i].flags.indexOf("Hidden") >= 0){
+        listy.push(gw2nodelib.data.achievements[i].name);
+      }
+      if(listy.length > 20)
+        break;
+    }
+    replyMessage = "Some Hidden Guys:\n";
+    replyMessage += listy.join("\n");
   }
-bot.reply(message,replyMessage);
+  else replyMessage += "...   for YOU";
+  bot.reply(message, replyMessage);
 });
+
+function tantrum() {
+  var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.", "It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!",
+  "I'm quitting school! I'm gonna be a paperback writer!","It's a travesty!","You're all PIGS!","You're the worst!","ᕙ(‶⇀‸↼)ᕗ"];
+  return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
+}
+controller.hears(['tantrum','upset','in a bunch','in a twist'], 'direct_message,ambient', function(bot, message) {
+  bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
+});
+
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.startConversation(message, function(err, convo) {
@@ -1471,7 +1506,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
         setTimeout(function() {
-          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "And in case you forgot, today WAS MY ​*BIRTHDAY*​!"]));
+          convo.say(tantrum());
           convo.next();
         }, 500);
         setTimeout(function() {
@@ -1590,12 +1625,12 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
     "add lookup / display for bits of type item and skin to cheevos",
+    "add ascended <prefix> <weight> <slot> shortcut to crafting",
     "fix up globalmessage shenannegans (replace with replyWith?)",
     "fetch and display fractal dailies",
     "Bank Command, collate all banked items and load, then add to items",
     "break out reload so you can reload achievements separately?",
     "Scan achievements for low-hanging achievement fruit",
-    "add slot/weight convo to crafting",
     "logging",
     "add sass from slack"
   ];
