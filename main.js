@@ -102,7 +102,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       descripFlavorized = itemToMake.description.replace(/(<.?c(?:=@flavor)?>)/g, "_");
     }
     bot.reply(message, {
-      'text': itemToMake.name + (amountString ? " x " + amountString : "") + (itemToMake.level ? " (level " + itemToMake.level + ")" : "") + (descripFlavorized ? "\n" + descripFlavorized : ""),
+      'text': itemToMake.name + (amountString ? " x " + amountString : "") + levelAndRarityForItem(itemToMake) + (descripFlavorized ? "\n" + descripFlavorized : ""),
       attachments: attachments,
       // 'icon_url': itemToMake.icon,
       // "username": "RecipeBot",
@@ -127,8 +127,9 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       replyWithRecipeFor(itemSearchResults[0]);
     } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
       var itemNameList = [];
-      for (var n in itemSearchResults)
-        itemNameList.push(itemSearchResults[n].name);
+      for (var n in itemSearchResults) {
+        itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
+      }
       bot.reply(message, {
         attachments: {
           attachment: {
@@ -140,17 +141,7 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       bot.startConversation(message, function(err, convo) {
         var listofItems = '';
         for (var i in itemSearchResults) {
-          var levelString; //Attempt to differentiate same-name items by their level, or their level in the description
-          if (itemSearchResults[i].level) {
-            levelString = itemSearchResults[i].level;
-          } else if (itemSearchResults[i].description) {
-            var matches = itemSearchResults[i].description.match(/level (\d{1,2})/i);
-            if (debug) bot.botkit.log("matches " + JSON.stringify(matches) + " of description " + itemSearchResults[i].description);
-            if (matches && matches[1]) {
-              levelString = matches[1];
-            }
-          }
-          listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + (levelString ? " (level " + levelString + ")" : "") + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+          listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
         }
         convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
           //number, no, or repeat
@@ -920,7 +911,8 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
   var pretext = '';
   var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
   var current = 0;
-  var max = 0;
+  //max is the count of the highest tier, not just the sum ob the bits.
+  var max = (cheevoToDisplay.tiers && cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count > 1 ? cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count : 0);
   var repeat = '';
   if (acctCheevo) {
     if (typeof acctCheevo.current == 'number') current = acctCheevo.current;
@@ -947,10 +939,10 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
   var fields = [];
 
   var totalString = '';
-  if(max>1)
-    totalString = "Total: " + current + ' of ' + max + (max > 0 ? " (" + Math.floor(current / max * 100) + "%)" : '') + repeat;
+  if (max > 1)
+    totalString = "Total: " + current + ' of ' + max + " (" + (Math.floor(current / max * 100) > 100 ? '100' : Math.floor(current / max * 100)) + "%)" + repeat;
   else
-    totalString = (acctCheevo && acctCheevo.done?"":"Not ") + "Complete";
+    totalString = (acctCheevo && acctCheevo.done ? "" : "Not ") + "Complete";
   var summaryField = {
     title: totalString,
     value: ''
@@ -969,19 +961,19 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
       value: '#\tPoints'
     };
     for (var tier in cheevoToDisplay.tiers) {
-      tierField.value += '\n'+cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
+      tierField.value += '\n' + cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
     }
 
     fields.push(tierField);
   }
 
-  if(cheevoToDisplay.rewards && isFull){
+  if (cheevoToDisplay.rewards && isFull) {
     var rewardField = {
-      title:"Rewards",
+      title: "Rewards",
       value: ""
     };
-    for(var reward in cheevoToDisplay.rewards){
-      rewardField.value +='\n'+displayBit(cheevoToDisplay.rewards[reward])
+    for (var reward in cheevoToDisplay.rewards) {
+      rewardField.value += '\n' + displayBit(cheevoToDisplay.rewards[reward])
     }
     fields.push(rewardField);
   }
@@ -1042,14 +1034,26 @@ function displayBit(bit, doneFlag) {
 
   if (bit.type == 'Text')
     return bit.text + (doneFlag ? " - DONE" : '');
-  if(bit.type == 'Coins'){
-    var gold = Math.floor(bit.count/10000);
-    var silver = Math.floor((bit.count%10000)/100);
-    var copper = Math.floor(bit.count%100);
-    return "Coins: "+(gold>0?gold+'g ':'')+(silver>0?silver+'s ':'')+(copper>0?copper+'c ':'');
+  if (bit.type == 'Coins') {
+    var gold = Math.floor(bit.count / 10000);
+    var silver = Math.floor((bit.count % 10000) / 100);
+    var copper = Math.floor(bit.count % 100);
+    return "Coins: " + (gold > 0 ? gold + 'g ' : '') + (silver > 0 ? silver + 's ' : '') + (copper > 0 ? copper + 'c ' : '');
   }
-  if(bit.type == 'Mastery')
+  if (bit.type == 'Mastery')
     return bit.region + " " + bit.type;
+  if (bit.type == 'Item') {
+    var itemData = findInData('id', bit.id, 'items');
+    var itemType = ''; //weapon, armor, bag, etc
+    var itemSubtype = ''; //for weqapons and armor
+    if (itemData) {
+      if (itemData.details) {
+        if (itemData.details.type) itemType = itemData.details.type;
+        if (itemData.details.weight_class) itemSubtype = itemData.details.weight_class + " ";
+      }
+      return itemData.name + (itemType ? " (" + itemSubtype + itemType + ")" : '') + (bit.count && bit.count > 1 ? ', ' + bit.count : '');
+    }
+  }
   return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
 }
 
@@ -1446,6 +1450,18 @@ controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', funct
   }
 });
 
+controller.hears(['^debug'], 'direct_message,', function(bot, message) {
+  var replyMessage = 'no debugs right now';
+  if (message.user && message.user == 'U1AGDSX3K') {
+    // var itemsWithRarity = [];
+    // for(var i in gw2nodelib.data.items){
+    //   if(gw2nodelib.data.items[i].rarity)
+    //     itemsWithRarity.push(gw2nodelib.data.items[i].name + ": "+gw2nodelib.data.items[i].rarity);
+    // }
+    // replyMessage = "found:\n"+itemsWithRarity.join('\n'));
+  }
+bot.reply(message,replyMessage);
+});
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.startConversation(message, function(err, convo) {
@@ -1455,7 +1471,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
         setTimeout(function() {
-          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.","And in case you forgot, today WAS MY ​*BIRTHDAY*​!"]));
+          convo.say(randomOneOf(["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "And in case you forgot, today WAS MY ​*BIRTHDAY*​!"]));
           convo.next();
         }, 500);
         setTimeout(function() {
@@ -1983,6 +1999,26 @@ function randomHonoriffic(inName, userId) {
   else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
 }
 
+//a text differentiation of items. spites out (level ## <rarity>) if eitehr of those exist
+function levelAndRarityForItem(item) {
+  var levelString = '';
+  if (item.level) {
+    levelString = item.level;
+  } else if (item.description) {
+    var matches = item.description.match(/level (\d{1,2})/i);
+    if (debug) bot.botkit.log("matches " + JSON.stringify(matches) + " of description " + item.description);
+    if (matches && matches[1]) {
+      levelString = Number(matches[1]);
+    }
+  }
+  var rarityString = '';
+  if (item.rarity) rarityString = item.rarity;
+  var infoTag = '';
+  if (levelString > 0 || rarityString.length > 0)
+    infoTag = " (" + (levelString ? "level " + levelString : "") + (rarityString ? " " + rarityString : '') + ")";
+  return infoTag;
+}
+
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
 function findCraftableItemByName(searchName) {
   var itemsFound = [];
@@ -1991,8 +2027,6 @@ function findCraftableItemByName(searchName) {
   if (debug) bot.botkit.log("findCraftableItemByName: " + cleanSearch);
   for (var i in gw2nodelib.data.items) {
     var cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name).replace(/\s+/g, '');
-    if(cleanItemName.startsWith('light'))
-      debugger;
     if (cleanItemName.includes(cleanSearch)) {
       if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes')) {
         if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
@@ -2123,7 +2157,7 @@ function compileIngredientIds() {
   return itemsCompile;
 }
 
-//filter function for recipes. Removes invalid output items id and invalid ingredient ids
+//filter function for recipe data. Removes invalid output items id and invalid ingredient ids
 function removeInvalidIngredients(value, index, array) {
   //Negative ids, output_item_ids and ingredient.item_ids are invalid
   if (value.id && value.id < 1) return false;
