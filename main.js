@@ -1061,7 +1061,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
         attachment: attachment
       }
     });
-  }
+  };
 
   if (skinsToFetch.length > 0)
     gw2nodelib.skins(callbacky, {
@@ -1125,7 +1125,7 @@ function displayAchievementBit(bit, doneFlag) {
       if (itemData.details) {
         if (itemData.type) itemType = " (" + itemData.type;
         if (itemData.details.type) itemType += ": " + (itemData.details.weight_class ? itemData.details.weight_class + " " : "") + itemData.details.type;
-        if (itemType.length > 0) itemType += ")"
+        if (itemType.length > 0) itemType += ")";
       }
       return itemData.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
     }
@@ -1556,28 +1556,41 @@ function tantrum() {
   ];
   return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 }
+
 controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
   bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
 });
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-  bot.startConversation(message, function(err, convo) {
+  botShutdown(message);
+});
+helpFile.restart = "Command Lessdremoth to restart.";
+controller.hears(['restart'], 'direct_message,direct_mention,mention', function(bot, message) {
+  botShutdown(message, true);
+});
 
+function botShutdown(message, restart) {
+  bot.startConversation(message, function(err, convo) {
     convo.ask('Are you sure you want me to shutdown?', [{
       pattern: bot.utterances.yes,
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
+        if(restart)
+          convo.say("Oh wait, you said restart...");
         setTimeout(function() {
-          convo.say(tantrum());
-          convo.next();
+          if (restart) {
+            convo.say("┬─┬﻿ ノ( ゜-゜ノ)\nBRB.");
+          } else
+            convo.say(tantrum());
         }, 500);
+        convo.next();
         setTimeout(function() {
           // saveStaticDataToFile("sass.json",sass);
           // saveStaticDataToFile("riker.json",rikerText);
           // saveStaticDataToFile("rikerPics.json",rikerPics);
           // saveStaticDataToFile("catFacts.json",catFacts);
-          process.exit();
+          process.exit((restart ? 1 : 0));
         }, 3000);
       }
     }, {
@@ -1589,7 +1602,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       }
     }]);
   });
-});
+}
 
 helpFile.uptime = "Lessdremoth will display some basic uptime information.";
 helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
@@ -1666,7 +1679,6 @@ var lastCat = [];
 controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   if (message.text == 'dogfact')
     bot.reply(message, "Dogs are great. Here's a catfact.");
-  debugger;
   var replyCat = randomOneOf(catFacts);
   while (lastCat.indexOf(replyCat) > -1) {
     if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
@@ -1687,6 +1699,7 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
+    "get all the *cache.json files to be written to and read from the slackbotDB directory",
     "add lookup / display for bits of type item and skin to cheevos",
     "add ascended <prefix> <weight> <slot> shortcut to crafting",
     "fix up globalmessage shenannegans (replace with replyWith?)",
