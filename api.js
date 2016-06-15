@@ -20,7 +20,9 @@ var config = {
 		tokeninfo: 'tokeninfo',
 		dailies: 'achievements/daily',
 		dailiesTomorrow: 'achievements/daily/tomorrow',
-		skins : 'skins'
+		skins : 'skins',
+		titles : 'titles',
+		minis : 'minis'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
 		items: ["rarity","text", "error", "name", "id", "description", "level", "chat_link", "icon","details","type"],

@@ -110,12 +110,12 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
     if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
       amountString = foundRecipe.output_item_count;
     }
-    var descripFlavorized;
+    var descripFlavorized = '';
     if (itemToMake.description) {
-      descripFlavorized = itemToMake.description.replace(/(<.?c(?:=@flavor)?>)/g, "_");
+      descripFlavorized = "\n" + replaceGWFlavorTextTags(itemToMake.description, "_");
     }
     bot.reply(message, {
-      'text': itemToMake.name + (amountString ? " x " + amountString : "") + levelAndRarityForItem(itemToMake) + (descripFlavorized ? "\n" + descripFlavorized : ""),
+      'text': itemToMake.name + (amountString ? " x " + amountString : "") + levelAndRarityForItem(itemToMake) + descripFlavorized,
       attachments: attachments,
       // 'icon_url': itemToMake.icon,
       // "username": "RecipeBot",
@@ -256,7 +256,10 @@ controller.hears(['^access token help', '^help access', '^help access token'], '
 controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,ambient', function(bot, message) {
   //collect information about the user token and basic account info for use later.
   controller.storage.users.get(message.user, function(err, user) {
-    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", let's get you set up.");
+    var adressUsersAs = 'newbie';
+    if (user && user.dfid)
+      adressUsersAs = user.dfid + randomHonoriffic(user.dfid, user.id);
+    bot.reply(message, "Okay, " + adressUsersAs + ", let's get you set up.");
 
     var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
     if (message.text.length > 12 && !matches) { // they put SOMETHING in, but it was mangled
@@ -839,7 +842,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
         }
       }
     }
-    replyWith("Go forth and get...\n" + displayBit(cheevoToDisplay.bits[randomNum]), false);
+    replyWith("Go forth and get...\n" + displayAchievementBit(cheevoToDisplay.bits[randomNum]), false);
   } else {
     replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
   }
@@ -919,108 +922,167 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
   });
 }
 
-function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
-  //setup all but the bits
-  var pretext = '';
-  var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
-  var current = 0;
-  //max is the count of the highest tier, not just the sum ob the bits.
-  var max = (cheevoToDisplay.tiers && cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count > 1 ? cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count : 0);
-  var repeat = '';
-  if (acctCheevo) {
-    if (typeof acctCheevo.current == 'number') current = acctCheevo.current;
-    if (typeof acctCheevo.max == 'number') max = acctCheevo.max;
-    if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = ", repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once');
-  }
-  var title = cheevoToDisplay.name + " Report";
-  var text = '';
 
-  //Load bits to desplay into data first.
-  var cheevoBits = [];
-  for (var b in cheevoToDisplay.bits) {
-    var doneFlag = false;
-    if (acctCheevo && acctCheevo.bits) {
-      for (var bit in acctCheevo.bits) { //go through account bits and see if they've done the one we've randoed
-        if (acctCheevo.bits[bit] == b) {
-          doneFlag = true;
+function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
+
+  var skinsToFetch = [];
+  var titlesToFetch = [];
+  var minisToFetch = [];
+  var itemsToFetch = [];
+
+  var searchList = [];
+  if (typeof cheevoToDisplay.bits != 'undefined')
+    searchList = searchList.concat(cheevoToDisplay.bits);
+  if (typeof cheevoToDisplay.rewards != 'undefined')
+    searchList = searchList.concat(cheevoToDisplay.rewards);
+  //collate list of things to fetch
+  for (var b in searchList) {
+    if (searchList[b].id) {
+      var searchId = searchList[b].id;
+      switch (searchList[b].type) {
+        case "Skin":
+          skinsToFetch.push(searchId);
           break;
-        }
+        case "Title":
+          titlesToFetch.push(searchId);
+          break;
+        case "Minipet":
+          minisToFetch.push(searchId);
+          break;
+        case "Item":
+          var itemfound = findInData('id', searchId, 'items');
+          if (typeof itemfound == 'undefined')
+            itemsToFetch.push(searchId);
       }
     }
-    cheevoBits.push(displayBit(cheevoToDisplay.bits[b], doneFlag));
   }
-  var fields = [];
+  // console.log("skins: " +skinsToFetch.join(", "));
+  // console.log("titles: "+titlesToFetch.join(", "));
+  // console.log("minis: " +minisToFetch.join(", "));
+  // console.log("items: " +itemsToFetch.join(", "));
 
-  var totalString = '';
-  if (max > 1)
-    totalString = "Total: " + current + ' of ' + max + " (" + (Math.floor(current / max * 100) > 100 ? '100' : Math.floor(current / max * 100)) + "%)" + repeat;
-  else
-    totalString = (acctCheevo && acctCheevo.done ? "" : "Not ") + "Complete";
-  var summaryField = {
-    title: totalString,
-    value: ''
-  };
+  var callbacky = function(jsonList, header) {
+    //setup all but the bits
+    var pretext = '';
+    var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+    var currentPartsDone = 0;
 
-  if (cheevoToDisplay.description.length > 0)
-    summaryField.value += "\nDescription: " + cheevoToDisplay.description.replace(/(<.?c(?:=@flavor)?>)/g, "").replace(/(<br>)/g, "\n");
-  if (cheevoToDisplay.requirement.length > 0)
-    summaryField.value += "\nRequirement: " + cheevoToDisplay.requirement.replace(/(<.?c(?:=@flavor)?>)/g, "").replace(/(<br>)/g, "\n");
+    //max is the count of the highest tier, not just the sum ob the bits.
+    var maxParts = (cheevoToDisplay.tiers && cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count > 1 ? cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count : 0);
+    var repeat = '';
+    if (acctCheevo) {
+      if (typeof acctCheevo.current == 'number') currentPartsDone = acctCheevo.current;
+      if (typeof acctCheevo.max == 'number') maxParts = acctCheevo.max;
+      if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = ", repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once');
+    }
+    var title = cheevoToDisplay.name + " Report";
+    var text = '';
 
-  fields.push(summaryField);
+    //Load bits to desplay into data first.
+    var cheevoBits = [];
+    for (var b in cheevoToDisplay.bits) {
+      var doneFlag = false;
+      if (acctCheevo && acctCheevo.bits) {
+        if (acctCheevo.bits.indexOf(Number(b)) >= 0) {
+          doneFlag = true;
+        }
+      }
+      cheevoBits.push(displayAchievementBit(cheevoToDisplay.bits[b], doneFlag));
+    }
+    var fields = [];
 
-  if (cheevoToDisplay.tiers && isFull) { //there's aways a tiers, but whatever.
-    var tierField = {
-      title: 'Tiers',
-      value: '#\tPoints'
+    var totalString = '';
+    if (maxParts > 1)
+      totalString = "Total: " + currentPartsDone + ' of ' + maxParts + " (" + (Math.floor(currentPartsDone / maxParts * 100) > 100 ? '100' : Math.floor(currentPartsDone / maxParts * 100)) + "%)" + repeat;
+    else
+      totalString = (acctCheevo && acctCheevo.done ? "" : "Not ") + "Complete" + repeat;
+    var summaryField = {
+      title: totalString,
+      value: ''
     };
-    for (var tier in cheevoToDisplay.tiers) {
-      tierField.value += '\n' + cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
+
+    if (cheevoToDisplay.description.length > 0)
+      summaryField.value += "\nDescription: " + replaceGWFlavorTextTags(cheevoToDisplay.description);
+    if (cheevoToDisplay.requirement.length > 0)
+      summaryField.value += "\nRequirement: " + replaceGWFlavorTextTags(cheevoToDisplay.requirement);
+
+    fields.push(summaryField);
+
+    if (cheevoToDisplay.tiers && isFull) { //there's aways a tiers, but whatever.
+      var tierField = {
+        title: 'Tiers',
+        value: '#\tPoints'
+      };
+      for (var tier in cheevoToDisplay.tiers) {
+        tierField.value += '\n' + cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
+      }
+
+      fields.push(tierField);
     }
 
-    fields.push(tierField);
-  }
+    if (cheevoToDisplay.rewards && isFull) {
+      var rewardField = {
+        title: "Rewards",
+        value: ""
+      };
+      for (var reward in cheevoToDisplay.rewards) {
+        rewardField.value += '\n' + displayAchievementBit(cheevoToDisplay.rewards[reward]);
+      }
+      fields.push(rewardField);
+    }
 
-  if (cheevoToDisplay.rewards && isFull) {
-    var rewardField = {
-      title: "Rewards",
-      value: ""
+    if (!toggle) {
+      //raw data for debug
+      fields.push({
+        title: "Raw Cheevo",
+        value: JSON.stringify(cheevoToDisplay)
+      });
+      //raw data for debug
+      fields.push({
+        title: "Raw Progress",
+        value: (acctCheevo ? JSON.stringify(acctCheevo) : "Not done")
+      });
+    }
+
+    attachment = {};
+    attachment = { //assemble attachment
+      fallback: title,
+      pretext: pretext,
+      //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+      title: title,
+      color: '#F0AC1B',
+      thumb_url: getIconForParentCategory(cheevoToDisplay),
+      fields: fields,
+      text: text + "\n" + cheevoBits.join('\n')
     };
-    for (var reward in cheevoToDisplay.rewards) {
-      rewardField.value += '\n' + displayBit(cheevoToDisplay.rewards[reward]);
-    }
-    fields.push(rewardField);
-  }
-
-  if (!toggle) {
-    //raw data for debug
-    fields.push({
-      title: "Raw Cheevo",
-      value: JSON.stringify(cheevoToDisplay)
-    });
-    //raw data for debug
-    fields.push({
-      title: "Raw Progress",
-      value: (acctCheevo ? JSON.stringify(acctCheevo) : "Not done")
+    replyWith({
+      text: '',
+      attachments: {
+        attachment: attachment
+      }
     });
   }
 
-  attachment = {};
-  attachment = { //assemble attachment
-    fallback: title,
-    pretext: pretext,
-    //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
-    title: title,
-    color: '#F0AC1B',
-    thumb_url: getIconForParentCategory(cheevoToDisplay),
-    fields: fields,
-    text: text + "\n" + cheevoBits.join('\n')
-  };
-  replyWith({
-    text: '',
-    attachments: {
-      attachment: attachment
-    }
-  });
+  if (skinsToFetch.length > 0)
+    gw2nodelib.skins(callbacky, {
+      type: 'Skin',
+      ids: skinsToFetch.join(",")
+    });
+  if (titlesToFetch.length > 0)
+    gw2nodelib.titles(callbacky, {
+      type: 'Title',
+      ids: titlesToFetch.join(",")
+    });
+  if (minisToFetch.length > 0)
+    gw2nodelib.minis(callbacky, {
+      type: 'Minipet',
+      ids: minisToFetch.join(",")
+    });
+  if (itemsToFetch.length > 0)
+    gw2nodelib.items(callbacky, {
+      type: 'Item',
+      ids: itemsToFetch.join(",")
+    });
 
 }
 
@@ -1036,8 +1098,9 @@ function getIconForParentCategory(cheevo) {
   return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
 }
 
-function displayBit(bit, doneFlag) {
-  //covers achievement bits and rewards. Rewards have a count Types are:
+function displayAchievementBit(bit, doneFlag) {
+  //covers achievement bits and rewards. Rewards have a count
+  //Types are:
   //Text: simple text
   //Item and id {"type":"Item","id":78252,"count":1}
   //Coins: a count of coins (in copper) {"type":"Coins","count":50000}]}
@@ -1058,13 +1121,13 @@ function displayBit(bit, doneFlag) {
   if (bit.type == 'Item') {
     var itemData = findInData('id', bit.id, 'items');
     var itemType = ''; //weapon, armor, bag, etc
-    var itemSubtype = ''; //for weqapons and armor
     if (itemData) {
       if (itemData.details) {
-        if (itemData.details.type) itemType = itemData.details.type;
-        if (itemData.details.weight_class) itemSubtype = itemData.details.weight_class + " ";
+        if (itemData.type) itemType = " (" + itemData.type;
+        if (itemData.details.type) itemType += ": " + (itemData.details.weight_class ? itemData.details.weight_class + " " : "") + itemData.details.type;
+        if (itemType.length > 0) itemType += ")"
       }
-      return itemData.name + (itemType ? " (" + itemSubtype + itemType + ")" : '') + (bit.count && bit.count > 1 ? ', ' + bit.count : '');
+      return itemData.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
     }
   }
   return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
@@ -1474,26 +1537,26 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
     // }
     // replyMessage = "found:\n"+itemsWithRarity.join('\n'));
     var listy = [];
-    for(var i in gw2nodelib.data.achievements){
-      if(gw2nodelib.data.achievements[i].flags && gw2nodelib.data.achievements[i].flags.indexOf("Hidden") >= 0){
+    for (var i in gw2nodelib.data.achievements) {
+      if (gw2nodelib.data.achievements[i].flags && gw2nodelib.data.achievements[i].flags.indexOf("Hidden") >= 0) {
         listy.push(gw2nodelib.data.achievements[i].name);
       }
-      if(listy.length > 20)
+      if (listy.length > 20)
         break;
     }
     replyMessage = "Some Hidden Guys:\n";
     replyMessage += listy.join("\n");
-  }
-  else replyMessage += "...   for YOU";
+  } else replyMessage += "...   for YOU";
   bot.reply(message, replyMessage);
 });
 
 function tantrum() {
   var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.", "It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!",
-  "I'm quitting school! I'm gonna be a paperback writer!","It's a travesty!","You're all PIGS!","You're the worst!","ᕙ(‶⇀‸↼)ᕗ"];
+    "I'm quitting school! I'm gonna be a paperback writer!", "It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ"
+  ];
   return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 }
-controller.hears(['tantrum','upset','in a bunch','in a twist'], 'direct_message,ambient', function(bot, message) {
+controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
   bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
 });
 
@@ -1603,7 +1666,7 @@ var lastCat = [];
 controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   if (message.text == 'dogfact')
     bot.reply(message, "Dogs are great. Here's a catfact.");
-
+  debugger;
   var replyCat = randomOneOf(catFacts);
   while (lastCat.indexOf(replyCat) > -1) {
     if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
@@ -1684,11 +1747,11 @@ function doneRecipesCallback(apiKey) {
     gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
     bot.botkit.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
     //Go through recipes, and get the item id of all output items and recipe ingredients.
-    var itemsCompile = compileIngredientIds();
+    var itemsCompile = arrayUnique(compileIngredientIds());
     if (globalMessage) {
-      bot.reply(globalMessage, "I need to fetch item data for " + Object.keys(itemsCompile).length + " ingredients.");
+      bot.reply(globalMessage, "I need to fetch item data for " + itemsCompile.length + " ingredients.");
     }
-    bot.botkit.log("Fetching " + Object.keys(itemsCompile).length + " ingredient items");
+    bot.botkit.log("Fetching " + itemsCompile.length + " ingredient items");
 
     var doneIngedientsCallback = function(apiKey) {
       if (globalMessage) {
@@ -1696,12 +1759,12 @@ function doneRecipesCallback(apiKey) {
       }
       var end = new Date().getTime();
       var time = end - start;
-      bot.botkit.log("Item list from recipes loaded. Data has " + Object.keys(gw2nodelib.data.items).length + " items: " + time + "ms");
+      bot.botkit.log("Item list from recipes loaded. Data has " + gw2nodelib.data.items.length + " items: " + time + "ms");
       recipiesLoaded = true;
       decrementAndCheckDone(apiKey);
     };
     gw2nodelib.load("items", {
-      ids: Object.keys(itemsCompile)
+      ids: itemsCompile
     }, (globalMessage ? true : false), halfCallback, doneIngedientsCallback, errorCallback);
   });
 }
@@ -2022,6 +2085,14 @@ function assembleRecipeAttachment(itemToDisplay) {
   return attachments;
 }
 
+//replace strange tags that occasionally make it into item text.
+//replce <c=@flavor> and <c> with the replacment string (in GW, these indicate italics, so we can fee slack underscores)
+//replace <br> with newlines
+function replaceGWFlavorTextTags(string, replacementText) {
+  if (typeof replacementText == 'undefined') replacementText = '';
+  return string.replace(/(<.?c(?:=@flavor)?>)/g, replacementText).replace(/(<br>)/g, '\n');
+}
+
 //for string 'normalization before comparing in searches'
 function removePunctuationAndToLower(string) {
   var punctuationless = string.replace(/['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
@@ -2077,7 +2148,9 @@ function findCraftableItemByName(searchName) {
           if (debug) bot.botkit.log('exact match forged ' + cleanSearch);
           exactMatch.push(forgedItem);
         } else itemsFound.push(forgedItem);
-      } else if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
+      } else {
+        if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
+      }
     }
   }
   if (exactMatch.length > 0) return exactMatch;
@@ -2172,21 +2245,17 @@ function getBaseIngredients(ingredients) {
 
 //Scour through recipes and forge recipes for output item/ingredient item ids. Return a no-duplicate list of these.
 function compileIngredientIds() {
-  itemsCompile = {};
+  itemsCompile = [];
   for (var t in gw2nodelib.data.recipes) {
-    itemsCompile[gw2nodelib.data.recipes[t].output_item_id] = 1;
-    //        if(gw2nodelib.data.recipes[t].output_item_id < 1) bot.botkit.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+    itemsCompile.push(gw2nodelib.data.recipes[t].output_item_id);
     for (var i in gw2nodelib.data.recipes[t].ingredients) {
-      itemsCompile[gw2nodelib.data.recipes[t].ingredients[i].item_id] = 1;
-      //      if(gw2nodelib.data.recipes[t].ingredients[i].item_id < 1) bot.botkit.log("compile found: "+JSON.stringify(gw2nodelib.data.recipes[t]));
+      itemsCompile.push(gw2nodelib.data.recipes[t].ingredients[i].item_id);
     }
   }
   for (var f in gw2nodelib.data.forged) {
-    itemsCompile[gw2nodelib.data.forged[f].output_item_id] = 1;
-    //        if(gw2nodelib.data.forged[f].output_item_id < 1) bot.botkit.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+    itemsCompile.push(gw2nodelib.data.forged[f].output_item_id);
     for (var g in gw2nodelib.data.forged[f].ingredients) {
-      itemsCompile[gw2nodelib.data.forged[f].ingredients[g].item_id] = 1;
-      //      if(gw2nodelib.data.forged[f].ingredients[g].item_id < 1) bot.botkit.log("compile found: "+JSON.stringify(gw2nodelib.data.forged[f]));
+      itemsCompile.push(gw2nodelib.data.forged[f].ingredients[g].item_id);
     }
   }
   return itemsCompile;
