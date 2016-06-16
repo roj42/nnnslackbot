@@ -1063,7 +1063,7 @@ function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
     });
   };
 
-  if (skinsToFetch.length > 0)
+//  if (skinsToFetch.length > 0) temp fix until cheevos are done
     gw2nodelib.skins(callbacky, {
       type: 'Skin',
       ids: skinsToFetch.join(",")
