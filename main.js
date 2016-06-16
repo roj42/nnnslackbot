@@ -146,7 +146,8 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       bot.reply(message, {
         attachments: {
           attachment: {
-            text: "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+            fallback: 'Too many items found in search.',
+            text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
           }
         }
       });
@@ -725,6 +726,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
         bot.reply(message, {
           attachments: {
             attachment: {
+              fallback: 'Too many achievements found in search.',
               text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
             }
           }
