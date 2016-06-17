@@ -146,7 +146,8 @@ controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient
       bot.reply(message, {
         attachments: {
           attachment: {
-            text: "Woah. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+            fallback: 'Too many items found in search.',
+            text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
           }
         }
       });
@@ -380,9 +381,9 @@ function userHasPermission(user, permission) {
 
 }
 
-var dungeonFriendsOrder = ["Ascolonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
+var dungeonFriendsOrder = ["Ascalonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
 var dungeonNames = {
-  "Ascolonian Catacombs Story": "ACS",
+  "Ascalonian Catacombs Story": "ACS",
   "Catacombs Explorable—Hodgins's Path": "AC1 Hodgins",
   "Catacombs Explorable—Detha's Path": "AC2 Detha",
   "Catacombs Explorable—Tzark's Path": "AC3 Tzark",
@@ -725,6 +726,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
         bot.reply(message, {
           attachments: {
             attachment: {
+              fallback: 'Too many achievements found in search.',
               text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
             }
           }
@@ -1584,28 +1586,41 @@ function tantrum() {
   ];
   return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 }
+
 controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
   bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
 });
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-  bot.startConversation(message, function(err, convo) {
+  botShutdown(message);
+});
+helpFile.restart = "Command Lessdremoth to restart.";
+controller.hears(['restart'], 'direct_message,direct_mention,mention', function(bot, message) {
+  botShutdown(message, true);
+});
 
+function botShutdown(message, restart) {
+  bot.startConversation(message, function(err, convo) {
     convo.ask('Are you sure you want me to shutdown?', [{
       pattern: bot.utterances.yes,
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
+        if(restart)
+          convo.say("Oh wait, you said restart...");
         setTimeout(function() {
-          convo.say(tantrum());
-          convo.next();
+          if (restart) {
+            convo.say("┬─┬﻿ ノ( ゜-゜ノ)\nBRB.");
+          } else
+            convo.say(tantrum());
         }, 500);
+        convo.next();
         setTimeout(function() {
           // saveStaticDataToFile("sass.json",sass);
           // saveStaticDataToFile("riker.json",rikerText);
           // saveStaticDataToFile("rikerPics.json",rikerPics);
           // saveStaticDataToFile("catFacts.json",catFacts);
-          process.exit();
+          process.exit((restart ? 1 : 0));
         }, 3000);
       }
     }, {
@@ -1617,7 +1632,7 @@ controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function
       }
     }]);
   });
-});
+}
 
 helpFile.uptime = "Lessdremoth will display some basic uptime information.";
 helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
@@ -1714,6 +1729,7 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
 
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
+    "get all the *cache.json files to be written to and read from the slackbotDB directory",
     "add lookup / display for bits of type item and skin to cheevos",
     "add ascended <prefix> <weight> <slot> shortcut to crafting",
     "fix up globalmessage shenannegans (replace with replyWith?)",
