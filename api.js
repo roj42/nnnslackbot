@@ -4,6 +4,7 @@ var config = {
 	baseUrl: 'https://api.guildwars2.com/v2/',
 	cacheTime: 604800,
 	cacheFile: null,
+	cachePath: '',
 	debug: false,
 	dataLoadRetry: 3,
 	dataLoadPageSize: 200,
@@ -20,14 +21,14 @@ var config = {
 		tokeninfo: 'tokeninfo',
 		dailies: 'achievements/daily',
 		dailiesTomorrow: 'achievements/daily/tomorrow',
-		skins : 'skins',
-		titles : 'titles',
-		minis : 'minis'
+		skins: 'skins',
+		titles: 'titles',
+		minis: 'minis'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
-		items: ["rarity","text", "error", "name", "id", "description", "level", "chat_link", "icon","details","type"],
+		items: ["rarity", "text", "error", "name", "id", "description", "level", "chat_link", "icon", "details", "type"],
 		recipes: ["text", "error", "output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
-		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers","flags","rewards"],
+		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers", "flags", "rewards"],
 		achievementsCategories: ["text", "error", "id", "name", "icon", "achievements"]
 	},
 };
@@ -63,11 +64,11 @@ var cache = function() {
 		},
 
 		set: function(apiKey, key, value) {
-			if (config.debug) console.log("Writing cache to file: " + apiKey + config.cacheFile);
+			if(config.debug) console.log("Writing cache to file: " + config.cachePath + apiKey + config.cacheFile);
 			if (!container[apiKey]) container[apiKey] = {};
 			container[apiKey][key] = value;
 			if (config.cacheFile !== null) {
-				fs.writeFile(apiKey + config.cacheFile, JSON.stringify(container[apiKey]), function(err) {
+				fs.writeFile(config.cachePath + apiKey + config.cacheFile, JSON.stringify(container[apiKey]), function(err) {
 					if (err) throw err;
 				});
 			}
@@ -170,16 +171,29 @@ module.exports = function() {
 				config.cacheFile = fileSuffix;
 
 				for (var apiKey in config.api) {
-					if (fs.existsSync(apiKey + config.cacheFile) && (fs.statSync(apiKey + config.cacheFile).size > 0)) {
-						cache.load(apiKey, JSON.parse(fs.readFileSync(apiKey + config.cacheFile, {
+					if (fs.existsSync(config.cachePath + apiKey + config.cacheFile) && (fs.statSync(config.cachePath + apiKey + config.cacheFile).size > 0)) {
+						cache.load(apiKey, JSON.parse(fs.readFileSync(config.cachePath + apiKey + config.cacheFile, {
 							encoding: 'utf8'
 						})));
-					} else if (config.debug) console.log("File " + apiKey + config.cacheFile + " does not exist, will create on first cache save");
+					} else if (config.debug) console.log("File " + config.cachePath + apiKey + config.cacheFile + " does not exist, will create on first cache save");
 				}
 			}
 			return true;
 		},
-
+		setCachePath: function(path) {
+			if (typeof path !== 'string') {
+				config.cachePath = '';
+				return false;
+			}
+			fs = require('fs');
+			try {
+				fs.statSync(path);
+			} catch (e) {
+				fs.mkdirSync(path);
+			}
+			config.cachePath = path;
+			return true;
+		},
 		// Returns true if successful, false if bad arguments
 		setCacheTime: function(seconds, apiKey) {
 			// Using argument structure [seconds]
