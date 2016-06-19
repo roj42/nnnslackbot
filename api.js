@@ -64,12 +64,13 @@ var cache = function() {
 		},
 
 		set: function(apiKey, key, value) {
-			if(config.debug) console.log("Writing cache to file: " + config.cachePath + apiKey + config.cacheFile);
+			if (config.debug) console.log("Writing cache to file: " + config.cachePath + apiKey + config.cacheFile);
 			if (!container[apiKey]) container[apiKey] = {};
 			container[apiKey][key] = value;
 			if (config.cacheFile !== null) {
 				fs.writeFile(config.cachePath + apiKey + config.cacheFile, JSON.stringify(container[apiKey]), function(err) {
 					if (err) throw err;
+					else if (config.debug) console.log("Done writing.");
 				});
 			}
 		},
@@ -252,6 +253,33 @@ module.exports = function() {
 			return true;
 		};
 	};
+	//roj42 - promise form of individual apikeys
+	var promiseFunction = function(apiKey) {
+		return function(idsToFetch) {
+			// Return a new promise.
+			return new Promise(function(resolve, reject) {
+				if(config.debug) console.log(apiKey+" promise fetching "+JSON.stringify(idsToFetch));
+				var num = idsToFetch.length;
+				if(num===0) resolve([]);
+				var results = [];
+				var listCallback = function(jsonRes, headers) {
+					if(config.debug) console.log(apiKey+" promise at "+num+" fetched ");
+					if (Array.isArray(jsonRes))
+						results.push(jsonRes[0]);
+					else
+						results.push(jsonRes);
+					if (--num === 0) {
+						resolve(results);
+					}
+				};
+				for (var id in idsToFetch)
+					ret[apiKey](listCallback, {
+						type: apiKey,
+						ids: idsToFetch[id]
+					}, false);
+			});
+		};
+	};
 	//roj42 - grab non-API forge recipes from the kind people at gw2profits
 	var forgeOptions = {
 		method: 'GET',
@@ -278,11 +306,12 @@ module.exports = function() {
 	ret.daoLoad = daoLoad;
 	ret.data = [];
 	ret.data.forged = [];
-
+	ret.promise = [];
 	for (var apiKey in config.api) {
 		// Returns true if successful, false if bad arguments
 		ret[apiKey] = entryPointFunction(apiKey);
 		ret.data[apiKey] = [];
+		ret.promise[apiKey] = promiseFunction(apiKey);
 	}
 	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
 	ret.load = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {

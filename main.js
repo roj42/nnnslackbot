@@ -1,6 +1,6 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
-var debug = false; //for debug messages, passe to api and botkit
+var debug = false; //for debug messages, passed botkit
 var recipiesLoaded = false; //To signal the bot that the async data load is finished.
 var achievementsLoaded = false;
 var achievementsCategoriesLoaded = false;
@@ -242,10 +242,6 @@ controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_men
 
 /////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
-// controller.hears(['access token'], 'direct_mention,mention', function(bot, message) {
-//   bot.reply(message, "Direct message me the phrase \'access token help\' for help.");
-// });
-
 controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
@@ -521,7 +517,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
           text += dungeonNames[textList[r].text] + textList[r].textPost;
         else
           text += textList[r].text + textList[r].textPost;
-        if (dungeonNames[textList[r].text][0] == "H")
+        if (textList[r].text[0] == "H")
           acceptableQuaggans.push("https://static.staticwars.com/quaggans/killerwhale.jpg");
       }
 
@@ -714,12 +710,10 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
         return;
       } else if (possibleMatches.length == 1) {
         globalMessage = message;
-        if (isRandom)
-          displayRandomCheevoCallback(accountAchievements, possibleMatches[0]);
-        else if (possibleMatches[0].achievements)
+        if (possibleMatches[0].achievements)
           displayCategoryCallback(accountAchievements, possibleMatches[0]);
         else
-          lookupCheevoParts(accountAchievements, possibleMatches[0], isFull);
+          lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
       } else if (possibleMatches.length > 10) {
         var itemNameList = [];
         for (var n in possibleMatches)
@@ -761,12 +755,10 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
               var selection = matches[0];
               if (selection < possibleMatches.length) {
                 globalMessage = convo;
-                if (isRandom)
-                  displayRandomCheevoCallback(accountAchievements, possibleMatches[selection]);
-                else if (possibleMatches[selection].achievements)
-                  displayCategoryCallback(accountAchievements, possibleMatches[selection]);
+                if (possibleMatches[0].achievements)
+                  displayCategoryCallback(accountAchievements, possibleMatches[0]);
                 else
-                  lookupCheevoParts(accountAchievements, possibleMatches[selection], isFull);
+                  lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
               } else if (askNum-- > 0) {
                 convo.say("Choose a valid number.");
                 convo.repeat();
@@ -925,8 +917,7 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
   });
 }
 
-
-function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull) {
+function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callback) {
 
   var skinsToFetch = [];
   var titlesToFetch = [];
@@ -953,57 +944,17 @@ function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull) {
           minisToFetch.push(searchId);
           break;
         case "Item":
-          var itemfound = findInData('id', searchId, 'items');
-          if (typeof itemfound == 'undefined')
-            itemsToFetch.push(searchId);
+          itemsToFetch.push(searchId);
       }
     }
   }
-  // console.log("skins: " +skinsToFetch.join(", "));
-  // console.log("titles: "+titlesToFetch.join(", "));
-  // console.log("minis: " +minisToFetch.join(", "));
-  // console.log("items: " +itemsToFetch.join(", "));
-  Promise.all([skinGet(skinsToFetch)]).then(function(results){
-    console.log(JSON.stringify(results));
-  });
-  displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull);
-  // if (skinsToFetch.length > 0)
-  //   gw2nodelib.skins(callbacky, {
-  //     type: 'Skin',
-  //     ids: skinsToFetch.join(",")
-  //   });
-  // if (titlesToFetch.length > 0)
-  //   gw2nodelib.titles(callbacky, {
-  //     type: 'Title',
-  //     ids: titlesToFetch.join(",")
-  //   });
-  // if (minisToFetch.length > 0)
-  //   gw2nodelib.minis(callbacky, {
-  //     type: 'Minipet',
-  //     ids: minisToFetch.join(",")
-  //   });
-  // if (itemsToFetch.length > 0)
-  //   gw2nodelib.items(callbacky, {
-  //     type: 'Item',
-  //     ids: itemsToFetch.join(",")
-  //   });
-
-}
-var count = 0;
-function skinGet(skinsToFetch) {
-  // Return a new promise.
-  return new Promise(function(resolve, reject) {
-    gw2nodelib.skins(function(jsonList, headers) {
-      console.log('headers: '+JSON.stringify(headers));
-      if (jsonList.text || jsonList.error) {
-        reject(jsonList, headers);
-      } else {
-        resolve(jsonList, headers);
-      }
-    }, {
-      type: 'Skin',
-      ids: skinsToFetch.join(",")
-    },true);
+  if (debug) console.log(skinsToFetch.length + " skins to fetch\n" +
+    titlesToFetch.length + " titles to fetch\n" +
+    minisToFetch.length + " minis to fetch\n" +
+    itemsToFetch.length + " items to fetch");
+  Promise.all([gw2nodelib.promise.skins(skinsToFetch), gw2nodelib.promise.titles(titlesToFetch), gw2nodelib.promise.minis(minisToFetch), gw2nodelib.promise.items(itemsToFetch)]).then(function(results) {
+    fetchFreshData = results;
+    callback(accountAchievements, cheevoToDisplay, isFull);
   });
 }
 
@@ -1122,7 +1073,9 @@ function getIconForParentCategory(cheevo) {
   return "https://wiki.guildwars2.com/images/d/d9/Hero.png";
 }
 
-function displayAchievementBit(bit, doneFlag) {
+var fetchFreshData = []; //filled by promise fetch in Display cheevo call back
+function displayAchievementBit(bit, doneFlag, data) {
+
   //covers achievement bits and rewards. Rewards have a count
   //Types are:
   //Text: simple text
@@ -1131,6 +1084,11 @@ function displayAchievementBit(bit, doneFlag) {
   //mastery Tyria or maguuma {"type": "Mastery","region": "Tyria"}
   //Skin and id (no count) {"type": "Skin","id": 208}
   //Minipet and id (no count) {"type": "Minipet","id": 12}
+
+  var skinData = fetchFreshData[0];
+  var titleData = fetchFreshData[1];
+  var miniData = fetchFreshData[2];
+  var itemData = fetchFreshData[3];
 
   if (bit.type == 'Text')
     return bit.text + (doneFlag ? " - DONE" : '');
@@ -1142,25 +1100,66 @@ function displayAchievementBit(bit, doneFlag) {
   } else if (bit.type == 'Mastery')
     return bit.region + " " + bit.type;
   else if (bit.type == 'Item') {
-    var itemData = findInData('id', bit.id, 'items');
-    var itemType = ''; //weapon, armor, bag, etc
-    if (itemData) {
-      if (itemData.details) {
-        if (itemData.type) itemType = " (" + itemData.type;
-        if (itemData.details.type) itemType += ": " + (itemData.details.weight_class ? itemData.details.weight_class + " " : "") + itemData.details.type;
-        if (itemType.length > 0) itemType += ")";
+    var foundItem;
+    for (var it in itemData) {
+      if (bit.id == itemData[it].id) {
+        foundItem = itemData[it];
+        break;
       }
-      return itemData.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
+    }
+    var itemType = ''; //weapon, armor, bag, etc
+    if (foundItem) {
+      if (foundItem.type) itemType = " (" + foundItem.type;
+      if (foundItem.details && foundItem.details.type) itemType += ": " + (foundItem.details.weight_class ? foundItem.details.weight_class + " " : "") + foundItem.details.type;
+      if (itemType.length > 0) itemType += ")";
+      return foundItem.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
+    } else {
+      return "Unknown item: " + bit.id;
     }
   } else if (bit.type == 'Skin') {
-    skinGet([bit.id]).then(function(jsonList, headers) {
-      var skinToDisplay = jsonList[0];
-      var type = (skinToDisplay.details ? skinToDisplay.details.type : skinToDisplay.type + ' Item');
-      var weight = (skinToDisplay.details && skinToDisplay.details.weight_class ? skinToDisplay.details.weight_class : '');
-      return skinToDisplay.name + " (" + (weight.length > 0 ? weight + " " : "") + type + ")";
-    }, function(jsonList, headers) {
-      return "Unknown skin: " + (jsonList.text || jsonList.error || "no error message");
-    });
+    var foundSkin;
+    for (var sk in skinData) {
+      if (bit.id == skinData[sk].id) {
+        foundSkin = skinData[sk];
+        break;
+      }
+    }
+    if (foundSkin) {
+      var type = (foundSkin.details ? foundSkin.details.type : foundSkin.type);
+      var weight = (foundSkin.details && foundSkin.details.weight_class ? foundSkin.details.weight_class : '');
+      return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)";
+    } else {
+      return "Unknown skin: " + bit.id;
+    }
+  } else if (bit.type == 'Title') {
+    var foundTitle;
+    for (var ti in titleData) {
+      if (bit.id == titleData[ti].id) {
+        foundTitle = titleData[ti];
+        break;
+      }
+    }
+    if (foundTitle) {
+      var cheevoName = 'unknown achievement';
+      var foundCheevo = findInData('id', foundTitle.achievement, 'achievements');
+      if (foundCheevo) cheevoName = foundCheevo.name;
+      return foundTitle.name + " (Title from " + cheevoName + ")";
+    } else {
+      return "Unknown title: " + bit.id;
+    }
+  } else if (bit.type == 'Minipet') {
+    var foundMini;
+    for (var mi in miniData) {
+      if (bit.id == miniData[mi].id) {
+        foundMini = miniData[mi];
+        break;
+      }
+    }
+    if (foundMini) {
+      return foundMini.name;
+    } else {
+      return "Unknown Minipet: " + bit.id;
+    }
   } else return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
 }
 
@@ -1607,7 +1606,7 @@ function botShutdown(message, restart) {
       pattern: bot.utterances.yes,
       callback: function(response, convo) {
         convo.say('(╯°□°)╯︵ ┻━┻');
-        if(restart)
+        if (restart)
           convo.say("Oh wait, you said restart...");
         setTimeout(function() {
           if (restart) {
@@ -1728,10 +1727,11 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
   bot.reply(message, reply);
 });
 
+controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  bot.reply(message, "latest command\nadd lookup / display for bits of type item, minipet, title, and skin to cheevo parts and rewards");
+});
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "get all the *cache.json files to be written to and read from the slackbotDB directory",
-    "add lookup / display for bits of type item and skin to cheevos",
     "add ascended <prefix> <weight> <slot> shortcut to crafting",
     "fix up globalmessage shenannegans (replace with replyWith?)",
     "fetch and display fractal dailies",
