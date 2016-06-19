@@ -1727,8 +1727,10 @@ controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,ment
   bot.reply(message, reply);
 });
 
+helpFile.latest = "Show latest completed TODO item";
+helpFile.update = "Alias for latest: " + JSON.stringify(helpFile.latest);
 controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "latest command\nadd lookup / display for bits of type item, minipet, title, and skin to cheevo parts and rewards");
+  bot.reply(message, "added latest command\nadd lookup / display for bits of type item, minipet, title, and skin to cheevo parts and rewards");
 });
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
