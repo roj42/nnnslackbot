@@ -445,7 +445,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
   var matches = message.text.match(/(dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
 
   var verbose = false;
-  if (matches && (matches[1] == 'dfv' || matches[1] == 'dungeonfriendsverbose'))
+  if (matches && (matches[1].toLowerCase() == 'dfv' || matches[1].toLowerCase() == 'dungeonfriendsverbose'))
     verbose = true;
 
   //once all users are loaded, correlate their dungeon frequenter availability.
