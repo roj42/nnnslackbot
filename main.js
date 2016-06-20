@@ -66,7 +66,6 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
   }
 });
 
-
 /*If that's the feature, that's doable. craftasc <prefix> <weight> <slot>
 
 Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
@@ -80,7 +79,7 @@ and searches for any any any return sass.
 Maybe add some alt names for the weights. Light/lite/cloth/scholar, medium/med/leather/adventurer, heavy/hev/plate/solider
 */
 
-////////////////recipe lookup. I apologize.
+////CRAFT
 helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
 controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   //function to assemble an attahcment and call bot reply. Used when finally responding with a recipe
@@ -171,7 +170,6 @@ function replyWithRecipeFor(itemToMake, message) {
   });
 }
 
-//Recipie lookup functions
 //For a given item, find its base ingredients and prepare an attachment displaying it
 function assembleRecipeAttachment(itemToDisplay) {
   var ingredients;
@@ -428,7 +426,7 @@ function removeInvalidIngredients(value, index, array) {
   return true;
 }
 
-/////QUAGGANS
+////QUAGGANS
 helpFile.quaggans = "fetch a list of all fetchable quaggan pictures. See help quaggan.";
 helpFile.quaggan = "Takes an argument. Lessdremoth pastes a url to a picture of that quaggan for slack to fetch. Also see help quaggans. Example: 'quaggan box'";
 
@@ -461,7 +459,7 @@ controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_men
   });
 });
 
-/////ACCESS TOKEN
+////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
 controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
@@ -590,7 +588,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
   });
 });
 
-///DUNGEON FRIENDS
+////DUNGEON FRIENDS
 var dungeonFriendsOrder = ["Ascalonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
 var dungeonNames = {
   "Ascalonian Catacombs Story": "ACS",
@@ -626,10 +624,6 @@ var dungeonNames = {
   "Arah Explorable—Forgotten Path": "Arah3 Forgotten",
   "Arah Explorable—Seer Path": "Arah4 Seer"
 };
-
-function dungeonFrendSort(a, b) {
-  return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
-}
 
 helpFile.dungeonfriends = "Show a mutually undone Dungeon Frequenter list for given folks with valid access tokens. Example \'df ahrj\'";
 helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, with the given users already-done dungeons tagged. Example \'dfv ahrj\'";
@@ -831,6 +825,10 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
   });
 });
 
+function dungeonFrendSort(a, b) {
+  return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
+}
+
 //find an achievement in the freshly fetched account achievements by id
 function findInAccount(id, accountAchievements) {
   for (var t in accountAchievements) {
@@ -840,7 +838,7 @@ function findInAccount(id, accountAchievements) {
   }
 }
 
-/////ACHIEVEMENTS
+////ACHIEVEMENTS
 helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
 helpFile.cheevor = "Display a random achievement from a category, or random part of an achievement. Use as a suggestion for what to do next.";
 helpFile.cheevof = "Display a 'full' achievement. If you choose an achievement (not a category), displays tiers, and rewards.";
@@ -1476,8 +1474,7 @@ controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_me
 
 });
 
-
-/////CHARACTERS
+////CHARACTERS
 helpFile.deaths = "Display a report of characters on your account, and their career deaths.";
 helpFile.characters = 'Alias for character deaths. ' + JSON.stringify(helpFile.characterDeaths);
 controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -1524,7 +1521,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
   });
 });
 
-///PREFIX
+////PREFIX
 helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
 helpFile.suffix = "Alias for prefix. " + JSON.stringify(helpFile.prefix);
 var prefixData = loadStaticDataFromFile('prefix.json');
@@ -1619,12 +1616,10 @@ function filterPrefixesByLevel(prefixList, level) {
 helpFile.professionReport = "Collate all known accounts characters by profession";
 helpFile.pr = "Alias for professionReport. " + JSON.stringify(helpFile.professionReport);
 controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-
   //Setup variables
   var num = 0;
   var goodUsers = [];
   var classes = [];
-
 
   //once all users are loaded, correlate their professions.
   var professionReportCallback = function(jsonData, headers) {
@@ -1720,7 +1715,7 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
     bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for profession report.");
 
     //If no user id argument or only invalid arguments, print list and return
-
+    bot.reply(message, "Professions? Hang on.");
     globalMessage = message;
     for (var g in goodUsers) {
       gw2nodelib.characters(professionReportCallback, {
@@ -1803,12 +1798,11 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
     bot.reply(message, "Data:" + dataString);
 });
 
-//Alternate personalities and junk
+////FUNNY
 controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
   bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
 });
 
-////sass
 var sass = loadStaticDataFromFile('sass.json');
 var lastSass = [];
 controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -1871,8 +1865,7 @@ controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,menti
 
 });
 
-
-/////Easter Eggs and debugs
+////EASTER EGGS AND DEBUGS
 function randomHonoriffic(inName, userId) {
   if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
   else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
@@ -2060,7 +2053,7 @@ prefixData.Nuprin = {
   "stats": ["Little", "Yellow", "Different"]
 };
 
-/// General Helper functions
+////HELPER FUNCTIONS
 function userHasPermission(user, permission) {
   if (user && user.permissions)
     for (var p in user.permissions)
@@ -2070,6 +2063,7 @@ function userHasPermission(user, permission) {
 
 }
 
+//reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalmessage
 function replyWith(messageToSend, keepGlobalMessage) {
   if (!globalMessage) return;
   if (globalMessage.say) //convo
@@ -2148,9 +2142,9 @@ function addReaction(message, emoji) {
 }
 
 //replace strange tags that occasionally make it into item text.
-//replce <c=@flavor> and <c> with the replacment string (in GW, these indicate italics, so we can fee slack underscores)
-//replace <br> with newlines
 function replaceGWFlavorTextTags(string, replacementText) {
+  //replce <c=@flavor> and <c> with the replacment string (in GW, these indicate italics, so we can fee slack underscores)
+  //replace <br> with newlines
   if (typeof replacementText == 'undefined') replacementText = '';
   return string.replace(/(<.?c(?:=@flavor)?>)/g, replacementText).replace(/(<br>)/g, '\n');
 }
@@ -2176,7 +2170,7 @@ function randomOneOf(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-//////DATA
+////DATA
 controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to launch for real');
 });
@@ -2208,8 +2202,9 @@ function errorCallback(msg) {
   bot.botkit.log("error loading: " + msg);
   recipiesLoaded = false;
 }
-//recipes
+
 function doneRecipesCallback(apiKey) {
+  //Recipes govern item load, so use a special callback
   var end = new Date().getTime();
   var time = end - start;
   if (globalMessage) {
@@ -2245,7 +2240,6 @@ function doneRecipesCallback(apiKey) {
   });
 }
 
-//achievements
 function doneAllOtherCallback(apiKey) {
   var end = new Date().getTime();
   var time = end - start;
