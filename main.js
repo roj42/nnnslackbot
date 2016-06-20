@@ -12,11 +12,6 @@ var Botkit = require('botkit');
 var os = require('os');
 var fs = require('fs');
 // var winston = require('winston');
-var gw2nodelib = require('./api.js');
-gw2nodelib.setCacheTime(3600, 'achievements');
-gw2nodelib.setCacheTime(3600, 'achievementsCategories');
-gw2nodelib.setCachePath('./slackbotDB/caches/');
-gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
 var helpFile = [];
 var cheevoList = {};
@@ -54,6 +49,14 @@ var bot = controller.spawn({
 // bot.botkit.log.warning("WARN TEST");
 // bot.botkit.log.error("ERROR TEST");
 // bot.botkit.log("INFO TEST");
+
+var gw2nodelib = require('./api.js');
+gw2nodelib.setCacheTime(3600, 'achievements');
+gw2nodelib.setCacheTime(3600, 'achievementsCategories');
+gw2nodelib.setCachePath('./slackbotDB/caches/');
+gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
+
+
 reloadAllData(false);
 
 
