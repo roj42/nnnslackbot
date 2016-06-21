@@ -1130,7 +1130,7 @@ function displayAchievementBit(bit, doneFlag, data) {
     if (foundSkin) {
       var type = (foundSkin.details ? foundSkin.details.type : foundSkin.type);
       var weight = (foundSkin.details && foundSkin.details.weight_class ? foundSkin.details.weight_class : '');
-      return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)";
+      return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)" + (doneFlag ? " - DONE" : '');
     } else {
       return "Unknown skin: " + bit.id;
     }
