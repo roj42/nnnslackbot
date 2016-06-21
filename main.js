@@ -758,10 +758,10 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
               var selection = matches[0];
               if (selection < possibleMatches.length) {
                 globalMessage = convo;
-                if (possibleMatches[0].achievements)
-                  displayCategoryCallback(accountAchievements, possibleMatches[0]);
+                if (possibleMatches[selection].achievements)
+                  displayCategoryCallback(accountAchievements, possibleMatches[selection]);
                 else
-                  lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
+                  lookupCheevoParts(accountAchievements, possibleMatches[selection], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
               } else if (askNum-- > 0) {
                 convo.say("Choose a valid number.");
                 convo.repeat();
