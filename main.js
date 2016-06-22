@@ -12,11 +12,6 @@ var Botkit = require('botkit');
 var os = require('os');
 var fs = require('fs');
 // var winston = require('winston');
-var gw2nodelib = require('./api.js');
-gw2nodelib.setCacheTime(3600, 'achievements');
-gw2nodelib.setCacheTime(3600, 'achievementsCategories');
-gw2nodelib.setCachePath('./slackbotDB/caches/');
-gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
 var helpFile = [];
 var cheevoList = {};
@@ -54,6 +49,14 @@ var bot = controller.spawn({
 // bot.botkit.log.warning("WARN TEST");
 // bot.botkit.log.error("ERROR TEST");
 // bot.botkit.log("INFO TEST");
+
+var gw2nodelib = require('./api.js');
+gw2nodelib.setCacheTime(3600, 'achievements');
+gw2nodelib.setCacheTime(3600, 'achievementsCategories');
+gw2nodelib.setCachePath('./slackbotDB/caches/');
+gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
+
+
 reloadAllData(false);
 
 ////HELP
@@ -741,7 +744,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
   var matches = message.text.match(/(dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
 
   var verbose = false;
-  if (matches && (matches[1] == 'dfv' || matches[1] == 'dungeonfriendsverbose'))
+  if (matches && (matches[1].toLowerCase() == 'dfv' || matches[1].toLowerCase() == 'dungeonfriendsverbose'))
     verbose = true;
 
   //once all users are loaded, correlate their dungeon frequenter availability.
@@ -1055,10 +1058,10 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
               var selection = matches[0];
               if (selection < possibleMatches.length) {
                 globalMessage = convo;
-                if (possibleMatches[0].achievements)
-                  displayCategoryCallback(accountAchievements, possibleMatches[0]);
+                if (possibleMatches[selection].achievements)
+                  displayCategoryCallback(accountAchievements, possibleMatches[selection]);
                 else
-                  lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
+                  lookupCheevoParts(accountAchievements, possibleMatches[selection], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
               } else if (askNum-- > 0) {
                 convo.say("Choose a valid number.");
                 convo.repeat();
@@ -1398,10 +1401,10 @@ function displayAchievementBit(bit, doneFlag, data) {
       }
     }
     var itemType = ''; //weapon, armor, bag, etc
-    if (foundItem) {
-      if (foundItem.type) itemType = " (" + foundItem.type;
-      if (foundItem.details && foundItem.details.type) itemType += ": " + (foundItem.details.weight_class ? foundItem.details.weight_class + " " : "") + foundItem.details.type;
-      if (itemType.length > 0) itemType += ")";
+    if (foundItem && foundItem.type) {
+      itemType = " (" + foundItem.type;
+      if (foundItem.type != 'Container' && foundItem.details && foundItem.details.type) itemType += ": " + (foundItem.details.weight_class ? foundItem.details.weight_class + " " : "") + foundItem.details.type;
+      itemType += ")";
       return foundItem.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
     } else {
       return "Unknown item: " + bit.id;
@@ -1417,7 +1420,7 @@ function displayAchievementBit(bit, doneFlag, data) {
     if (foundSkin) {
       var type = (foundSkin.details ? foundSkin.details.type : foundSkin.type);
       var weight = (foundSkin.details && foundSkin.details.weight_class ? foundSkin.details.weight_class : '');
-      return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)";
+      return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)" + (doneFlag ? " - DONE" : '');
     } else {
       return "Unknown skin: " + bit.id;
     }

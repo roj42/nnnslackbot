@@ -9,16 +9,20 @@ A slackbot that uses the guildwars 2 API to provide some functionality to the ne
 
 nnnslackbot is available via NPM.
 
-```
-bash
-npm install --save nnnslackbot
-```
 
-You can also check out nnnslackbot directly from Git.
+Check out nnnslackbot directly from Git.
 
 ```bash
 git clone git@github.com/roj42/nnnslackbot.git
 ```
+
+Then in the checkout directory, install nnnslackbot's dependencies
+
+```
+bash
+npm install
+```
+
 
 ## Usage
 
