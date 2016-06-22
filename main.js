@@ -1111,10 +1111,10 @@ function displayAchievementBit(bit, doneFlag, data) {
       }
     }
     var itemType = ''; //weapon, armor, bag, etc
-    if (foundItem) {
-      if (foundItem.type) itemType = " (" + foundItem.type;
-      if (foundItem.details && foundItem.details.type) itemType += ": " + (foundItem.details.weight_class ? foundItem.details.weight_class + " " : "") + foundItem.details.type;
-      if (itemType.length > 0) itemType += ")";
+    if (foundItem && foundItem.type) {
+      itemType = " (" + foundItem.type;
+      if (foundItem.type != 'Container' && foundItem.details && foundItem.details.type) itemType += ": " + (foundItem.details.weight_class ? foundItem.details.weight_class + " " : "") + foundItem.details.type;
+      itemType += ")";
       return foundItem.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
     } else {
       return "Unknown item: " + bit.id;
