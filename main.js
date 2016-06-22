@@ -66,88 +66,172 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
   }
 });
 
-/*If that's the feature, that's doable. craftasc <prefix> <weight> <slot>
-
-Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
-
-where weight is light/med/heavy/weapon or a substring thereof or 'any'
-
-and slot is a big six armor slot or a weapon type or 'any'
-
-and searches for any any any return sass.
-
-Maybe add some alt names for the weights. Light/lite/cloth/scholar, medium/med/leather/adventurer, heavy/hev/plate/solider
-*/
-
 ////CRAFT
+helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
+helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
 helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
-controller.hears(['^craft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  //function to assemble an attahcment and call bot reply. Used when finally responding with a recipe
-
-  var matches = message.text.match(/craft (.*)/i);
+controller.hears(['^craft (.*)', '^asscraft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   if (!recipiesLoaded) { //still loading
     bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-  } else if (!matches || !matches[0]) { //weird input? Should be impossible to get here.
-    bot.reply(message, "I didn't quite get that. Maybe ask \'help craft\'?");
-  } else { //search for recipes that produce items with names that contain the search string
-    console.log("craftmatches: " + matches);
-    var searchTerm = matches[1];
-    var itemSearchResults = findCraftableItemByName(searchTerm);
-    if (debug) bot.botkit.log(itemSearchResults.length + " matches found");
-    if (itemSearchResults.length === 0) { //no match
-      bot.reply(message, "No item names contain that exact text.");
-    } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-      replyWithRecipeFor(itemSearchResults[0], message);
-    } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-      var itemNameList = [];
-      for (var n in itemSearchResults) {
-        itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
-      }
-      bot.reply(message, {
-        attachments: {
-          attachment: {
-            fallback: 'Too many items found in search.',
-            text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
-          }
-        }
-      });
-    } else { //10 items or less, allow user to choose
-      bot.startConversation(message, function(err, convo) {
-        var listofItems = '';
-        for (var i in itemSearchResults) {
-          listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
-        }
-        convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-          //number, no, or repeat
-          pattern: new RegExp(/^(\d{1,2})/i),
-          callback: function(response, convo) {
-            //if it's a number, and that number is within our search results, print it
-            var matches = response.text.match(/^(\d{1,2})/i);
-            var selection = matches[0];
-            if (selection < itemSearchResults.length) {
-              replyWithRecipeFor(itemSearchResults[selection], message);
-            } else convo.repeat(); //invalid number. repeat choices.
-            convo.next();
-          }
-        }, {
-          //negative response. Stop repeating the list.
-          pattern: bot.utterances.no,
-          callback: function(response, convo) {
-            convo.say('¯\\_(ツ)_/¯');
-            convo.next();
-          }
-        }, {
-          default: true,
-          callback: function(response, convo) {
-            // loop back, user needs to pick or say no.
-            convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
-            convo.next();
-          }
-        }]);
+    return;
+  }
+  var itemSearchResults = [];
+  var command = message.text.slice(0, message.text.indexOf(' '));
+  var args = message.text.slice(message.text.indexOf(' ') + 1, message.text.length);
+  if (removePunctuationAndToLower(command) === 'craft') { //straighforward craft
+    itemSearchResults = findCraftableItemByName(args);
+  } else if (removePunctuationAndToLower(command) === 'asscraft') {
+    //Build and filter the list of search results
+    var termsArray = args.split(" ");
+    //Prefix. Translate to an ascended prefix
+    if (!termsArray[0] || removePunctuationAndToLower(termsArray[0]) == 'any') {
+      bot.reply(message, "I need a prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
+      return;
+    }
+    var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
+    termsArray[0] = prefixSearchTerms.join("|");
+    for (var i in prefixSearchTerms) {
+      itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
+    }
+    //they should all be ascended, but just in case:
+    itemSearchResults = itemSearchResults.filter(function(value) {
+      return value.rarity == 'Ascended';
+    });
+    //weight or is a weapon
+    if (termsArray[1] && removePunctuationAndToLower(termsArray[1]) != 'any') {
+      var weight = getAscendedWeight(termsArray[1]);
+      termsArray[1] = weight;
+      itemSearchResults = itemSearchResults.filter(function(value) {
+        if (weight == 'Weapon')
+          return value.type == weight;
+        else
+          return (value.details && value.details.weight_class == weight);
       });
     }
+    //slot or weapon type
+    if (termsArray[2] && removePunctuationAndToLower(termsArray[2]) != 'any') {
+      var slot = getItemSlot(termsArray[2]);
+      termsArray[2] = slot;
+      itemSearchResults = itemSearchResults.filter(function(value) {
+        return (value.details && value.details.type == slot);
+      });
+    }
+    bot.reply(message, "Your final search was for: " + termsArray.join(" "));
+  } else {
+    bot.reply(message, "I didn't quite get that. Maybe ask \'help " + matches[0] + "\'?");
+    return;
+  }
+  if (debug) bot.botkit.log(itemSearchResults.length + " matches found");
+  if (itemSearchResults.length === 0) { //no match
+    bot.reply(message, "No item names contain that exact text.");
+  } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+    replyWithRecipeFor(itemSearchResults[0], message);
+  } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+    var itemNameList = [];
+    for (var n in itemSearchResults) {
+      itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
+    }
+    bot.reply(message, {
+      attachments: {
+        attachment: {
+          fallback: 'Too many items found in search.',
+          text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+        }
+      }
+    });
+  } else { //10 items or less, allow user to choose
+    bot.startConversation(message, function(err, convo) {
+      var listofItems = '';
+      for (var i in itemSearchResults) {
+        listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+      }
+      convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+        //number, no, or repeat
+        pattern: new RegExp(/^(\d{1,2})/i),
+        callback: function(response, convo) {
+          //if it's a number, and that number is within our search results, print it
+          var matches = response.text.match(/^(\d{1,2})/i);
+          var selection = matches[0];
+          if (selection < itemSearchResults.length) {
+            replyWithRecipeFor(itemSearchResults[selection], message);
+          } else convo.repeat(); //invalid number. repeat choices.
+          convo.next();
+        }
+      }, {
+        //negative response. Stop repeating the list.
+        pattern: bot.utterances.no,
+        callback: function(response, convo) {
+          convo.say('¯\\_(ツ)_/¯');
+          convo.next();
+        }
+      }, {
+        default: true,
+        callback: function(response, convo) {
+          // loop back, user needs to pick or say no.
+          convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
+          convo.next();
+        }
+      }]);
+    });
   }
 });
+
+//var ascendedPrefixes = loadStaticDataFromFile('ascendedPrefix.json');
+
+function getAscendedItemsByPrefix(prefixSearch) {
+  //Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
+
+  var possiblePrefixes = loadStaticDataFromFile("ascendedPrefixMap.json");
+  //looks like:
+  //{
+  //"Maguuma Burl":["Tizlak's"],
+  //"Marauder":["Svaard's"],
+  //"Sapphire":["Tateos's","Theodosus'"]
+  //  }
+  for (var prefix in possiblePrefixes) {
+    if (removePunctuationAndToLower(prefix).includes(prefixSearch)) {
+      return possiblePrefixes[prefix];
+    } else
+      for (var name in possiblePrefixes[prefix])
+        if (removePunctuationAndToLower(possiblePrefixes[prefix][name]).includes(prefixSearch)) {
+          return [possiblePrefixes[prefix][name]];
+        }
+  }
+  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
+
+}
+
+function getAscendedWeight(weight) {
+  //where weight is light/med/heavy/weapon or a substring thereof or 'any'
+  //Maybe add some alt names for the weights. Light/lite/cloth/scholar, medium/med/leather/adventurer, heavy/hev/plate/solider
+  var possibleWeights = {
+    Weapon: ["weapon"],
+    Light: ["light", "lite", "cloth", "scholar"],
+    Medium: ["medium", "leather", "adventurer"],
+    Heavy: ["heavy", "hev", "plate", "soldier"]
+  }
+  for (var weightName in possibleWeights) {
+    for (var j in possibleWeights[weightName])
+      if (removePunctuationAndToLower(possibleWeights[weightName][j]).includes(weight))
+        return weightName;
+  }
+  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
+}
+
+function getItemSlot(slotName) {
+  //and slot is a big six armor slot or a weapon type or 'any'
+  var possibleSlots = ['Boots', 'Coat', 'Gloves', 'Helm', 'HelmAquatic', 'Leggings', 'Shoulders',
+    'Axe', 'Dagger', 'Mace', 'Pistol', 'Scepter', 'Sword', 'Focus', 'Shield', 'Torch', 'Warhorn',
+    'Greatsword', 'Hammer', 'LongBow', 'Rifle', 'ShortBow', 'Staff',
+    'Harpoon', 'Speargun', 'Trident',
+    'LargeBundle', 'SmallBundle', 'Toy', 'TwoHandedToy'
+  ];
+  for (var i in possibleSlots) {
+    if (removePunctuationAndToLower(possibleSlots[i]).includes(slotName))
+      return possibleSlots[i];
+  }
+  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
+}
 
 function replyWithRecipeFor(itemToMake, message) {
   var attachments = assembleRecipeAttachment(itemToMake);
@@ -281,8 +365,10 @@ function levelAndRarityForItem(item) {
 
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
 function findCraftableItemByName(searchName) {
+  if (searchName.length === 0) return [];
   var itemsFound = [];
   var cleanSearch = removePunctuationAndToLower(searchName).replace(/\s+/g, '');
+  if (cleanSearch.length === 0) return [];
   var exactMatch = [];
   if (debug) bot.botkit.log("findCraftableItemByName: " + cleanSearch);
   for (var i in gw2nodelib.data.items) {
@@ -292,6 +378,7 @@ function findCraftableItemByName(searchName) {
         if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
           if (debug) bot.botkit.log('exact match recipie ' + cleanSearch);
           exactMatch.push(gw2nodelib.data.items[i]);
+          console.log("adding " + JSON.stringify(gw2nodelib.data.items[i]));
         }
         itemsFound.push(gw2nodelib.data.items[i]);
       }
@@ -301,6 +388,8 @@ function findCraftableItemByName(searchName) {
         if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
           if (debug) bot.botkit.log('exact match forged ' + cleanSearch);
           exactMatch.push(forgedItem);
+          console.log("adding " + JSON.stringify(forgedItem));
+
         } else itemsFound.push(forgedItem);
       } else {
         if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
@@ -1756,12 +1845,10 @@ function botShutdown(message, restart) {
         convo.say('(╯°□°)╯︵ ┻━┻');
         if (restart)
           convo.say("Oh wait, you said restart...");
-        setTimeout(function() {
-          if (restart) {
-            convo.say("┬─┬﻿ ノ( ゜-゜ノ)\nBRB.");
-          } else
-            convo.say(tantrum());
-        }, 500);
+        if (restart) {
+          convo.say("┬─┬﻿ ノ( ゜-゜ノ)\nBRB.");
+        } else
+          convo.say(tantrum());
         convo.next();
         setTimeout(function() {
           // saveStaticDataToFile("sass.json",sass);
