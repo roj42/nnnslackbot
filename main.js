@@ -87,11 +87,11 @@ controller.hears(['^craft (.*)', '^asscraft (.*)'], 'direct_message,direct_menti
     //Build and filter the list of search results
     var termsArray = args.split(" ");
     //Prefix. Translate to an ascended prefix
-    if (!termsArray[0] || removePunctuationAndToLower(termsArray[0]) == 'any') {
-      bot.reply(message, "I need a prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
+    var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
+    if (!termsArray[0] || removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
+      bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
       return;
     }
-    var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
     termsArray[0] = prefixSearchTerms.join("|");
     for (var i in prefixSearchTerms) {
       itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
@@ -200,8 +200,7 @@ function getAscendedItemsByPrefix(prefixSearch) {
           return [possiblePrefixes[prefix][name]];
         }
   }
-  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
-
+  return [];
 }
 
 function getAscendedWeight(weight) {
@@ -218,7 +217,7 @@ function getAscendedWeight(weight) {
       if (removePunctuationAndToLower(possibleWeights[weightName][j]).includes(weight))
         return weightName;
   }
-  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
+  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
 
 function getItemSlot(slotName) {
@@ -233,7 +232,7 @@ function getItemSlot(slotName) {
     if (removePunctuationAndToLower(possibleSlots[i]).includes(slotName))
       return possibleSlots[i];
   }
-  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", ""]);
+  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
 
 function replyWithRecipeFor(itemToMake, message) {
