@@ -211,7 +211,7 @@ function getAscendedWeight(weight) {
     Light: ["light", "lite", "cloth", "scholar"],
     Medium: ["medium", "leather", "adventurer"],
     Heavy: ["heavy", "hev", "plate", "soldier"]
-  }
+  };
   for (var weightName in possibleWeights) {
     for (var j in possibleWeights[weightName])
       if (removePunctuationAndToLower(possibleWeights[weightName][j]).includes(weight))
@@ -755,7 +755,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
         name = goodUsers[z].name;
         if (jsonData.error || jsonData.text) {
-          bot.reply(globalMessage, "I got an error looking up the data for " + name + ". They will be omitted from the results.");
+          replyWith("I got an error looking up the data for " + name + ". They will be omitted from the results.", true);
           //no need to exit. it will find nothing in jsonData and exit, unless this is the last one, then it will assemble the report.
           goodUsers[z].error = true;
         }
@@ -856,14 +856,10 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         fields: fieldsFormatted,
       };
       attachments.push(attachment);
-      bot.reply(globalMessage, {
+      replyWith{
         text: "Party: " + pretextString + ".",
         attachments: attachments,
-      }, function(err, resp) {
-        if (err || debug) bot.botkit.log(err, resp);
-      });
-
-      globalMessage = '';
+      },false);
     }
   };
 
@@ -1089,7 +1085,6 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
           }]);
         });
       }
-      //        globalMessage = null;
     }, {
       access_token: user.access_token
     }, true);
@@ -1720,7 +1715,7 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
       if (headers && headers.options && headers.options.access_token && headers.options.access_token == goodUsers[z].access_token && goodUsers[z].name) {
         name = goodUsers[z].name;
         if (jsonData.error || jsonData.text) {
-          bot.reply(globalMessage, "I got an error looking up the data for " + name + ". They will be omitted from the results.");
+          replyWith("I got an error looking up the data for " + name + ". They will be omitted from the results.", true);
           bot.botkit.log("error: " + jsonData.error + "\ntext: " + jsonData.text);
           //no need to exit. it will find nothing in jsonData and exit, unless this is the last one, then it will assemble the report.
           goodUsers[z].error = true;
@@ -1783,14 +1778,10 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
         fields: fieldsFormatted,
       };
       attachments.push(attachment);
-      bot.reply(globalMessage, {
+      replyWith({
         text: "Collating the professions of: " + pretextString + ".",
         attachments: attachments,
-      }, function(err, resp) {
-        if (err || debug) bot.botkit.log(err, resp);
-      });
-
-      globalMessage = '';
+      }, false);
     }
   };
 
@@ -2110,14 +2101,11 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
 helpFile.latest = "Show latest completed TODO item";
 helpFile.update = "Alias for latest: " + JSON.stringify(helpFile.latest);
 controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "add ascended <prefix> <weight> <slot> shortcut to crafting");
+  bot.reply(message,"Bank Command, bank <item name>");
 });
 
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "fix up globalmessage shenannegans (replace with replyWith?)",
-    "fetch and display fractal dailies - already exists?",
-    "Bank Command, collate all banked items and load, then add to items",
     "general code re-org, incl. promises on fetch where applicable",
     "break out reload so you can reload achievements separately?",
     "Scan achievements for low-hanging achievement fruit",
@@ -2278,16 +2266,12 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
 function halfCallback(apiKey) {
   var end = new Date().getTime();
   var time = end - start;
-  if (globalMessage) {
-    bot.reply(globalMessage, "Half done loading the list of " + apiKey + ".");
-  }
+  replyWith("Half done loading the list of " + apiKey + ".", true);
   bot.botkit.log("HALF " + apiKey + ": " + time + "ms");
 }
 
 function errorCallback(msg) {
-  if (globalMessage) {
-    bot.reply(globalMessage, "Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.');
-  }
+  replyWith("Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.', true);
   bot.botkit.log("error loading: " + msg);
   recipiesLoaded = false;
 }
@@ -2296,9 +2280,8 @@ function doneRecipesCallback(apiKey) {
   //Recipes govern item load, so use a special callback
   var end = new Date().getTime();
   var time = end - start;
-  if (globalMessage) {
-    bot.reply(globalMessage, "Finished loading the list of recipes. I found " + Object.keys(gw2nodelib.data[apiKey]).length + ". Starting on items.");
-  } else bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
+  replyWith("Finished loading the list of recipes. I found " + Object.keys(gw2nodelib.data[apiKey]).length + ". Starting on items.", true);
+  bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
   gw2nodelib.forgeRequest(function(forgeList) {
     if (debug) bot.botkit.log("unfiltered forgeitems: " + forgeList.length);
     var filteredForgeList = forgeList.filter(removeInvalidIngredients);
@@ -2308,15 +2291,11 @@ function doneRecipesCallback(apiKey) {
     bot.botkit.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
     //Go through recipes, and get the item id of all output items and recipe ingredients.
     var itemsCompile = arrayUnique(compileIngredientIds());
-    if (globalMessage) {
-      bot.reply(globalMessage, "I need to fetch item data for " + itemsCompile.length + " ingredients.");
-    }
+    replyWith("I need to fetch item data for " + itemsCompile.length + " ingredients.", true);
     bot.botkit.log("Fetching " + itemsCompile.length + " ingredient items");
 
     var doneIngedientsCallback = function(apiKey) {
-      if (globalMessage) {
-        bot.reply(globalMessage, "Ingredient list from recipes loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients for the " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes.");
-      }
+      replyWith("Ingredient list from recipes loaded. I know about " + Object.keys(gw2nodelib.data.items).length + " ingredients for the " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes.", true);
       var end = new Date().getTime();
       var time = end - start;
       bot.botkit.log("Item list from recipes loaded. Data has " + gw2nodelib.data.items.length + " items: " + time + "ms");
@@ -2325,7 +2304,7 @@ function doneRecipesCallback(apiKey) {
     };
     gw2nodelib.load("items", {
       ids: itemsCompile
-    }, (globalMessage ? true : false), halfCallback, doneIngedientsCallback, errorCallback);
+    }, (typeof globalMessage != 'undefined' ? true : false), halfCallback, doneIngedientsCallback, errorCallback);
   });
 }
 
@@ -2334,9 +2313,8 @@ function doneAllOtherCallback(apiKey) {
   var time = end - start;
   var apiKeyString = apiKey;
   if (apiKey == 'achievementsCategories') apiKeyString = 'achievement categories';
-  if (globalMessage) {
-    bot.reply(globalMessage, "Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2nodelib.data[apiKey]).length + ".");
-  } else bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2nodelib.data[apiKey]).length + ": " + time + "ms");
+  replyWith("Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2nodelib.data[apiKey]).length + ".", true);
+  bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2nodelib.data[apiKey]).length + ": " + time + "ms");
   decrementAndCheckDone(apiKey);
   if (apiKey == 'achievementsCategories') {
     //to make this work, you need a global cheevoList
@@ -2372,9 +2350,7 @@ function doneAllOtherCallback(apiKey) {
 
 function decrementAndCheckDone(apiKey) {
   if (--numToLoad === 0) {
-    if (globalMessage)
-      bot.reply(globalMessage, "All loading complete.");
-    globalMessage = null;
+    replyWith("All loading complete.", false);
     bot.botkit.log('Finished loading all apikeys after ' + apiKey + '.');
   }
 }
@@ -2392,11 +2368,11 @@ function reloadAllData(bypass) {
 
   start = new Date().getTime();
   numToLoad = 3;
-  if (globalMessage) bot.reply(globalMessage, "Starting to load recipes.");
+  replyWith("Starting to load recipes.", true);
   gw2nodelib.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
-  if (globalMessage) bot.reply(globalMessage, "Starting to load achievements.");
+  replyWith("Starting to load achievements.", true);
   gw2nodelib.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-  if (globalMessage) bot.reply(globalMessage, "Starting to load achievement categories.");
+  replyWith("Starting to load achievement categories.", true);
   gw2nodelib.load("achievementsCategories", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);
