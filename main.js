@@ -69,6 +69,89 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
   }
 });
 
+////BANK
+helpFile.bank = "Search your possessions for an item. Looks in character inventories, shared inventory, bank and material storage. Usage bank <item name>";
+controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+
+  controller.storage.users.get(message.user, function(err, user) {
+    if (err) {
+      bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
+      bot.botkit.log("Error:bank no user data " + err);
+      return;
+    }
+    //precheck - input scrub a bit
+    var matches = removePunctuationAndToLower(message.text).match(/(bank)\s?([\s\w]*)$/i);
+    if (!matches || !matches[2]) {
+      bot.reply(message, "I didn't quite get that. Maybe ask \'help bank\'?");
+      return;
+    }
+
+    //precheck: access token.
+    if (!user || !user.access_token || !userHasPermission(user, 'inventories')) {
+      bot.botkit.log('ERROR: bank no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
+      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'inventories') ? "with correct 'inventories' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
+      return;
+    }
+    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
+    var searchTerm = matches[2].replace(/\s+/g, '');
+
+    //callback to give to the character callback at the end to kick all this off.
+    var charactersCallback = function(jsonList, headers) {
+      if (jsonList.text || jsonList.error) {
+        bot.reply(message, "Oops. I got this error when asking about your character inventories: " + (jsonList.text ? jsonList.text : jsonList.error) + '\n' + JSON.stringify(err));
+        return;
+      }
+      //setup:promise fetch items in each character inventory, shared inventory, bank, and material storage.
+      var characterPromises = [];
+      var inventories = [];
+      for (var ch in jsonList) {
+        var idList = [];
+        var countList = [];
+        for (var bg in jsonList[ch].bags) {
+          if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot. This causes Horrible Problems with the next line for some reason
+            for (var it in jsonList[ch].bags[bg].inventory) {
+              if (jsonList[ch].bags[bg].inventory[it] !== null) {
+                idList.push(jsonList[ch].bags[bg].inventory[it].id);
+                countList.push(jsonList[ch].bags[bg].inventory[it].count);
+              }
+            }
+          }
+        }
+        inventories.push({
+          character: jsonList[ch].name,
+          ids: idList,
+          counts: countList
+        });
+        characterPromises.push(gw2nodelib.promise.items(arrayUnique(idList)));
+      }
+      bot.reply(message, JSON.stringify(inventories));
+
+      Promise.all([gw2nodelib.promise.accountBank(['all']), gw2nodelib.promise.accountInventory(['all']), gw2nodelib.promise.accountMaterials(['all'])]).then(function(results) {
+        console.log(JSON.stringify(results));
+      });
+
+
+      //    Promise.all([gw2nodelib.promise.skins(skinsToFetch), gw2nodelib.promise.titles(titlesToFetch), gw2nodelib.promise.minis(minisToFetch), gw2nodelib.promise.items(itemsToFetch)]).then(function(results) {
+
+
+      //setup: promise-fetch the lists of items.
+
+      //loop through promise results for searchTerm to get match id
+
+      //loops through the inventory lists looking for match id. Note total.
+
+      //Print results
+
+    };
+
+    //setup: fetch character list and callback
+    gw2nodelib.characters(charactersCallback, {
+      access_token: user.access_token,
+      ids: 'all'
+    });
+  });
+});
+
 ////CRAFT
 helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
 helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
@@ -856,10 +939,10 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         fields: fieldsFormatted,
       };
       attachments.push(attachment);
-      replyWith{
+      replyWith({
         text: "Party: " + pretextString + ".",
         attachments: attachments,
-      },false);
+      }, false);
     }
   };
 
@@ -869,7 +952,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
     var requesterName = '';
     for (var u in userData) {
       //remove those without permissions
-      if (userData[u].access_token && userHasPermission(userData[u], 'account') && userHasPermission(userData[u], 'progression')) {
+      if (userData[u].access_token && userHasPermission(userData[u], 'progression')) {
         goodUsers.push(userData[u]);
         if (userData[u].id == message.user)
           requesterName = "Okay, " + userData[u].dfid + randomHonoriffic(userData[u].dfid, userData[u].id) + ". ";
@@ -938,7 +1021,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
   //fetch access token from storage
   controller.storage.users.get(message.user, function(err, user) {
     if (err) {
-      bot.reply(message, "I got an error loading your data. Try again later");
+      bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
       bot.botkit.log("Error:cheevo no user data " + JSON.stringify(err));
       return;
     }
@@ -962,9 +1045,9 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
     var isFull = matches[1] == 'cheevof';
 
     //precheck: access token.
-    if (!user || !user.access_token || !userHasPermission(user, 'account')) {
+    if (!user || !user.access_token || !userHasPermission(user, 'progression')) {
       bot.botkit.log('ERROR: cheevo no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
-      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'account') ? "with correct 'account' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
+      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'progression') ? "with correct 'progression' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
       return;
     }
     //precheck: account acievements
@@ -2101,7 +2184,7 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
 helpFile.latest = "Show latest completed TODO item";
 helpFile.update = "Alias for latest: " + JSON.stringify(helpFile.latest);
 controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message,"Bank Command, bank <item name>");
+  bot.reply(message, "some coding crap (replyWith)\nIgnored the fractal daily item (just use cheevo fractal dalies)\nNew! Bank Command, bank <item name>");
 });
 
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -2137,7 +2220,26 @@ function userHasPermission(user, permission) {
       if (user.permissions[p] == permission)
         return true;
   return false;
-
+  //   account
+  // Your account display name, ID, home world, and list of guilds. Required permission.
+  // inventories
+  // Your account bank, material storage, recipe unlocks, and character inventories.
+  // characters
+  // Basic information about your characters.
+  // tradingpost
+  // Your Trading Post transactions.
+  // wallet
+  // Your account's wallet.
+  // unlocks
+  // Your wardrobe unlocks—skins, dyes, minipets, finishers, etc.—and currently equipped skins.
+  // pvp
+  // Your PvP stats, match history, reward track progression, and custom arena details.
+  // builds
+  // Your currently equipped specializations, traits, skills, and equipment for all game modes.
+  // progression
+  // Your achievements, dungeon unlock status, mastery point assignments, and general PvE progress.
+  // guilds
+  // Guilds' rosters, history, and MOTDs for all guilds you are a member of. (if guild leader, also allow guild inventory access)
 }
 
 //reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalmessage
