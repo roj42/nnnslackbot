@@ -133,7 +133,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
             var idList = [];
             var countList = [];
             for (var item in results[sourceList]) {
-              if (results[sourceList][item] !== null) {
+              if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
                 if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
                 idList.push(results[sourceList][item].id);
                 countList.push(results[sourceList][item].count);
