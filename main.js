@@ -87,7 +87,7 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
     //precheck: access token.
     if (!user || !user.access_token || !userHasPermission(user, 'wallet')) {
       bot.botkit.log('ERROR: bank no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
-      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'inventories') ? "with correct 'inventories' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
+      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'wallet') ? "with correct 'wallet' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
       return;
     }
     var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
