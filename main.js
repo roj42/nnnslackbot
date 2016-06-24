@@ -99,19 +99,25 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
       var lastIcon;
       for (var i in walletList) {
         var currency = findInData('id', walletList[i].id, 'currencies');
-        if (currency && (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))){
-          text.push(currency.name + ": " + walletList[i].value);
+        if (currency && (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))) {
+          if (currency.name == 'Coin') {
+            var gold = Math.floor(walletList[i].value / 10000);
+            var silver = Math.floor((walletList[i].value % 10000) / 100);
+            var copper = Math.floor(walletList[i].value % 100);
+            text.push("Coin: " + (gold > 0 ? gold + 'g ' : '') + (silver > 0 ? silver + 's ' : '') + (copper > 0 ? copper + 'c ' : ''));
+          } else
+            text.push(currency.name + ": " + walletList[i].value);
           lastIcon = currency.icon;
         }
       }
-      if(text.length > 0 )
+      if (text.length > 0)
         bot.reply(message, {
           attachments: {
             attachment: {
               fallback: 'Too many items found in search.',
               pretext: (searchTerm ? 'Looking for: ' + searchTerm : ''),
               text: text.join("\n"),
-              thumb_url: ((lastIcon && text.length > 1)?goldIcon:lastIcon)
+              thumb_url: ((lastIcon && text.length > 1) ? goldIcon : lastIcon)
             }
           }
         });
