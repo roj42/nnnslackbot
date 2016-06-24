@@ -72,7 +72,6 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 ////BANK
 helpFile.bank = "Search your possessions for an item. Looks in character inventories, shared inventory, bank and material storage. Usage bank <item name>";
 controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-
   controller.storage.users.get(message.user, function(err, user) {
     if (err) {
       bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
@@ -85,7 +84,6 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       bot.reply(message, "I didn't quite get that. Maybe ask \'help bank\'?");
       return;
     }
-
     //precheck: access token.
     if (!user || !user.access_token || !userHasPermission(user, 'inventories')) {
       bot.botkit.log('ERROR: bank no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
@@ -95,22 +93,22 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
     bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
     var searchTerm = matches[2].replace(/\s+/g, '');
 
-    //callback to give to the character callback at the end to kick all this off.
+    var inventories = [];
+    //callback to give to the character fetch at the end to kick all this off.
     var charactersCallback = function(jsonList, headers) {
       if (jsonList.text || jsonList.error) {
         bot.reply(message, "Oops. I got this error when asking about your character inventories: " + (jsonList.text ? jsonList.text : jsonList.error) + '\n' + JSON.stringify(err));
         return;
       }
-      //setup:promise fetch items in each character inventory, shared inventory, bank, and material storage.
-      var characterPromises = [];
-      var inventories = [];
+      //Build a list of all inventories. Character and account
+      //setup:promise fetch items in each character inventory
       for (var ch in jsonList) {
         var idList = [];
         var countList = [];
         for (var bg in jsonList[ch].bags) {
-          if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot. This causes Horrible Problems with the next line for some reason
+          if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot
             for (var it in jsonList[ch].bags[bg].inventory) {
-              if (jsonList[ch].bags[bg].inventory[it] !== null) {
+              if (jsonList[ch].bags[bg].inventory[it] !== null) { //there can be no item in the bag
                 idList.push(jsonList[ch].bags[bg].inventory[it].id);
                 countList.push(jsonList[ch].bags[bg].inventory[it].count);
               }
@@ -118,30 +116,144 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
           }
         }
         inventories.push({
-          character: jsonList[ch].name,
+          source: jsonList[ch].name,
           ids: idList,
           counts: countList
         });
-        characterPromises.push(gw2nodelib.promise.items(arrayUnique(idList)));
       }
-      bot.reply(message, JSON.stringify(inventories));
+      //setup: promise fetch shared inventory, bank, and material storage.
+      Promise.all([
+          gw2nodelib.promise.accountBank(['all'], user.access_token),
+          gw2nodelib.promise.accountInventory(['all'], user.access_token),
+          gw2nodelib.promise.accountMaterials(['all'], user.access_token)
+        ])
+        .then(function(results) {
+          var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
+          for (var sourceList in results) {
+            var idList = [];
+            var countList = [];
+            for (var item in results[sourceList]) {
+              if (results[sourceList][item] !== null) {
+                if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
+                idList.push(results[sourceList][item].id);
+                countList.push(results[sourceList][item].count);
+              }
+            }
+            inventories.push({
+              source: sourceNames[sourceList],
+              ids: idList,
+              counts: countList
+            });
+          }
+          if (debug)
+            for (var ch in inventories)
+              bot.botkit.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
+          return inventories;
+        })
+        .then(function() { //collate the IDs of all items in all inventories, and fetch
+          var ownedItemIds = [];
+          for (var inv in inventories)
+            ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
+          ownedItemIds = arrayUnique(ownedItemIds);
+          if (debug) bot.botkit.log("Fetching " + ownedItemIds.length + " unique items");
+          var promisesToDo = [];
+          for (var i = 0; i < ownedItemIds.length; i += 200) {
+            promisesToDo.push(gw2nodelib.promise.items(ownedItemIds.slice(i, i + 200)));
+          }
+          return Promise.all(promisesToDo);
+        }).then(function(results) { //find items with our original search string
 
-      Promise.all([gw2nodelib.promise.accountBank(['all']), gw2nodelib.promise.accountInventory(['all']), gw2nodelib.promise.accountMaterials(['all'])]).then(function(results) {
-        console.log(JSON.stringify(results));
-      });
+          var itemList = [];
+          for (var list in results)
+            itemList = itemList.concat(results[list]);
+          if (debug) bot.botkit.log("results has " + itemList.length + " items");
+          if (debug)
+            analyzeForMissingItems(inventories, itemList);
 
+          var itemSearchResults = [];
+          for (var i in itemList) {
+            if (removePunctuationAndToLower(itemList[i].name).replace(/\s+/g, '').includes(searchTerm))
+              itemSearchResults.push(itemList[i]);
+          }
+          //And Display!
+          if (itemSearchResults.length === 0) { //no match
+            bot.reply(message, "No item names on your accpunt contain that exact text.");
+          } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+            tallyAndDisplay(itemSearchResults[0]);
+          } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+            var itemNameList = [];
+            for (var n in itemSearchResults) {
+              itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
+            }
+            bot.reply(message, {
+              attachments: {
+                attachment: {
+                  fallback: 'Too many items found in search.',
+                  text: "Bro. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+                }
+              }
+            });
+          } else { //10 items or less, allow user to choose
+            bot.startConversation(message, function(err, convo) {
+              var listofItems = '';
+              for (var i in itemSearchResults) {
+                listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+              }
+              convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+                //number, no, or repeat
+                pattern: new RegExp(/^(\d{1,2})/i),
+                callback: function(response, convo) {
+                  //if it's a number, and that number is within our search results, print it
+                  var matches = response.text.match(/^(\d{1,2})/i);
+                  var selection = matches[0];
+                  if (selection < itemSearchResults.length) {
+                    tallyAndDisplay(itemSearchResults[selection]);
+                  } else convo.repeat(); //invalid number. repeat choices.
+                  convo.next();
+                }
+              }, {
+                //negative response. Stop repeating the list.
+                pattern: bot.utterances.no,
+                callback: function(response, convo) {
+                  convo.say('¯\\_(ツ)_/¯');
+                  convo.next();
+                }
+              }, {
+                default: true,
+                callback: function(response, convo) {
+                  // loop back, user needs to pick or say no.
+                  convo.say("Nope. Next time choose a number of the item you'd like to see.");
+                  convo.next();
+                }
+              }]);
+            });
+          }
+        }).catch(function(error) {
+          bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
+        });
+    };
 
-      //    Promise.all([gw2nodelib.promise.skins(skinsToFetch), gw2nodelib.promise.titles(titlesToFetch), gw2nodelib.promise.minis(minisToFetch), gw2nodelib.promise.items(itemsToFetch)]).then(function(results) {
-
-
-      //setup: promise-fetch the lists of items.
-
-      //loop through promise results for searchTerm to get match id
-
-      //loops through the inventory lists looking for match id. Note total.
-
-      //Print results
-
+    var tallyAndDisplay = function(itemToDisplay) {
+      var total = 0;
+      var totalStrings = [];
+      for (var inv in inventories) {
+        var start = 0;
+        var sourceCount = 0;
+        debugger;
+        var ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+        while (ind >= 0) {
+          sourceCount += inventories[inv].counts[ind];
+          total += inventories[inv].counts[ind];
+          start = ind + 1;
+          ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+        }
+        if (sourceCount > 0)
+          totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
+      }
+      if (total > 0 && totalStrings.length > 0) {
+        bot.reply(message, "*" + itemToDisplay.name + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+      } else
+        bot.reply(message, "You have none of that. None.");
     };
 
     //setup: fetch character list and callback
@@ -149,6 +261,25 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       access_token: user.access_token,
       ids: 'all'
     });
+
+
+    var analyzeForMissingItems = function(inventories, itemList) {
+      var ownedItems = [];
+      for (var inv in inventories)
+        ownedItems = ownedItems.concat(inventories[inv].ids);
+      ownedItems = arrayUnique(ownedItems);
+      var compareFunc = function(element) {
+        if (i === 0) console.log("compare: " + element.id + " to " + ownedItems[i]);
+        return element.id == ownedItems[i];
+      };
+      for (var i in ownedItems) {
+        var missing = itemList.find(compareFunc);
+        if (!missing) bot.botkit.log(" Missing: " + ownedItems[i]);
+      }
+    };
+
+
+
   });
 });
 
@@ -1325,6 +1456,8 @@ function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callbac
   Promise.all([gw2nodelib.promise.skins(skinsToFetch), gw2nodelib.promise.titles(titlesToFetch), gw2nodelib.promise.minis(minisToFetch), gw2nodelib.promise.items(itemsToFetch)]).then(function(results) {
     fetchFreshData = results;
     callback(accountAchievements, cheevoToDisplay, isFull);
+  }).catch(function(error) {
+    bot.reply(message, "I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
   });
 }
 
@@ -1484,7 +1617,7 @@ function displayAchievementBit(bit, doneFlag, data) {
       itemType += ")";
       return foundItem.name + itemType + (bit.count && bit.count > 1 ? ', ' + bit.count : '') + (doneFlag ? " - DONE" : '');
     } else {
-      return "Unknown item: " + bit.id;
+      return "Unknown item: " + bit.id + (doneFlag ? " - DONE" : '');
     }
   } else if (bit.type == 'Skin') {
     var foundSkin;
@@ -1499,7 +1632,7 @@ function displayAchievementBit(bit, doneFlag, data) {
       var weight = (foundSkin.details && foundSkin.details.weight_class ? foundSkin.details.weight_class : '');
       return foundSkin.name + " (" + (weight.length > 0 ? weight + " " : "") + type + " skin)" + (doneFlag ? " - DONE" : '');
     } else {
-      return "Unknown skin: " + bit.id;
+      return "Unknown skin: " + bit.id + (doneFlag ? " - DONE" : '');
     }
   } else if (bit.type == 'Title') {
     var foundTitle;
@@ -1515,7 +1648,7 @@ function displayAchievementBit(bit, doneFlag, data) {
       if (foundCheevo) cheevoName = foundCheevo.name;
       return foundTitle.name + " (Title from " + cheevoName + ")";
     } else {
-      return "Unknown title: " + bit.id;
+      return "Unknown title: " + bit.id + (doneFlag ? " - DONE" : '');
     }
   } else if (bit.type == 'Minipet') {
     var foundMini;
@@ -1528,7 +1661,7 @@ function displayAchievementBit(bit, doneFlag, data) {
     if (foundMini) {
       return foundMini.name;
     } else {
-      return "Unknown Minipet: " + bit.id;
+      return "Unknown Minipet: " + bit.id + (doneFlag ? " - DONE" : '');
     }
   } else return bit.type + ': ' + bit.id + (doneFlag ? " - DONE" : '');
 }
@@ -2037,7 +2170,8 @@ function randomHonoriffic(inName, userId) {
 function tantrum() {
   var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.", "It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!",
     "I'm quitting school! I'm gonna be a paperback writer!", "It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ",
-    "This was a terrible day to quit heroin!", "Inconceivable!"
+    "This was a terrible day to quit heroin!", "Inconceivable!", "You miserable piece of... dick-brained... horseshit... slime-sucking son of a whore, bitch!",
+    "Oh, it's on now!"
   ];
   return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 }

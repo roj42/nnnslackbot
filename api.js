@@ -258,28 +258,30 @@ module.exports = function() {
 	};
 	//roj42 - promise form of individual apikeys
 	var promiseFunction = function(apiKey) {
-		return function(idsToFetch) {
+		return function(idsToFetch, access_token) {
 			// Return a new promise.
 			return new Promise(function(resolve, reject) {
-				if(config.debug) console.log(apiKey+" promise fetching "+JSON.stringify(idsToFetch));
-				var num = idsToFetch.length;
-				if(num===0) resolve([]);
-				var results = [];
-				var listCallback = function(jsonRes, headers) {
-					if(config.debug) console.log(apiKey+" promise at "+num+" fetched ");
-					if (Array.isArray(jsonRes))
-						results.push(jsonRes[0]);
-					else
-						results.push(jsonRes);
-					if (--num === 0) {
-						resolve(results);
-					}
-				};
-				for (var id in idsToFetch)
-					ret[apiKey](listCallback, {
+				if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
+				if (idsToFetch.length === 0) resolve([]);
+				else if (idsToFetch.length > 200) reject("Limit 200 ids per fetch");
+				else {
+					var listCallback = function(jsonRes, headers) {
+						if (config.debug)
+							console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
+						if (jsonRes.text || jsonRes.err) {
+							reject(JSON.stringify(jsonRes));
+						} else {
+							resolve(jsonRes);
+						}
+					};
+					var optionsObj = {
 						type: apiKey,
-						ids: idsToFetch[id]
-					}, false);
+						ids: idsToFetch.join(',')
+					}
+					if (typeof access_token != 'undefined')
+						optionsObj.access_token = access_token;
+					ret[apiKey](listCallback, optionsObj, false);
+				}
 			});
 		};
 	};
