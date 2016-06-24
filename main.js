@@ -91,7 +91,7 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
       return;
     }
     var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
-    if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
+    if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
 
     gw2nodelib.accountWallet(function(walletList, headers) {
       var text = [];
@@ -100,15 +100,17 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
         if (currency && (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm))))
           text.push(currency.name + ": " + walletList[i].value);
       }
-      bot.reply(message, {
-        attachments: {
-          attachment: {
-            fallback: 'Too many items found in search.',
-            pretext: (searchTerm ? 'Looking for: ' + searchTerm : ''),
-            text: text.join("\n")
+      if(text.length > 0 )
+        bot.reply(message, {
+          attachments: {
+            attachment: {
+              fallback: 'Too many items found in search.',
+              pretext: (searchTerm ? 'Looking for: ' + searchTerm : ''),
+              text: text.join("\n")
+            }
           }
-        }
-      });
+        });
+      else bot.reply(message, "You don't have any.");
     }, {
       access_token: user.access_token,
     });
