@@ -12,6 +12,8 @@ var config = {
 		quaggans: 'quaggans',
 		build: 'build',
 		characters: 'characters',
+		currencies: 'currencies',
+		accountWallet: 'account/wallet',
 		achievements: 'achievements',
 		achievementsCategories: 'achievements/categories',
 		accountAchievements: 'account/achievements',

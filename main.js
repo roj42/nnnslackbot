@@ -69,8 +69,55 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
   }
 });
 
+////wallet
+helpFile.bank = "List the contents of your wallet. Optionally add a search string to filter the list. Useage:wallet <name>";
+controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  controller.storage.users.get(message.user, function(err, user) {
+    if (err) {
+      bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
+      bot.botkit.log("Error:wallet no user data " + err);
+      return;
+    }
+    //precheck - input scrub a bit
+    var matches = removePunctuationAndToLower(message.text).match(/(wallet)([\s\w]*)$/i);
+    if (!matches) {
+      bot.reply(message, "I didn't quite get that. Maybe ask \'help wallet\'?");
+      return;
+    }
+    //precheck: access token.
+    if (!user || !user.access_token || !userHasPermission(user, 'wallet')) {
+      bot.botkit.log('ERROR: bank no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
+      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'inventories') ? "with correct 'inventories' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
+      return;
+    }
+    var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
+    if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
+
+    gw2nodelib.accountWallet(function(walletList, headers) {
+      var text = [];
+      for (var i in walletList) {
+        var currency = findInData('id', walletList[i].id, 'currencies');
+        if (currency && (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm))))
+          text.push(currency.name + ": " + walletList[i].value);
+      }
+      bot.reply(message, {
+        attachments: {
+          attachment: {
+            fallback: 'Too many items found in search.',
+            pretext: (searchTerm ? 'Looking for: ' + searchTerm : ''),
+            text: text.join("\n")
+          }
+        }
+      });
+    }, {
+      access_token: user.access_token,
+    });
+
+  });
+});
+
 ////BANK
-helpFile.bank = "Search your possessions for an item. Looks in character inventories, shared inventory, bank and material storage. Usage bank <item name>";
+helpFile.bank = "Search your possessions for an item. Looks in character inventories, shared inventory, bank and material storage. Usage: bank <item name>";
 controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (err) {
@@ -239,7 +286,6 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       for (var inv in inventories) {
         var start = 0;
         var sourceCount = 0;
-        debugger;
         var ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
         while (ind >= 0) {
           sourceCount += inventories[inv].counts[ind];
@@ -2603,7 +2649,10 @@ function reloadAllData(bypass) {
   achievementsCategoriesLoaded = false;
 
   start = new Date().getTime();
-  numToLoad = 3;
+  numToLoad = 4;
+  gw2nodelib.load("currencies", {
+    ids: 'all'
+  }, bypass, halfCallback, doneAllOtherCallback);
   replyWith("Starting to load recipes.", true);
   gw2nodelib.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
   replyWith("Starting to load achievements.", true);
