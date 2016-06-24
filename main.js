@@ -177,7 +177,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
           }
           //And Display!
           if (itemSearchResults.length === 0) { //no match
-            bot.reply(message, "No item names on your accpunt contain that exact text.");
+            bot.reply(message, "No item names on your account contain that exact text.");
           } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
             tallyAndDisplay(itemSearchResults[0]);
           } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
