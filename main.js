@@ -826,10 +826,10 @@ controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_men
 ////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
 controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
-  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
+  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>.\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
-      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ". You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
+      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ". You can give me a new one to overwrite the old, or you can say 'access token' with no argument and I'll refresh your token permissions I keep on file.");
     }
   });
 });
