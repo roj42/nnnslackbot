@@ -87,7 +87,7 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
     //precheck: access token.
     if (!user || !user.access_token || !userHasPermission(user, 'wallet')) {
       bot.botkit.log('ERROR: bank no access token: ' + JSON.stringify(user) + "err: " + JSON.stringify(err));
-      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'wallet') ? "with correct 'wallet' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
+      bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'wallet') ? "with correct 'wallet' 'permissions' " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
       return;
     }
     var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
@@ -826,7 +826,7 @@ controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_men
 ////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
 controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
-  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
+  bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
       bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ". You can say 'access token' with no argument and I'll refresh your token information I keep on file.");
