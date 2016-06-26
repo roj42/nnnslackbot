@@ -97,15 +97,25 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
     if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
 
     gw2nodelib.accountWallet(function(walletList, headers) {
-      var dungeonCurrencyList = ['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
+      if (isDungeonOnly) {
+        var dungeonCurrencyList = [5, 9, 11, 10, 13, 12, 14, 6, 7, 24];
+        walletList = walletList.filter(function(value) {
+          return (dungeonCurrencyList.indexOf(value.id) >= 0);
+        });
+        walletList.sort(function(a, b) {
+          return dungeonCurrencyList.indexOf(a.id) - dungeonCurrencyList.indexOf(b.id);
+        });
+      }
+      //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
       var text = [];
       var goldIcon = 'https://render.guildwars2.com/file/98457F504BA2FAC8457F532C4B30EDC23929ACF9/619316.png';
       var lastIcon;
       for (var i in walletList) {
         var currency = findInData('id', walletList[i].id, 'currencies');
         if (currency &&
-          (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm))) &&
-          (!isDungeonOnly || (dungeonCurrencyList.indexOf(currency.name) >= 0))) {
+          (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))
+          //&& (!isDungeonOnly || (dungeonCurrencyList.indexOf(currency.name) >= 0))
+        ) {
           if (currency.name == 'Coin') {
             var gold = Math.floor(walletList[i].value / 10000);
             var silver = Math.floor((walletList[i].value % 10000) / 100);
@@ -1087,7 +1097,9 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         "https://static.staticwars.com/quaggans/breakfast.jpg"
       ];
 
-      textList.sort(dungeonFrendSort);
+      textList.sort(function(a, b) {
+        return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
+      });
       var text = '';
 
       for (var r in textList) {
@@ -1191,10 +1203,6 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
 
   });
 });
-
-function dungeonFrendSort(a, b) {
-  return dungeonFriendsOrder.indexOf(a.text) - dungeonFriendsOrder.indexOf(b.text);
-}
 
 //find an achievement in the freshly fetched account achievements by id
 function findInAccount(id, accountAchievements) {
