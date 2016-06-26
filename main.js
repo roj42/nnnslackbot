@@ -70,8 +70,10 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 });
 
 ////wallet
-helpFile.bank = "List the contents of your wallet. Optionally add a search string to filter the list. Useage:wallet <name>";
-controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+helpFile.wallet = "List the contents of your wallet. Optionally add a search string to filter the list. Useage:wallet <name>";
+helpFile.dungeonWallet = "Lists only your dungeon currencies.";
+helpFile.dw = 'Alias for dungeon wallet: ' + JSON.stringify(helpFile.dungeonwallet);
+controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   controller.storage.users.get(message.user, function(err, user) {
     if (err) {
       bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
@@ -79,7 +81,7 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
       return;
     }
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/(wallet)([\s\w]*)$/i);
+    var matches = removePunctuationAndToLower(message.text).match(/(dw|dungeonwallet|wallet)([\s\w]*)$/i);
     if (!matches) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help wallet\'?");
       return;
@@ -91,15 +93,19 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
       return;
     }
     var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
+    var isDungeonOnly = (matches[1] == "dungeonwallet" || matches[1] == 'dw');
     if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
 
     gw2nodelib.accountWallet(function(walletList, headers) {
+      var dungeonCurrencyList = ['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
       var text = [];
       var goldIcon = 'https://render.guildwars2.com/file/98457F504BA2FAC8457F532C4B30EDC23929ACF9/619316.png';
       var lastIcon;
       for (var i in walletList) {
         var currency = findInData('id', walletList[i].id, 'currencies');
-        if (currency && (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))) {
+        if (currency &&
+          (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm))) &&
+          (!isDungeonOnly || (dungeonCurrencyList.indexOf(currency.name) >= 0))) {
           if (currency.name == 'Coin') {
             var gold = Math.floor(walletList[i].value / 10000);
             var silver = Math.floor((walletList[i].value % 10000) / 100);
@@ -128,6 +134,7 @@ controller.hears(['^wallet(.*)'], 'direct_message,direct_mention,mention,ambient
 
   });
 });
+
 
 ////BANK
 helpFile.bank = "Search your possessions for an item. Looks in character inventories, shared inventory, bank and material storage. Usage: bank <item name>";
