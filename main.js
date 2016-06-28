@@ -147,7 +147,7 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
       else bot.reply(message, "You don't have any.");
     }, {
       access_token: user.access_token,
-    });
+    },true);
 
   });
 });
@@ -207,9 +207,9 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       }
       //setup: promise fetch shared inventory, bank, and material storage.
       Promise.all([
-          gw2nodelib.promise.accountBank(['all'], user.access_token),
-          gw2nodelib.promise.accountInventory(['all'], user.access_token),
-          gw2nodelib.promise.accountMaterials(['all'], user.access_token)
+          gw2nodelib.promise.accountBank(['all'], user.access_token,true),
+          gw2nodelib.promise.accountInventory(['all'], user.access_token,true),
+          gw2nodelib.promise.accountMaterials(['all'], user.access_token,true)
         ])
         .then(function(results) {
           var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
@@ -343,7 +343,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
     gw2nodelib.characters(charactersCallback, {
       access_token: user.access_token,
       ids: 'all'
-    });
+    },true);
 
 
     var analyzeForMissingItems = function(inventories, itemList) {
