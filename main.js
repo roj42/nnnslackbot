@@ -1,5 +1,6 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
+var version = "2.0"; //hardcode for now
 var debug = false; //for debug messages, passed botkit
 var recipiesLoaded = false; //To signal the bot that the async data load is finished.
 var achievementsLoaded = false;
@@ -2165,7 +2166,7 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
   var hostname = os.hostname();
   var uptime = formatUptime(process.uptime());
 
-  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '> (version '+version+'). I have been running for ' + uptime + ' on ' + hostname + '.');
   var dataString = '';
   for (var type in gw2nodelib.data)
     if (gw2nodelib.data[type].length > 0)
