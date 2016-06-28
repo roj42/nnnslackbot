@@ -147,7 +147,7 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
       else bot.reply(message, "You don't have any.");
     }, {
       access_token: user.access_token,
-    },true);
+    });
 
   });
 });
