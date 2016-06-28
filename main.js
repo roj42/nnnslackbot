@@ -52,13 +52,13 @@ var bot = controller.spawn({
 // bot.botkit.log("INFO TEST");
 
 var gw2nodelib = require('./api.js');
+gw2nodelib.setCacheTime(360)//General cache time set to 6 minutes
+//items, recipies, currencies and achievements are big fetches and/or don't change often
+gw2nodelib.setCacheTime(86400, 'items');
+gw2nodelib.setCacheTime(86400, 'recipies');
+gw2nodelib.setCacheTime(86400, 'currencies');
 gw2nodelib.setCacheTime(86400, 'achievements');
 gw2nodelib.setCacheTime(86400, 'achievementsCategories');
-gw2nodelib.setCacheTime(3600, 'characters');
-gw2nodelib.setCacheTime(3600, 'accountWallet');
-gw2nodelib.setCacheTime(3600, 'accountBank');
-gw2nodelib.setCacheTime(3600, 'accountInventory');
-gw2nodelib.setCacheTime(3600, 'accountMaterials');
 
 gw2nodelib.setCachePath('./slackbotDB/caches/');
 gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
@@ -207,9 +207,9 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       }
       //setup: promise fetch shared inventory, bank, and material storage.
       Promise.all([
-          gw2nodelib.promise.accountBank(['all'], user.access_token,true),
-          gw2nodelib.promise.accountInventory(['all'], user.access_token,true),
-          gw2nodelib.promise.accountMaterials(['all'], user.access_token,true)
+          gw2nodelib.promise.accountBank(['all'], user.access_token),
+          gw2nodelib.promise.accountInventory(['all'], user.access_token),
+          gw2nodelib.promise.accountMaterials(['all'], user.access_token)
         ])
         .then(function(results) {
           var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
@@ -343,7 +343,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
     gw2nodelib.characters(charactersCallback, {
       access_token: user.access_token,
       ids: 'all'
-    },true);
+    });
 
 
     var analyzeForMissingItems = function(inventories, itemList) {

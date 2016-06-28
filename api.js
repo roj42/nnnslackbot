@@ -2,7 +2,7 @@
 
 var config = {
 	baseUrl: 'https://api.guildwars2.com/v2/',
-	cacheTime: 604800,
+	cacheTime: 86400,
 	cacheFile: null,
 	cachePath: '',
 	debug: false,
