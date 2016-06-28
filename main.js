@@ -51,8 +51,14 @@ var bot = controller.spawn({
 // bot.botkit.log("INFO TEST");
 
 var gw2nodelib = require('./api.js');
-gw2nodelib.setCacheTime(3600, 'achievements');
-gw2nodelib.setCacheTime(3600, 'achievementsCategories');
+gw2nodelib.setCacheTime(86400, 'achievements');
+gw2nodelib.setCacheTime(86400, 'achievementsCategories');
+gw2nodelib.setCacheTime(3600, 'characters');
+gw2nodelib.setCacheTime(3600, 'accountWallet');
+gw2nodelib.setCacheTime(3600, 'accountBank');
+gw2nodelib.setCacheTime(3600, 'accountInventory');
+gw2nodelib.setCacheTime(3600, 'accountMaterials');
+
 gw2nodelib.setCachePath('./slackbotDB/caches/');
 gw2nodelib.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 

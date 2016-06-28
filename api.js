@@ -260,7 +260,7 @@ module.exports = function() {
 	};
 	//roj42 - promise form of individual apikeys
 	var promiseFunction = function(apiKey) {
-		return function(idsToFetch, access_token) {
+		return function(idsToFetch, access_token, bypassCache) {
 			// Return a new promise.
 			return new Promise(function(resolve, reject) {
 				if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
@@ -282,7 +282,7 @@ module.exports = function() {
 					}
 					if (typeof access_token != 'undefined')
 						optionsObj.access_token = access_token;
-					ret[apiKey](listCallback, optionsObj, false);
+					ret[apiKey](listCallback, optionsObj, bypassCache);
 				}
 			});
 		};
