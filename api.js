@@ -123,7 +123,7 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 		if (config.debug) console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey + ' from URL: ' + url);
 		else console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey);
 
-		request(url, function(error, response, body) {
+		request({uri: url,timeout:10000}, function(error, response, body) {
 			//we're okay with
 			//200 - success 
 			//404 - no info returned, there will be a json object with 'text' we'll handle later
@@ -279,7 +279,7 @@ module.exports = function() {
 					var optionsObj = {
 						type: apiKey,
 						ids: idsToFetch.join(',')
-					}
+					};
 					if (typeof access_token != 'undefined')
 						optionsObj.access_token = access_token;
 					ret[apiKey](listCallback, optionsObj, false);

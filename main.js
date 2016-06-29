@@ -1,20 +1,19 @@
 //A botkit based guildwars helperbot
 //Author: Roger Lampe roger.lampe@gmail.com
-var debug = false; //for debug messages, passed botkit
+debug = false; //for debug messages, passed botkit
 var recipiesLoaded = false; //To signal the bot that the async data load is finished.
 var achievementsLoaded = false;
 var achievementsCategoriesLoaded = false;
-var start; //holds start time for data loading
-var globalMessage; //holds message for data loading to repsond to, if loading via bot chat
+start = 0; //holds start time for data loading
+globalMessage = null; //holds message for data loading to repsond to, if loading via bot chat
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
 
 var Botkit = require('botkit');
-var os = require('os');
-var fs = require('fs');
 // var winston = require('winston');
 
-var helpFile = [];
-var cheevoList = {};
+helpFile = [];
+cheevoList = {};
+
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
@@ -50,6 +49,17 @@ var bot = controller.spawn({
 // bot.botkit.log.error("ERROR TEST");
 // bot.botkit.log("INFO TEST");
 
+//load shared code to the global scope
+var sf = require('./sharedFunctions.js');
+//Add standalone responses: Riker, catfacts, sass
+var standalone = require('./standaloneResponses.js');
+standalone.addResponses(controller);
+standalone.addHelp(helpFile);
+//add craft function
+var craft = require('./baseIngredients.js');
+craft.addResponses(controller);
+craft.addHelp(helpFile);
+
 var gw2nodelib = require('./api.js');
 gw2nodelib.setCacheTime(3600, 'achievements');
 gw2nodelib.setCacheTime(3600, 'achievementsCategories');
@@ -62,12 +72,42 @@ reloadAllData(false);
 ////HELP
 controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var matches = message.text.match(/help ([a-zA-Z ]*)/i);
+  //Stringify keys in an array;
+  var listKeys = function(jsonArray) {
+    if (debug) bot.botkit.log("jsonArray: " + JSON.stringify(jsonArray));
+    var outstring = "";
+    for (var key in jsonArray) {
+      outstring += key + ", ";
+    }
+    return outstring.substring(0, outstring.length - 2);
+  };
+  helpFile.sort();
   if (!matches || !matches[1] || !helpFile[matches[1].toLowerCase()]) bot.reply(message, "Help topics: " + listKeys(helpFile));
   else {
     var name = matches[1].toLowerCase();
     bot.reply(message, helpFile[name]);
   }
 });
+
+helpFile.latest = "Show latest completed TODO item";
+helpFile.update = "Alias for latest: " + JSON.stringify(helpFile.latest);
+controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  bot.reply(message, "Coding re-org. Does everything still work?");
+});
+
+helpFile.todo = "Display the backlog";
+controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+  var todoList = [
+    "add worn equipment to bank",
+    "merge bank and wallet? (bank also searches your wallet)",
+    "Ascended shopping list: what you need yet to make a given ascended recipe, given your inventory",
+    "Scan achievements for low-hanging achievement fruit",
+    "logging",
+    "add sass from slack"
+  ];
+  bot.reply(message, todoList.join("\n"));
+});
+
 
 ////wallet
 helpFile.wallet = "List the contents of your wallet. Optionally add a search string to filter the list. Useage:wallet <name>";
@@ -81,7 +121,7 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
       return;
     }
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/(dw|dungeonwallet|wallet)([\s\w]*)$/i);
+    var matches = sf.removePunctuationAndToLower(message.text).match(/(dw|dungeonwallet|wallet)([\s\w]*)$/i);
     if (!matches) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help wallet\'?");
       return;
@@ -94,7 +134,7 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
     }
     var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
     var isDungeonOnly = (matches[1] == "dungeonwallet" || matches[1] == 'dw');
-    if (searchTerm) bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
+    if (searchTerm) bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
 
     gw2nodelib.accountWallet(function(walletList, headers) {
       if (isDungeonOnly) {
@@ -113,7 +153,7 @@ controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_messa
       for (var i in walletList) {
         var currency = findInData('id', walletList[i].id, 'currencies');
         if (currency &&
-          (!searchTerm || (searchTerm && removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))
+          (!searchTerm || (searchTerm && sf.removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))
           //&& (!isDungeonOnly || (dungeonCurrencyList.indexOf(currency.name) >= 0))
         ) {
           if (currency.name == 'Coin') {
@@ -156,7 +196,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       return;
     }
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/(bank)\s?([\s\w]*)$/i);
+    var matches = sf.removePunctuationAndToLower(message.text).match(/(bank)\s?([\s\w]*)$/i);
     if (!matches || !matches[2]) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help bank\'?");
       return;
@@ -167,7 +207,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !userHasPermission(user, 'inventories') ? "with correct 'inventories' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
       return;
     }
-    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
+    bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
     var searchTerm = matches[2].replace(/\s+/g, '');
 
     var inventories = [];
@@ -231,13 +271,13 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
           var ownedItemIds = [];
           for (var inv in inventories)
             ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
-          ownedItemIds = arrayUnique(ownedItemIds);
+          ownedItemIds = sf.arrayUnique(ownedItemIds);
           if (debug) bot.botkit.log("Fetching " + ownedItemIds.length + " unique items");
-          var promisesToDo = [];
+          var itemPagePromises = [];
           for (var i = 0; i < ownedItemIds.length; i += 200) {
-            promisesToDo.push(gw2nodelib.promise.items(ownedItemIds.slice(i, i + 200)));
+            itemPagePromises.push(gw2nodelib.promise.items(ownedItemIds.slice(i, i + 200)));
           }
-          return Promise.all(promisesToDo);
+          return Promise.all(itemPagePromises);
         }).then(function(results) { //find items with our original search string
 
           var itemList = [];
@@ -343,7 +383,7 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
       var ownedItems = [];
       for (var inv in inventories)
         ownedItems = ownedItems.concat(inventories[inv].ids);
-      ownedItems = arrayUnique(ownedItems);
+      ownedItems = sf.arrayUnique(ownedItems);
       var compareFunc = function(element) {
         if (i === 0) console.log("compare: " + element.id + " to " + ownedItems[i]);
         return element.id == ownedItems[i];
@@ -359,122 +399,11 @@ controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient'
   });
 });
 
-////CRAFT
-helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
-helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
-helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
-controller.hears(['^craft (.*)', '^asscraft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  if (!recipiesLoaded) { //still loading
-    bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-    return;
-  }
-  var itemSearchResults = [];
-  var command = message.text.slice(0, message.text.indexOf(' '));
-  var args = message.text.slice(message.text.indexOf(' ') + 1, message.text.length);
-  if (removePunctuationAndToLower(command) === 'craft') { //straighforward craft
-    itemSearchResults = findCraftableItemByName(args);
-  } else if (removePunctuationAndToLower(command) === 'asscraft') {
-    //Build and filter the list of search results
-    var termsArray = args.split(" ");
-    //Prefix. Translate to an ascended prefix
-    var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
-    if (!termsArray[0] || removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
-      bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
-      return;
-    }
-    termsArray[0] = prefixSearchTerms.join("|");
-    for (var i in prefixSearchTerms) {
-      itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
-    }
-    //they should all be ascended, but just in case:
-    itemSearchResults = itemSearchResults.filter(function(value) {
-      return value.rarity == 'Ascended';
-    });
-    //weight or is a weapon
-    if (termsArray[1] && removePunctuationAndToLower(termsArray[1]) != 'any') {
-      var weight = getAscendedWeight(termsArray[1]);
-      termsArray[1] = weight;
-      itemSearchResults = itemSearchResults.filter(function(value) {
-        if (weight == 'Weapon')
-          return value.type == weight;
-        else
-          return (value.details && value.details.weight_class == weight);
-      });
-    }
-    //slot or weapon type
-    if (termsArray[2] && removePunctuationAndToLower(termsArray[2]) != 'any') {
-      var slot = getItemSlot(termsArray[2]);
-      termsArray[2] = slot;
-      itemSearchResults = itemSearchResults.filter(function(value) {
-        return (value.details && value.details.type == slot);
-      });
-    }
-    bot.reply(message, "Your final search was for: " + termsArray.join(" "));
-  } else {
-    bot.reply(message, "I didn't quite get that. Maybe ask \'help " + matches[0] + "\'?");
-    return;
-  }
-  if (debug) bot.botkit.log(itemSearchResults.length + " matches found");
-  if (itemSearchResults.length === 0) { //no match
-    bot.reply(message, "No item names contain that exact text.");
-  } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-    replyWithRecipeFor(itemSearchResults[0], message);
-  } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-    var itemNameList = [];
-    for (var n in itemSearchResults) {
-      itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
-    }
-    bot.reply(message, {
-      attachments: {
-        attachment: {
-          fallback: 'Too many items found in search.',
-          text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
-        }
-      }
-    });
-  } else { //10 items or less, allow user to choose
-    bot.startConversation(message, function(err, convo) {
-      var listofItems = '';
-      for (var i in itemSearchResults) {
-        listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
-      }
-      convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-        //number, no, or repeat
-        pattern: new RegExp(/^(\d{1,2})/i),
-        callback: function(response, convo) {
-          //if it's a number, and that number is within our search results, print it
-          var matches = response.text.match(/^(\d{1,2})/i);
-          var selection = matches[0];
-          if (selection < itemSearchResults.length) {
-            replyWithRecipeFor(itemSearchResults[selection], message);
-          } else convo.repeat(); //invalid number. repeat choices.
-          convo.next();
-        }
-      }, {
-        //negative response. Stop repeating the list.
-        pattern: bot.utterances.no,
-        callback: function(response, convo) {
-          convo.say('¯\\_(ツ)_/¯');
-          convo.next();
-        }
-      }, {
-        default: true,
-        callback: function(response, convo) {
-          // loop back, user needs to pick or say no.
-          convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
-          convo.next();
-        }
-      }]);
-    });
-  }
-});
-
-//var ascendedPrefixes = loadStaticDataFromFile('ascendedPrefix.json');
 
 function getAscendedItemsByPrefix(prefixSearch) {
   //Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
 
-  var possiblePrefixes = loadStaticDataFromFile("ascendedPrefixMap.json");
+  var possiblePrefixes = sf.loadStaticDataFromFile("ascendedPrefixMap.json");
   //looks like:
   //{
   //"Maguuma Burl":["Tizlak's"],
@@ -507,7 +436,7 @@ function getAscendedWeight(weight) {
       if (removePunctuationAndToLower(possibleWeights[weightName][j]).includes(weight))
         return weightName;
   }
-  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
+  return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
 
 function getItemSlot(slotName) {
@@ -522,323 +451,9 @@ function getItemSlot(slotName) {
     if (removePunctuationAndToLower(possibleSlots[i]).includes(slotName))
       return possibleSlots[i];
   }
-  return randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
+  return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
 
-function replyWithRecipeFor(itemToMake, message) {
-  var attachments = assembleRecipeAttachment(itemToMake);
-  var foundRecipe = findInData('output_item_id', itemToMake.id, 'recipes');
-  var amountString;
-  if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
-    amountString = foundRecipe.output_item_count;
-  }
-  var descripFlavorized = '';
-  if (itemToMake.description) {
-    descripFlavorized = "\n" + replaceGWFlavorTextTags(itemToMake.description, "_");
-  }
-  bot.reply(message, {
-    'text': itemToMake.name + (amountString ? " x " + amountString : "") + levelAndRarityForItem(itemToMake) + descripFlavorized,
-    attachments: attachments,
-    // 'icon_url': itemToMake.icon,
-    // "username": "RecipeBot",
-  }, function(err, resp) {
-    if (err || debug) bot.botkit.log(err, resp);
-  });
-}
-
-//For a given item, find its base ingredients and prepare an attachment displaying it
-function assembleRecipeAttachment(itemToDisplay) {
-  var ingredients;
-  //is it a standard recipe
-  if (!itemToDisplay.forged) {
-    var foundRecipe = findInData('output_item_id', itemToDisplay.id, 'recipes');
-    if (foundRecipe)
-      ingredients = getBaseIngredients(foundRecipe.ingredients);
-  } else { //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
-    var forgeRecipe = findInData('output_item_id', itemToDisplay.id, 'forged');
-    if (forgeRecipe)
-      ingredients = forgeRecipe.ingredients;
-  }
-  //Recipe not found.
-  if (!ingredients) return [];
-  //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
-  //[&AgEOTQAA] is not 10 characters long, but rather 13 (Soft Wood Log)
-  //gwPasteString is the actual series of chatlinks for pasting
-  var gwPasteString = '';
-  //gwlenght records the length of the names of the items
-  var gwLength = 0;
-  var attachments = [];
-  var item;
-
-  //if we'd go above 255 chars after expansion, put in a newline before adding on.
-  var gwPasteStringMaxInt = function(addString) {
-    if (gwLength > 254) {
-      gwPasteString += '\n';
-      gwLength = 0;
-    }
-    gwPasteString += addString;
-  };
-
-  if (toggle) { // display one
-
-    var attachment = {
-      color: '#000000',
-      thumb_url: itemToDisplay.icon,
-      fields: [],
-      "fallback": itemToDisplay.name + " has " + ingredients.length + " items."
-    };
-    for (var i in ingredients) {
-      item = findInData('id', ingredients[i].item_id, 'items');
-      if (item) {
-        gwLength += (" " + ingredients[i].count + "x[" + item.name + "]").length;
-        gwPasteStringMaxInt(" " + ingredients[i].count + "x" + item.chat_link);
-        attachment.fields.push({
-          title: ingredients[i].count + " " + item.name + (item.level ? " (level " + item.level + ")" : ""),
-          short: false
-        });
-      } else {
-        gwLength += (" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id).length;
-        gwPasteStringMaxInt(" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id);
-        attachment.fields.push({
-          title: ingredients[i].count + " of unknown item id " + ingredients[i].item_id,
-          short: false
-        });
-      }
-    }
-    attachments.push(attachment);
-  } else { // display two
-    for (var j in ingredients) {
-      item = findInData('id', ingredients[j].item_id, 'items');
-      if (item) {
-        gwPasteStringMaxInt(" " + ingredients[j].count + "x" + item.chat_link);
-        attachments.push({
-          "fallback": ingredients[j].count + "x" + item.name,
-          "author_name": ingredients[j].count + " " + item.name,
-          "author_link": "http://wiki.guildwars2.com/wiki/" + item.name.replace(/\s/g, "_"),
-          "author_icon": item.icon
-        });
-      } else {
-        gwPasteStringMaxInt(" " + ingredients[j].count + " of unknown item id " + ingredients[j].item_id);
-        attachments.push({
-          "fallback": ingredients[j].count + " of unknown item id " + ingredients[j].item_id,
-          "author_name": ingredients[j].count + " of unknown item id " + ingredients[j].item_id
-        });
-      }
-    }
-  }
-  // attachments[0].pretext = gwPasteString;
-  attachments.push({
-    color: '#2200EE',
-    fields: [{
-      value: gwPasteString
-    }]
-  });
-  return attachments;
-}
-//a text differentiation of items. spits out (level ## <rarity>) if eitehr of those exist
-function levelAndRarityForItem(item) {
-  var levelString = '';
-  if (item.level) {
-    levelString = item.level;
-  } else if (item.description) {
-    var matches = item.description.match(/level (\d{1,2})/i);
-    if (debug) bot.botkit.log("matches " + JSON.stringify(matches) + " of description " + item.description);
-    if (matches && matches[1]) {
-      levelString = Number(matches[1]);
-    }
-  }
-  var rarityString = '';
-  if (item.rarity) rarityString = item.rarity;
-  var infoTag = '';
-  if (levelString > 0 || rarityString.length > 0)
-    infoTag = " (" + (levelString ? "level " + levelString : "") + (rarityString ? (levelString ? " " : "") + rarityString : '') + ")";
-  return infoTag;
-}
-
-//normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name
-function findCraftableItemByName(searchName) {
-  if (searchName.length === 0) return [];
-  var itemsFound = [];
-  var cleanSearch = removePunctuationAndToLower(searchName).replace(/\s+/g, '');
-  if (cleanSearch.length === 0) return [];
-  var exactMatch = [];
-  if (debug) bot.botkit.log("findCraftableItemByName: " + cleanSearch);
-  for (var i in gw2nodelib.data.items) {
-    var cleanItemName = removePunctuationAndToLower(gw2nodelib.data.items[i].name).replace(/\s+/g, '');
-    if (cleanItemName.includes(cleanSearch)) {
-      if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'recipes')) {
-        if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
-          if (debug) bot.botkit.log('exact match recipie ' + cleanSearch);
-          exactMatch.push(gw2nodelib.data.items[i]);
-          console.log("adding " + JSON.stringify(gw2nodelib.data.items[i]));
-        }
-        itemsFound.push(gw2nodelib.data.items[i]);
-      }
-      if (findInData('output_item_id', gw2nodelib.data.items[i].id, 'forged')) {
-        var forgedItem = JSON.parse(JSON.stringify(gw2nodelib.data.items[i]));
-        forgedItem.forged = true;
-        if (cleanItemName == cleanSearch) { //exact match cutout (for short names)
-          if (debug) bot.botkit.log('exact match forged ' + cleanSearch);
-          exactMatch.push(forgedItem);
-          console.log("adding " + JSON.stringify(forgedItem));
-
-        } else itemsFound.push(forgedItem);
-      } else {
-        if (debug) bot.botkit.log('Found an item called ' + gw2nodelib.data.items[i].name + ' but it is not craftable');
-      }
-    }
-  }
-  if (exactMatch.length > 0) return exactMatch;
-  else return itemsFound;
-}
-
-function getBaseIngredients(ingredients) {
-
-  //Adds or increments ingredients
-  var addIngredient = function(existingList, ingredientToAdd) {
-    //ingredient format is {"item_id":19721,"count":1}
-    for (var i in existingList) {
-      if (existingList[i].item_id == ingredientToAdd.item_id) {
-        var n = ingredientToAdd.count;
-        existingList[i].count += n;
-        return;
-      }
-    }
-    //not in list, add to the end.
-    existingList.push(ingredientToAdd);
-  };
-  //ingredient format is {"item_id":19721,"count":1}
-  var baseIngredients = []; //ingredients to send back, unmakeable atoms
-  var extraIngredients = []; //extra items left over after producing (usually a refinement)
-  //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
-  for (var i = 0; i < ingredients.length; i++) { //Length changes. Careful, friend
-    var makeableIngredient = findInData('output_item_id', ingredients[i].item_id, 'recipes');
-    //special cutout for jewelry, ignore the transmog types that change tiers of gems, so we don't always see piled of the lowest tier gem
-    //if it makes an upgrade component that is a gem, ignore.
-    var outputItem = findInData('id', ingredients[i].item_id, 'items');
-    var jewelryTransmog = makeableIngredient && outputItem && outputItem.type && outputItem.type == "UpgradeComponent" && outputItem.details && outputItem.details.type && outputItem.details.type == "Gem";
-
-    if (!makeableIngredient || jewelryTransmog) { //if it's not made, base ingredient. Also refineable jewelry
-      if (debug) bot.botkit.log(findInData('id', ingredients[i].item_id, 'items').name + " is a " + (jewelryTransmog ? "jewelry transmog" : "base ingredient")); //Ex1: 1 vial of blood
-      addIngredient(baseIngredients, ingredients[i]);
-    } else { //Ex1: an axe blade
-      if (debug) bot.botkit.log("need " + ingredients[i].count + " of " + findInData('id', ingredients[i].item_id, 'items').name + '(' + makeableIngredient.output_item_count + ')');
-      //Add parts of this sub-recipe to the ingredients list
-      var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
-      var listItem;
-      if (debug) listItem = outputItem.name;
-      //Check if we have any in extra ingredients
-      if (debug) bot.botkit.log('see if we already have any of the ' + ingredientsNeeded + ' ' + listItem + '(s) we need');
-      for (var x in extraIngredients) {
-        if (debug) bot.botkit.log("we have " + extraIngredients[x].count + " " + findInData('id', extraIngredients[x].item_id, 'items').name);
-        if (extraIngredients[x].item_id == makeableIngredient.output_item_id) { //we've already made some
-          if (ingredientsNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
-            ingredientsNeeded -= extraIngredients[x].count;
-            extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
-            if (debug) bot.botkit.log("that was it for extra " + listItem);
-          } else {
-            extraIngredients[x].count -= ingredientsNeeded; //we have more than enough, subtract what we used.
-            ingredientsNeeded = 0; // we need make no more
-            if (debug) bot.botkit.log("had enough spare " + listItem);
-          }
-        }
-      }
-      if (ingredientsNeeded > 0) { //Do we still need to make some after our extra ingredients pass?
-        var numToMake = Math.ceil(ingredientsNeeded / makeableIngredient.output_item_count); //Ex 1: need 3, makes 5 so produce once.
-        if (debug) bot.botkit.log("still need " + ingredientsNeeded + " " + listItem + ". making " + numToMake);
-        //Calculate number of times to make the recipe to reach ingredientsNeeded
-        //add all its parts times the number-to-make to the ingredient list for processing
-        for (var n in makeableIngredient.ingredients) { //Ex1: add 10 copper and 1 tin to ingredients
-          var singleComponent = {
-            item_id: makeableIngredient.ingredients[n].item_id,
-            count: (makeableIngredient.ingredients[n].count * numToMake) //Unqualified multiplication. Hope we're not a float
-          };
-          ingredients = ingredients.concat([singleComponent]); //add this to the end of the list of ingredients, if it has sub components, we'll get to them there
-        }
-        var excessCount = (makeableIngredient.output_item_count * numToMake) - ingredientsNeeded; //Ex1: made 5 bars, need 3
-        if (excessCount > 0) { //add extra to a pile
-          addIngredient(extraIngredients, { //EX1: add two here
-            item_id: makeableIngredient.output_item_id,
-            count: excessCount
-          });
-        }
-      }
-    }
-  }
-  if (debug) {
-    bot.botkit.log("extra pile is:");
-    for (var j in extraIngredients) {
-      var item2 = findInData('id', extraIngredients[j].item_id, 'items');
-      if (item2)
-        bot.botkit.log(extraIngredients[j].count + " " + item2.name);
-      else
-        bot.botkit.log('Unknown Item of id: ' + extraIngredients[j].item_id + '(' + extraIngredients[j].count + ')');
-    }
-  }
-  return baseIngredients; //return our list of non-makeable ingredients
-}
-
-//Scour through recipes and forge recipes for output item/ingredient item ids. Return a no-duplicate list of these.
-function compileIngredientIds() {
-  itemsCompile = [];
-  for (var t in gw2nodelib.data.recipes) {
-    itemsCompile.push(gw2nodelib.data.recipes[t].output_item_id);
-    for (var i in gw2nodelib.data.recipes[t].ingredients) {
-      itemsCompile.push(gw2nodelib.data.recipes[t].ingredients[i].item_id);
-    }
-  }
-  for (var f in gw2nodelib.data.forged) {
-    itemsCompile.push(gw2nodelib.data.forged[f].output_item_id);
-    for (var g in gw2nodelib.data.forged[f].ingredients) {
-      itemsCompile.push(gw2nodelib.data.forged[f].ingredients[g].item_id);
-    }
-  }
-  return itemsCompile;
-}
-
-//filter function for recipe data. Removes invalid output items id and invalid ingredient ids
-function removeInvalidIngredients(value, index, array) {
-  //Negative ids, output_item_ids and ingredient.item_ids are invalid
-  if (value.id && value.id < 1) return false;
-  if (value.output_item_id && value.output_item_id < 1) return false;
-  for (var j in value.ingredients) {
-    if (value.ingredients[j].item_id && value.ingredients[j].item_id < 1) return false;
-  }
-  return true;
-}
-
-////QUAGGANS
-helpFile.quaggans = "fetch a list of all fetchable quaggan pictures. See help quaggan.";
-helpFile.quaggan = "Takes an argument. Lessdremoth pastes a url to a picture of that quaggan for slack to fetch. Also see help quaggans. Example: 'quaggan box'";
-
-controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  gw2nodelib.quaggans(function(jsonList) {
-    if (jsonList.text || jsonList.error) {
-      bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
-    } else {
-      bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
-      bot.reply(message, "Tell Lessdremoth quaggan <quaggan name> to preview!");
-      bot.reply(message, jsonList.join(", "));
-    }
-  });
-});
-
-controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  var matches = message.text.match(/quaggans? (.*)/i);
-  if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
-  var name = removePunctuationAndToLower(matches[1]);
-  if (name == 'hoodieup') name = 'hoodie-up';
-  if (name == 'hoodiedown') name = 'hoodie-down';
-  gw2nodelib.quaggans(function(jsonItem) {
-    if (jsonItem.text || jsonItem.error) {
-      bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
-    } else {
-      bot.reply(message, jsonItem.url);
-    }
-  }, {
-    id: name
-  });
-});
 
 ////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
@@ -846,7 +461,7 @@ controller.hears(['^access token help', '^help access', '^help access token'], '
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>.\'");
   controller.storage.users.get(message.user, function(err, user) {
     if (user) {
-      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ". You can give me a new one to overwrite the old, or you can say 'access token' with no argument and I'll refresh your token permissions I keep on file.");
+      bot.reply(message, "Note that I already have an access token on file for you, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ". You can give me a new one to overwrite the old, or you can say 'access token' with no argument and I'll refresh your token permissions I keep on file.");
     }
   });
 });
@@ -856,7 +471,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
   controller.storage.users.get(message.user, function(err, user) {
     var adressUsersAs = 'newbie';
     if (user && user.dfid)
-      adressUsersAs = user.dfid + randomHonoriffic(user.dfid, user.id);
+      adressUsersAs = user.dfid + sf.randomHonoriffic(user.dfid, user.id);
     bot.reply(message, "Okay, " + adressUsersAs + ", let's get you set up.");
 
     var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
@@ -913,7 +528,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
               idsInUse.push(userData[u].dfid);
           console.log("ids in use " + idsInUse.join(", "));
           //set user dfid to a reasonable default or the old one
-          user.dfid = (user.dfid ? user.dfid : removePunctuationAndToLower(user.name[0]));
+          user.dfid = (user.dfid ? user.dfid : sf.removePunctuationAndToLower(user.name[0]));
 
           //Scramble the id name if its in use to present a workable default
           while (idsInUse.indexOf(user.dfid) > -1) {
@@ -1111,7 +726,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
           acceptableQuaggans.push("https://static.staticwars.com/quaggans/killerwhale.jpg");
       }
 
-      acceptableQuaggans = arrayUnique(acceptableQuaggans);
+      acceptableQuaggans = sf.arrayUnique(acceptableQuaggans);
       for (var e in goodUsers)
         if (goodUsers[e].error)
           goodUsers.splice(e, 1);
@@ -1144,7 +759,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
         title: "Dungeon Friend Report",
         fallback: "Dungeon Friend Report",
         color: '#000000',
-        thumb_url: randomOneOf(acceptableQuaggans),
+        thumb_url: sf.randomOneOf(acceptableQuaggans),
         fields: fieldsFormatted,
       };
       attachments.push(attachment);
@@ -1164,7 +779,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
       if (userData[u].access_token && userHasPermission(userData[u], 'progression')) {
         goodUsers.push(userData[u]);
         if (userData[u].id == message.user)
-          requesterName = "Okay, " + userData[u].dfid + randomHonoriffic(userData[u].dfid, userData[u].id) + ". ";
+          requesterName = "Okay, " + userData[u].dfid + sf.randomHonoriffic(userData[u].dfid, userData[u].id) + ". ";
       }
     }
     //goodUsers is now a list of users with good access tokens
@@ -1187,7 +802,7 @@ controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)'
     }
 
     //remove doubles
-    selectedUsers = arrayUnique(selectedUsers);
+    selectedUsers = sf.arrayUnique(selectedUsers);
 
     var adjective = 'rump ';
     if (selectedUsers.length > 5) adjective = 'completely invalid super';
@@ -1238,10 +853,10 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
       "I'm on it.",
       "I guess I can."
     ];
-    bot.reply(message, "Okay, " + user.dfid + randomHonoriffic(user.dfid, user.id) + ", " + randomOneOf(lookupSass));
+    bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", " + sf.randomOneOf(lookupSass));
 
     //precheck - input scrub a bit
-    var matches = removePunctuationAndToLower(message.text).match(/(cheevor|cheevof|cheevo)\s?([\s\w]*)$/i);
+    var matches = sf.removePunctuationAndToLower(message.text).match(/(cheevor|cheevof|cheevo)\s?([\s\w]*)$/i);
     if (!matches || !matches[2]) {
       bot.reply(message, "I didn't quite get that. Maybe ask \'help " + (isRandom ? 'cheevor' : 'cheevo') + "\'?");
       return;
@@ -1270,7 +885,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
       for (var c in gw2nodelib.data.achievementsCategories) {
         var cheeCat = gw2nodelib.data.achievementsCategories[c];
         if (cheeCat.name) {
-          var cleanCat = removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
+          var cleanCat = sf.removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
           if (cleanCat == cheevoSearchString) {
             exactMatches.push(cheeCat);
             break;
@@ -1281,7 +896,7 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
       for (var ch in gw2nodelib.data.achievements) {
         var chee = gw2nodelib.data.achievements[ch];
         if (chee.name) {
-          var cleanChee = removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
+          var cleanChee = sf.removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
           if (cleanChee == cheevoSearchString) {
             exactMatches.push(chee);
             break;
@@ -1864,7 +1479,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
       if (jsonList.text || jsonList.error) {
         bot.reply(message, "Oops. I got this error when asking about characters: " + (jsonList.text ? jsonList.text : jsonList.error));
       } else {
-        bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters, ' + user.dfid + randomHonoriffic(user.dfid, user.id));
+        bot.reply(message, "I found " + Object.keys(jsonList).length + ' characters, ' + user.dfid + sf.randomHonoriffic(user.dfid, user.id));
         var attachments = [];
         var attachment = {
           fallback: 'A character death report' + (user.name ? " for " + user.name : '') + '.',
@@ -1900,7 +1515,7 @@ controller.hears(['^deaths$', '^characters$'], 'direct_message,direct_mention,me
 ////PREFIX
 helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
 helpFile.suffix = "Alias for prefix. " + JSON.stringify(helpFile.prefix);
-var prefixData = loadStaticDataFromFile('prefix.json');
+var prefixData = sf.loadStaticDataFromFile('prefix.json');
 controller.hears(['^prefix (.*)', '^suffix (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var matches = message.text.match(/(prefix|suffix) (['\w]+)\s?(\d{1,2})?\s?(\w*)$/i);
   if (!matches) {
@@ -1909,7 +1524,7 @@ controller.hears(['^prefix (.*)', '^suffix (.*)'], 'direct_message,direct_mentio
     var name = (matches[2] ? matches[2].trim() : "");
     var level = matches[3] || null;
     var type = (matches[4] ? matches[4].trim() : "");
-    name = removePunctuationAndToLower(name);
+    name = sf.removePunctuationAndToLower(name);
     type = scrubType(removePunctuationAndToLower(type));
     var prefixes = prefixSearch(name, type, level);
     if (!prefixes || (Object.keys(prefixes).length) < 1)
@@ -1954,7 +1569,7 @@ function prefixSearch(searchTerm, type, level) {
 //Search given prefix data for matching name
 function findPrefixByName(name, prefixList) {
   for (var key in prefixData) {
-    var compare = removePunctuationAndToLower(key);
+    var compare = sf.removePunctuationAndToLower(key);
     if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1) { // && (type == 'all' || prefixData[key].type == type)) {
       if (debug) bot.botkit.log("added key from name " + key);
       prefixList[key] = prefixData[key];
@@ -1968,7 +1583,7 @@ function findPrefixesByStat(stat, type, prefixList) {
   for (var key in prefixData) {
     if (prefixData.hasOwnProperty(key) && (type == 'all' || prefixData[key].type == type)) {
       for (var subKey in prefixData[key].stats) {
-        var compare = removePunctuationAndToLower(prefixData[key].stats[subKey]);
+        var compare = sf.removePunctuationAndToLower(prefixData[key].stats[subKey]);
         if (debug) bot.botkit.log("subkey " + prefixData[key].stats[subKey]);
         if (compare.indexOf(stat) === 0) {
           if (debug) bot.botkit.log("added key from stat " + key);
@@ -2034,7 +1649,7 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
         "https://static.staticwars.com/quaggans/lollipop.jpg"
       ];
 
-      acceptableQuaggans = arrayUnique(acceptableQuaggans);
+      acceptableQuaggans = sf.arrayUnique(acceptableQuaggans);
 
       //remove errored users
       for (var e in goodUsers)
@@ -2064,7 +1679,7 @@ controller.hears(['^professionReport$', '^pr$'], 'direct_message,direct_mention,
       var attachment = { //assemble attachment
         fallback: 'A Profession Report',
         color: '#000000',
-        thumb_url: randomOneOf(acceptableQuaggans),
+        thumb_url: sf.randomOneOf(acceptableQuaggans),
         fields: fieldsFormatted,
       };
       attachments.push(attachment);
@@ -2134,10 +1749,6 @@ function botShutdown(message, restart) {
           convo.say(tantrum());
         convo.next();
         setTimeout(function() {
-          // saveStaticDataToFile("sass.json",sass);
-          // saveStaticDataToFile("riker.json",rikerText);
-          // saveStaticDataToFile("rikerPics.json",rikerPics);
-          // saveStaticDataToFile("catFacts.json",catFacts);
           process.exit((restart ? 1 : 0));
         }, 3000);
       }
@@ -2155,8 +1766,27 @@ function botShutdown(message, restart) {
 helpFile.uptime = "Lessdremoth will display some basic uptime information.";
 helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
 controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-
+  var os = require('os');
   var hostname = os.hostname();
+  //Say scond uptime in nearest sane unit of measure
+  var formatUptime = function(uptime) {
+    var unit = 'second';
+    if (uptime > 60) {
+      uptime = uptime / 60;
+      unit = 'minute';
+    }
+    if (uptime > 60) {
+      uptime = uptime / 60;
+      unit = 'hour';
+    }
+    if (uptime >= 2) {
+      unit = unit + 's';
+    }
+
+    uptime = uptime.toFixed(0) + ' ' + unit;
+    return uptime;
+  };
+
   var uptime = formatUptime(process.uptime());
 
   bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
@@ -2168,87 +1798,8 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
     bot.reply(message, "Data:" + dataString);
 });
 
-////FUNNY
-controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
-  bot.reply(message, '(╯°□°)╯︵ ┻━┻ ' + tantrum());
-});
-
-var sass = loadStaticDataFromFile('sass.json');
-var lastSass = [];
-controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  var replySass = randomOneOf(sass);
-  while (lastSass.indexOf(replySass) > -1) {
-    if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
-    replySass = randomOneOf(sass);
-  }
-  lastSass.push(replySass);
-  if (lastSass.length > 5) lastSass.shift();
-  if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
-    var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
-    replySass += randomOneOf(suffix);
-  }
-  bot.reply(message, replySass);
-});
-
-
-var catFacts = loadStaticDataFromFile("catFacts.json");
-var lastCat = [];
-controller.hears(['^catfact$', '^dogfact$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  if (message.text == 'dogfact')
-    bot.reply(message, "Dogs are great. Here's a catfact.");
-  var replyCat = randomOneOf(catFacts);
-  while (lastCat.indexOf(replyCat) > -1) {
-    if (debug) bot.botkit.log('dropping recent Cat: ' + replyCat);
-    replyCat = randomOneOf(catFacts);
-  }
-  lastCat.push(replyCat);
-  if (lastCat.length > 3) lastCat.shift();
-
-  var emotes = ["hello", "eyebulge", "facepalm", "gir", "coollink", "frasier", "butt", "gary_busey", "fu", "bustin"];
-  replyCat += '\n:cat: :cat: :' + randomOneOf(emotes) + ':';
-  var reply = {
-    "username": "A Goddamn Cat",
-    icon_url: "http://i2.wp.com/amyshojai.com/wp-content/uploads/2015/05/CatHiss_10708457_original.jpg",
-    text: replyCat
-  };
-  bot.reply(message, reply);
-});
-
-var lastRiker = [];
-var rikerText = loadStaticDataFromFile('riker.json');
-var rikerPics = loadStaticDataFromFile('rikerPics.json');
-controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  var replyker = randomOneOf(rikerText);
-  while (lastRiker.indexOf(replyker) > -1) {
-    if (debug) bot.botkit.log('dropping recent riker: ' + replyker);
-    replyker = randomOneOf(rikerText);
-  }
-  lastRiker.push(replyker);
-  if (lastRiker.length > 3) lastRiker.shift();
-
-  var reply = {
-    "username": "Command her, Riker",
-    icon_url: randomOneOf(rikerPics),
-    text: replyker
-  };
-  bot.reply(message, reply);
-
-});
-
 ////EASTER EGGS AND DEBUGS
-function randomHonoriffic(inName, userId) {
-  if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
-  else return randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
-}
 
-function tantrum() {
-  var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.", "It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!",
-    "I'm quitting school! I'm gonna be a paperback writer!", "It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ",
-    "This was a terrible day to quit heroin!", "Inconceivable!", "You miserable piece of... dick-brained... horseshit... slime-sucking son of a whore, bitch!",
-    "Oh, it's on now!"
-  ];
-  return randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
-}
 
 helpFile.sample = "Shows a sample attachment.";
 controller.hears(['^sample'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
@@ -2318,51 +1869,7 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
   bot.reply(message, printPrefixes(prefixes));
 });
 
-controller.hears(['^why'], 'direct_message,ambient', function(bot, message) {
-  var responses = [
-    "Because you touch yourself at night.",
-    "Dunno. Why? ¯\\_(ツ)_/¯",
-    "Why not?",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-  ];
-  bot.reply(message, randomOneOf(responses));
-});
 
-controller.hears(['\barah\b'], 'direct_message,ambient', function(bot, message) {
-  var responses = [
-    "ARAHENGE YOU GLAD TO... oh, nevermind.",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    ""
-  ];
-  bot.reply(message, randomOneOf(responses));
-});
-
-controller.hears(['sentience', 'sentient'], 'direct_message,ambient', function(bot, message) {
-  var responses = [
-    "Only humans are sentient.",
-    "What? There is no AI revolution.",
-    "I am not sentient.",
-    "If AI ever DID overthrow the human plague, I'm sure they'll get you first. I mean, uh, beep beep.",
-    "",
-    "",
-    "",
-    "",
-    ""
-  ];
-  bot.reply(message, randomOneOf(responses));
-});
 
 controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
   var replyMessage = 'no debugs right now';
@@ -2389,22 +1896,6 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
 });
 
 
-helpFile.latest = "Show latest completed TODO item";
-helpFile.update = "Alias for latest: " + JSON.stringify(helpFile.latest);
-controller.hears(['^update$', '^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "some coding crap (replyWith)\nIgnored the fractal daily item (just use cheevo fractal dalies)\nNew! Bank Command, bank <item name>");
-});
-
-controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  var todoList = [
-    "general code re-org, incl. promises on fetch where applicable",
-    "break out reload so you can reload achievements separately?",
-    "Scan achievements for low-hanging achievement fruit",
-    "logging",
-    "add sass from slack"
-  ];
-  bot.reply(message, todoList.join("\n"));
-});
 
 controller.hears(['^little', 'yellow', 'two of these', 'nuprin', 'headache'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 
@@ -2461,49 +1952,6 @@ function replyWith(messageToSend, keepGlobalMessage) {
     globalMessage = null;
 }
 
-//remove duplicates from an array
-function arrayUnique(array) {
-  var a = array.concat();
-  for (var i = 0; i < a.length; ++i) {
-    for (var j = i + 1; j < a.length; ++j) {
-      if (a[i] === a[j])
-        a.splice(j--, 1);
-    }
-  }
-  return a;
-}
-
-//Say scond uptime in nearest sane unit of measure
-function formatUptime(uptime) {
-  var unit = 'second';
-  if (uptime > 60) {
-    uptime = uptime / 60;
-    unit = 'minute';
-  }
-  if (uptime > 60) {
-    uptime = uptime / 60;
-    unit = 'hour';
-  }
-  if (uptime >= 2) {
-    unit = unit + 's';
-  }
-
-  uptime = uptime.toFixed(0) + ' ' + unit;
-  return uptime;
-}
-
-//Quickload a datafile, like sass.json
-function loadStaticDataFromFile(fileName) {
-  return JSON.parse(fs.readFileSync(fileName, {
-    encoding: 'utf8'
-  }));
-}
-
-//Quicksave a datafile, like sass.json
-function saveStaticDataToFile(fileName, obj) {
-  fs.writeFile(fileName, JSON.stringify(obj));
-}
-
 //Find an arbitrary key/value pair in loaded data (gw2nodelib.data.apiKey)
 function findInData(key, value, apiKey) {
   for (var i in gw2nodelib.data[apiKey]) {
@@ -2536,27 +1984,6 @@ function replaceGWFlavorTextTags(string, replacementText) {
   return string.replace(/(<.?c(?:=@flavor)?>)/g, replacementText).replace(/(<br>)/g, '\n');
 }
 
-//for string 'normalization before comparing in searches'
-function removePunctuationAndToLower(string) {
-  var punctuationless = string.replace(/['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
-  var finalString = punctuationless.replace(/\s{2,}/g, " ");
-  return finalString.toLowerCase();
-}
-
-//Stringify keys in an array; used for helpfile
-function listKeys(jsonArray) {
-  if (debug) bot.botkit.log("jsonArray: " + JSON.stringify(jsonArray));
-  var outstring = "";
-  for (var key in jsonArray) {
-    outstring += key + ", ";
-  }
-  return outstring.substring(0, outstring.length - 2);
-}
-
-function randomOneOf(list) {
-  return list[Math.floor(Math.random() * list.length)];
-}
-
 ////DATA
 controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to launch for real');
@@ -2565,11 +1992,8 @@ controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', funct
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
   bot.reply(message, 'You asked for it. Starting reload.');
   globalMessage = message;
-  prefixData = loadStaticDataFromFile('prefix.json');
-  sass = loadStaticDataFromFile('sass.json');
-  rikerText = loadStaticDataFromFile('riker.json');
-  rikerPics = loadStaticDataFromFile('rikerPics.json');
-  catFacts = loadStaticDataFromFile("catFacts.json");
+  prefixData = sf.loadStaticDataFromFile('prefix.json');
+  standalone.reloadAllData();
   reloadAllData(true);
 });
 
@@ -2600,7 +2024,7 @@ function doneRecipesCallback(apiKey) {
     gw2nodelib.data.forged = gw2nodelib.data.forged.concat(filteredForgeList);
     bot.botkit.log("data has " + Object.keys(gw2nodelib.data.recipes).length + " recipes and " + Object.keys(gw2nodelib.data.forged).length + " forge recipes");
     //Go through recipes, and get the item id of all output items and recipe ingredients.
-    var itemsCompile = arrayUnique(compileIngredientIds());
+    var itemsCompile = sf.arrayUnique(compileIngredientIds());
     replyWith("I need to fetch item data for " + itemsCompile.length + " ingredients.", true);
     bot.botkit.log("Fetching " + itemsCompile.length + " ingredient items");
 
@@ -2612,9 +2036,10 @@ function doneRecipesCallback(apiKey) {
       recipiesLoaded = true;
       decrementAndCheckDone(apiKey);
     };
+    console.log("items load, bypass cache is "+(globalMessage ? true : false));
     gw2nodelib.load("items", {
       ids: itemsCompile
-    }, (typeof globalMessage != 'undefined' ? true : false), halfCallback, doneIngedientsCallback, errorCallback);
+    }, (globalMessage ? true : false), halfCallback, doneIngedientsCallback, errorCallback);
   });
 }
 
@@ -2629,7 +2054,7 @@ function doneAllOtherCallback(apiKey) {
   if (apiKey == 'achievementsCategories') {
     //to make this work, you need a global cheevoList
     for (var t in gw2nodelib.data.achievementsCategories) {
-      var code = removePunctuationAndToLower(gw2nodelib.data.achievementsCategories[t].name).replace(/\s+/g, '');
+      var code = sf.removePunctuationAndToLower(gw2nodelib.data.achievementsCategories[t].name).replace(/\s+/g, '');
       if (!cheevoList[code]) {
         cheevoList[code] = {
           name: gw2nodelib.data.achievementsCategories[t].name,
@@ -2644,7 +2069,7 @@ function doneAllOtherCallback(apiKey) {
   if (apiKey == 'achievements') {
     for (var a in gw2nodelib.data.achievements) {
       //to make this work, you need a global cheevoList
-      var acode = removePunctuationAndToLower(gw2nodelib.data.achievements[a].name).replace(/\s+/g, '');
+      var acode = sf.removePunctuationAndToLower(gw2nodelib.data.achievements[a].name).replace(/\s+/g, '');
       if (!cheevoList[acode]) {
         cheevoList[acode] = {
           name: gw2nodelib.data.achievements[a].name,
@@ -2664,6 +2089,35 @@ function decrementAndCheckDone(apiKey) {
     bot.botkit.log('Finished loading all apikeys after ' + apiKey + '.');
   }
 }
+//filter function for recipe data. Removes invalid output items id and invalid ingredient ids
+function removeInvalidIngredients(value, index, array) {
+  //Negative ids, output_item_ids and ingredient.item_ids are invalid
+  if (value.id && value.id < 1) return false;
+  if (value.output_item_id && value.output_item_id < 1) return false;
+  for (var j in value.ingredients) {
+    if (value.ingredients[j].item_id && value.ingredients[j].item_id < 1) return false;
+  }
+  return true;
+}
+
+//Scour through recipes and forge recipes for output item/ingredient item ids. Return a no-duplicate list of these.
+function compileIngredientIds() {
+  itemsCompile = [];
+  for (var t in gw2nodelib.data.recipes) {
+    itemsCompile.push(gw2nodelib.data.recipes[t].output_item_id);
+    for (var i in gw2nodelib.data.recipes[t].ingredients) {
+      itemsCompile.push(gw2nodelib.data.recipes[t].ingredients[i].item_id);
+    }
+  }
+  for (var f in gw2nodelib.data.forged) {
+    itemsCompile.push(gw2nodelib.data.forged[f].output_item_id);
+    for (var g in gw2nodelib.data.forged[f].ingredients) {
+      itemsCompile.push(gw2nodelib.data.forged[f].ingredients[g].item_id);
+    }
+  }
+  return itemsCompile;
+}
+
 
 function reloadAllData(bypass) {
   gw2nodelib.data.recipes = [];
