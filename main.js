@@ -52,7 +52,7 @@ var bot = controller.spawn({
 // bot.botkit.log("INFO TEST");
 
 var gw2nodelib = require('./api.js');
-gw2nodelib.setCacheTime(360,null);//General cache time set to 6 minutes
+gw2nodelib.setCacheTime(360, null); //General cache time set to 6 minutes
 //items, recipies, currencies and achievements are big fetches and/or don't change often
 gw2nodelib.setCacheTime(86400, 'items');
 gw2nodelib.setCacheTime(86400, 'recipes');
@@ -1304,7 +1304,8 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
       } else if (possibleMatches.length == 1) {
         globalMessage = message;
         if (possibleMatches[0].achievements)
-          displayCategoryCallback(accountAchievements, possibleMatches[0]);
+          if (isRandom) displayRandomCheevoCallback(accountAchievements, possibleMatches[0]);
+          else displayCategoryCallback(accountAchievements, possibleMatches[0]);
         else
           lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
       } else if (possibleMatches.length > 10) {
@@ -1349,7 +1350,8 @@ controller.hears(['^cheevo(.*)', '^cheevor(.*)', '^cheevof(.*)'], 'direct_messag
               if (selection < possibleMatches.length) {
                 globalMessage = convo;
                 if (possibleMatches[selection].achievements)
-                  displayCategoryCallback(accountAchievements, possibleMatches[selection]);
+                  if (isRandom) displayRandomCheevoCallback(accountAchievements, possibleMatches[selection]);
+                  else displayCategoryCallback(accountAchievements, possibleMatches[selection]);
                 else
                   lookupCheevoParts(accountAchievements, possibleMatches[selection], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
               } else if (askNum-- > 0) {
@@ -1393,6 +1395,7 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   var acctCheevo;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
     //keep picking until we find one the user has not done.
+    randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
     acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
     while (alreadyDone) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
@@ -1413,13 +1416,12 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
       if (!acctCheevo || !acctCheevo.bits) {
         alreadyDone = false;
       } else {
-        for (var bit in acctCheevo.bits) { //go through account bits and see if they've done the one we've randoed
-          if (acctCheevo.bits[bit] == randomNum)
-            alreadyDone = false;
-        }
+
+        if (acctCheevo.bits.indexOf(randomNum) < 0)
+          alreadyDone = false;
       }
     }
-    replyWith("Go forth and get...\n" + displayAchievementBit(cheevoToDisplay.bits[randomNum]), false);
+    replyWith("Go forth and get...\n" + displayAchievementBit(cheevoToDisplay.bits[randomNum]));
   } else {
     replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
   }
@@ -1538,7 +1540,7 @@ function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callbac
     fetchFreshData = results;
     callback(accountAchievements, cheevoToDisplay, isFull);
   }).catch(function(error) {
-    bot.reply(message, "I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
+    replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
   });
 }
 
@@ -2166,7 +2168,7 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
   var hostname = os.hostname();
   var uptime = formatUptime(process.uptime());
 
-  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '> (version '+version+'). I have been running for ' + uptime + ' on ' + hostname + '.');
+  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '> (version ' + version + '). I have been running for ' + uptime + ' on ' + hostname + '.');
   var dataString = '';
   for (var type in gw2nodelib.data)
     if (gw2nodelib.data[type].length > 0)
