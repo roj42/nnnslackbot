@@ -299,7 +299,7 @@ module.exports = function() {
 		}
 	};
 	ret.forgeRequest = function(callback) {
-		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || Date.now() > (cache.get('recipes', 'forgeRecipes').updateAt + (config.api[apiKey].cacheTime*1000)) {
+		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || Date.now() > (cache.get('recipes', 'forgeRecipes').updateAt + (config.api[apiKey].cacheTime*1000))) {
 
 			request(forgeOptions, function(error, response, body) {
 				if (error) return new Error(error);
