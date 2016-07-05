@@ -116,7 +116,7 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 	// Time to update and recache
 	var cacheKey = apiKey + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
 	if (config.debug && typeof cache.get(apiKey, cacheKey) === 'undefined') console.log("cacheKey for " + apiKey + " undefined: " + cacheKey);
-	if (bypassCache || typeof cache.get(apiKey, cacheKey) === 'undefined' || (new Date()) > cache.get(apiKey, cacheKey).updateAt) {
+	if (bypassCache || typeof cache.get(apiKey, cacheKey) === 'undefined' || Date.now() > (cache.get(apiKey, cacheKey).updateAt + config.api[apiKey].cacheTime*1000)) {
 		if (config.debug && options) console.log("options are " + decodeURIComponent(querystring.stringify(options)));
 		var url = config.baseUrl + config.api[apiKey].uri + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
 
@@ -150,7 +150,7 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 			cache.set(apiKey, cacheKey, {
 				headers: headerSet,
 				json: JSON.parse(body),
-				updateAt: (new Date()).setSeconds((new Date()).getSeconds() + config.api[apiKey].cacheTime),
+				updateAt: Date.now(),
 			});
 
 			callback(cache.get(apiKey, cacheKey).json, cache.get(apiKey, cacheKey).headers);
@@ -208,6 +208,7 @@ module.exports = function() {
 				apiKey = null;
 			}
 			if (typeof seconds !== 'number') {
+				if (config.debug) console.log('setCacheTime unsuccessful: seconds NAN');
 				return false;
 			}
 
@@ -223,6 +224,7 @@ module.exports = function() {
 				}
 				if (config.debug) console.log('setCacheTime successful; config.api: ' + JSON.stringify(config.api));
 			} else if (!(apiKey in config.api)) {
+				if (config.debug) console.log('setCacheTime unsuccessful: api key does not exist');
 				return false;
 			} else {
 				config.api[apiKey].cacheTime = seconds;
@@ -279,7 +281,7 @@ module.exports = function() {
 					var optionsObj = {
 						type: apiKey,
 						ids: idsToFetch.join(',')
-					}
+					};
 					if (typeof access_token != 'undefined')
 						optionsObj.access_token = access_token;
 					ret[apiKey](listCallback, optionsObj, bypassCache);
@@ -297,13 +299,13 @@ module.exports = function() {
 		}
 	};
 	ret.forgeRequest = function(callback) {
-		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || (new Date()) > cache.get('recipes', 'forgeRecipes').updateAt) {
+		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || Date.now() > (cache.get('recipes', 'forgeRecipes').updateAt + (config.api[apiKey].cacheTime*1000)) {
 
 			request(forgeOptions, function(error, response, body) {
 				if (error) return new Error(error);
 				cache.set('recipes', 'forgeRecipes', {
 					json: JSON.parse(body),
-					updateAt: (new Date()).setSeconds((new Date()).getSeconds() + config.api[apiKey].cacheTime),
+					updateAt: Date.now(),
 				});
 				callback(cache.get('recipes', 'forgeRecipes').json);
 			});

@@ -52,10 +52,10 @@ var bot = controller.spawn({
 // bot.botkit.log("INFO TEST");
 
 var gw2nodelib = require('./api.js');
-gw2nodelib.setCacheTime(360)//General cache time set to 6 minutes
+gw2nodelib.setCacheTime(360,null);//General cache time set to 6 minutes
 //items, recipies, currencies and achievements are big fetches and/or don't change often
 gw2nodelib.setCacheTime(86400, 'items');
-gw2nodelib.setCacheTime(86400, 'recipies');
+gw2nodelib.setCacheTime(86400, 'recipes');
 gw2nodelib.setCacheTime(86400, 'currencies');
 gw2nodelib.setCacheTime(86400, 'achievements');
 gw2nodelib.setCacheTime(86400, 'achievementsCategories');
