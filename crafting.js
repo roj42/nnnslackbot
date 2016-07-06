@@ -12,7 +12,7 @@ module.exports = function() {
       controller.hears(['^craft (.*)', '^asscraft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.recipes || !gw2api.loaded.items) { //still loading
           bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-          globalMessage = message;
+          sf.setGlobalMessage(message);
           return;
         }
         var itemSearchResults = [];
