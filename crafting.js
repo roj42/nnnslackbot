@@ -69,7 +69,7 @@ module.exports = function() {
         } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
           var itemNameList = [];
           for (var n in itemSearchResults) {
-            itemNameList.push(itemSearchResults[n].name + levelAndRarityForItem(itemSearchResults[n]));
+            itemNameList.push(itemSearchResults[n].name + sf.levelandrarityForItem(itemSearchResults[n]));
           }
           bot.reply(message, {
             attachments: {
@@ -83,7 +83,7 @@ module.exports = function() {
           bot.startConversation(message, function(err, convo) {
             var listofItems = '';
             for (var i in itemSearchResults) {
-              listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+              listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelandrarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
             }
             convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
               //number, no, or repeat
@@ -193,7 +193,7 @@ function getMessageWithRecipeAttachment(itemToMake) {
   if(debug) sf.log("Done crafting message for "+itemToMake.name);
 
   return {
-    'text': itemToMake.name + (amountString ? " x " + amountString : "") + levelAndRarityForItem(itemToMake) + descripFlavorized,
+    'text': itemToMake.name + (amountString ? " x " + amountString : "") + sf.levelandrarityForItem(itemToMake) + descripFlavorized,
     attachments: attachments,
     // 'icon_url': itemToMake.icon,
     // "username": "RecipeBot",
@@ -267,25 +267,6 @@ function assembleRecipeAttachment(itemToDisplay) {
     }]
   });
   return attachments;
-}
-//a text differentiation of items. spits out (level ## <rarity>) if eitehr of those exist
-function levelAndRarityForItem(item) {
-  var levelString = '';
-  if (item.level) {
-    levelString = item.level;
-  } else if (item.description) {
-    var matches = item.description.match(/level (\d{1,2})/i);
-    if (debug) sf.log("matches " + JSON.stringify(matches) + " of description " + item.description);
-    if (matches && matches[1]) {
-      levelString = Number(matches[1]);
-    }
-  }
-  var rarityString = '';
-  if (item.rarity) rarityString = item.rarity;
-  var infoTag = '';
-  if (levelString > 0 || rarityString.length > 0)
-    infoTag = " (" + (levelString ? "level " + levelString : "") + (rarityString ? (levelString ? " " : "") + rarityString : '') + ")";
-  return infoTag;
 }
 
 //normalizes input string and searches regular and forge recipes for an item match. Matches if search term shows up anywhere in the item name

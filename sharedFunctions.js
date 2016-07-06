@@ -128,7 +128,27 @@ module.exports = function() {
 				}
 			}
 			return a;
+		},
+		//a text differentiation of items. spits out (level ## <rarity>) if eitehr of those exist
+		levelAndRarityForItem: function(item) {
+			var levelString = '';
+			if (item.level) {
+				levelString = item.level;
+			} else if (item.description) {
+				var matches = item.description.match(/level (\d{1,2})/i);
+				if (debug) sf.log("matches " + JSON.stringify(matches) + " of description " + item.description);
+				if (matches && matches[1]) {
+					levelString = Number(matches[1]);
+				}
+			}
+			var rarityString = '';
+			if (item.rarity) rarityString = item.rarity;
+			var infoTag = '';
+			if (levelString > 0 || rarityString.length > 0)
+				infoTag = " (" + (levelString ? "level " + levelString : "") + (rarityString ? (levelString ? " " : "") + rarityString : '') + ")";
+			return infoTag;
 		}
+
 	};
 	return ret;
 }();
