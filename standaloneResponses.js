@@ -1,8 +1,8 @@
-// Return the public API
-
+//Standalone Responses for lessdremoth that don't require more than shared functions
+//Author: Roger Lampe roger.lampe@gmail.com
 var helps = {};
 var sf = require('./sharedFunctions.js');
-
+var debug = false;
 module.exports = function() {
 	var ret = {
 		addResponses: function(controller) {
@@ -21,6 +21,10 @@ module.exports = function() {
 					""
 				];
 				bot.reply(message, sf.randomOneOf(responses));
+			});
+
+			controller.hears(['^little', 'yellow', 'two of these', 'nuprin', 'headache'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+				bot.reply(message, "Nuprin: Little, Yellow, Different");
 			});
 
 			controller.hears(['tantrum', 'upset', 'in a bunch', 'in a twist'], 'direct_message,ambient', function(bot, message) {
@@ -72,7 +76,6 @@ module.exports = function() {
 				}
 				lastRiker.push(replyker);
 				if (lastRiker.length > 3) lastRiker.shift();
-				if (debug) console.log("test");
 				var reply = {
 					"username": "Command her, Riker",
 					icon_url: sf.randomOneOf(rikerPics),
@@ -121,39 +124,6 @@ module.exports = function() {
 					text: replyCat
 				};
 				bot.reply(message, reply);
-			});
-
-			////QUAGGANS
-			helps.quaggans = "fetch a list of all fetchable quaggan pictures. See help quaggan.";
-			helps.quaggan = "Takes an argument. Lessdremoth pastes a url to a picture of that quaggan for slack to fetch. Also see help quaggans. Example: 'quaggan box'";
-
-			controller.hears(['^quaggans$', '^quaggan$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-				gw2nodelib.quaggans(function(jsonList) {
-					if (jsonList.text || jsonList.error) {
-						bot.reply(message, "Oops. I got this error when asking about quaggans: " + (jsonList.text ? jsonList.text : jsonList.error));
-					} else {
-						bot.reply(message, "I found " + Object.keys(jsonList).length + ' quaggans.');
-						bot.reply(message, "Tell Lessdremoth quaggan <quaggan name> to preview!");
-						bot.reply(message, jsonList.join(", "));
-					}
-				});
-			});
-
-			controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-				var matches = message.text.match(/quaggans? (.*)/i);
-				if (!matches || !matches[1]) bot.reply(message, "Which quaggan? Tell Lessdremoth \'quaggans\' for a list.");
-				var name = sf.removePunctuationAndToLower(matches[1]);
-				if (name == 'hoodieup') name = 'hoodie-up';
-				if (name == 'hoodiedown') name = 'hoodie-down';
-				gw2nodelib.quaggans(function(jsonItem) {
-					if (jsonItem.text || jsonItem.error) {
-						bot.reply(message, "Oops. I got this error when asking about your quaggan: " + (jsonItem.text ? jsonItem.text : jsonItem.error));
-					} else {
-						bot.reply(message, jsonItem.url);
-					}
-				}, {
-					id: name
-				});
 			});
 		},
 		addHelp: function(helpFile) {

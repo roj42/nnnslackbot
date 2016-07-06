@@ -1,4 +1,6 @@
-// Scroll down a bit to see public API
+//API for Guildwars 2
+//Originally by TimeBomb https://github.com/TimeBomb/GW2NodeLib
+//Re-Authored: Roger Lampe roger.lampe@gmail.com
 
 var config = {
 	baseUrl: 'https://api.guildwars2.com/v2/',
@@ -6,6 +8,7 @@ var config = {
 	cacheFile: null,
 	cachePath: '',
 	debug: false,
+	retry: 2,
 	dataLoadRetry: 3,
 	dataLoadPageSize: 200,
 	api: {
@@ -122,22 +125,29 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 
 		if (config.debug) console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey + ' from URL: ' + url);
 		else console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey);
-
-		request({uri: url,timeout:10000}, function(error, response, body) {
+		var retry = config.retry;
+		var retryCallback = function(error, response, body) {
 			//we're okay with
 			//200 - success 
 			//404 - no info returned, there will be a json object with 'text' we'll handle later
 			//206 - partial info, some invalid ids or whatnot. Let the good stuff through
-
 			if (error || !(response.statusCode == 200 || response.statusCode == 404 || response.statusCode == 206)) {
 				var msg = ((typeof response !== 'undefined') ? '[Status Code ' + response.statusCode + '] ' : '') + 'There was an error requesting the API (URL ' + url + ')' + ((error !== null) ? ': ' + error : '');
-				callback({
-					'error': msg
-				}, {
-					options: options
-				});
-				return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
-				// throw new Gw2ApiLibException(msg);
+				if (retry-- <= 0) { //Out of retries;				
+					callback({
+						'error': msg
+					}, {
+						options: options
+					});
+					return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
+					// throw new Gw2ApiLibException(msg);
+				} else {
+						console.log(" Retrying: " + retry + " " + msg);
+					request({
+						uri: url,
+						timeout: 10000
+					}, retryCallback);
+				}
 			}
 			if (response.statusCode == 206) console.log("Received a 206 error, not all ids fetched.");
 			var headerSet = { //add header data for auto loading, if it came back
@@ -154,7 +164,13 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 			});
 
 			callback(cache.get(apiKey, cacheKey).json, cache.get(apiKey, cacheKey).headers);
-		});
+		};
+		request({
+			uri: url,
+			timeout: 10000
+		}, retryCallback);
+
+
 		return;
 	}
 	// Only runs if already found in cache
@@ -314,12 +330,21 @@ module.exports = function() {
 	ret.data = [];
 	ret.data.forged = [];
 	ret.promise = [];
+	ret.loaded = [];
 	for (var apiKey in config.api) {
 		// Returns true if successful, false if bad arguments
 		ret[apiKey] = entryPointFunction(apiKey);
 		ret.data[apiKey] = [];
 		ret.promise[apiKey] = promiseFunction(apiKey);
+		ret.loaded[apiKey] = false;
 	}
+	ret.findInData = function(key, value, apiKey) {
+		for (var i in ret.data[apiKey]) {
+			if (ret.data[apiKey][i][key] == value) {
+				return ret.data[apiKey][i];
+			}
+		}
+	};
 	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
 	ret.load = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
 		if (!ret[apiKey]) {
@@ -327,6 +352,7 @@ module.exports = function() {
 			else console.log("no apiKey for " + apiKey);
 			return;
 		} //check apiKey
+		ret.loaded[apiKey] = false;
 		var total = 0; //hold total page size
 		var half_length = 0; //variable to identify half of max pages
 		var retry = config.dataLoadRetry; //hold number of retries.
@@ -397,6 +423,7 @@ module.exports = function() {
 					halfCallback(apiKey);
 			}
 			if (progress > total && retry == config.dataLoadRetry) { //call done callback when done successfully
+				ret.loaded[apiKey] = true;
 				if (doneCallback)
 					doneCallback(apiKey);
 			} else {
