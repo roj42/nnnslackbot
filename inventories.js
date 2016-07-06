@@ -240,6 +240,7 @@ module.exports = function() {
                 }
               }).catch(function(error) {
                 bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
+                if(convo) convo.next();
               });
           };
 
