@@ -2,7 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
-var debug = true;
+var debug = false;
 module.exports = function() {
 
   var ret = {
