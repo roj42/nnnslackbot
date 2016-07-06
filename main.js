@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-
+var version = "3.0"; //hardcode for now
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -356,7 +356,7 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
 
   var uptime = formatUptime(process.uptime());
 
-  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '>. I have been running for ' + uptime + ' on ' + hostname + '.');
+  bot.reply(message, ':frasier: I am a bot named <@' + bot.identity.name + '> (version ' + version + '). I have been running for ' + uptime + ' on ' + hostname + '.');
   var dataString = '';
   for (var type in gw2api.data)
     if (gw2api.data[type].length > 0)
