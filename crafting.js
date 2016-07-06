@@ -69,7 +69,7 @@ module.exports = function() {
         } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
           var itemNameList = [];
           for (var n in itemSearchResults) {
-            itemNameList.push(itemSearchResults[n].name + sf.levelandrarityForItem(itemSearchResults[n]));
+            itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
           }
           bot.reply(message, {
             attachments: {
@@ -83,7 +83,7 @@ module.exports = function() {
           bot.startConversation(message, function(err, convo) {
             var listofItems = '';
             for (var i in itemSearchResults) {
-              listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelandrarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+              listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
             }
             convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
               //number, no, or repeat
@@ -193,7 +193,7 @@ function getMessageWithRecipeAttachment(itemToMake) {
   if(debug) sf.log("Done crafting message for "+itemToMake.name);
 
   return {
-    'text': itemToMake.name + (amountString ? " x " + amountString : "") + sf.levelandrarityForItem(itemToMake) + descripFlavorized,
+    'text': itemToMake.name + (amountString ? " x " + amountString : "") + sf.levelAndRarityForItem(itemToMake) + descripFlavorized,
     attachments: attachments,
     // 'icon_url': itemToMake.icon,
     // "username": "RecipeBot",
