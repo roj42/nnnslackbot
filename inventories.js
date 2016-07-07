@@ -130,6 +130,20 @@ module.exports = function() {
                 ids: idList,
                 counts: countList
               });
+              //Reset, add worn items
+              idList = [];
+              countList = [];
+              for(var slot in jsonList[ch].equipment){
+                if(jsonList[ch].equipment[slot] !== null){
+                  idList.push(jsonList[ch].equipment[slot].id);
+                  countList.push(1);
+                }
+              }
+              inventories.push({
+                source: jsonList[ch].name+" (worn)",
+                ids: idList,
+                counts: countList
+              });
             }
             //setup: promise fetch shared inventory, bank, and material storage.
             Promise.all([
