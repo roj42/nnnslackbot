@@ -102,13 +102,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "MAJOR Coding re-org. Does everything still work?");
+  bot.reply(message, "add worn equipment to bank");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "add worn equipment to bank",
     "merge bank and wallet? (bank also searches your wallet)",
     "bank all - a list of all items and qty by holder",
     "Ascended shopping list: what you need yet to make a given ascended recipe, given your inventory",
