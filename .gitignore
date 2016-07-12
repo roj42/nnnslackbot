@@ -1,5 +1,5 @@
 *.log
 /slackbotDB/
 /*cache.json
-/TODO
 /node_modules/
+/template.js

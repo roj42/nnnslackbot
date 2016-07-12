@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.11"; //hardcode for now
+var version = "2.12"; //hardcode for now
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -102,16 +102,15 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "add worn equipment to bank");
+  bot.reply(message, "bank all - a list of all items and qty by holder");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "merge bank and wallet? (bank also searches your wallet)",
-    "bank all - a list of all items and qty by holder",
     "Ascended shopping list: what you need yet to make a given ascended recipe, given your inventory",
     "Scan achievements for low-hanging achievement fruit",
+    "merge bank and wallet? (bank also searches your wallet)",
     "logging",
     "add sass from slack"
   ];

@@ -307,10 +307,7 @@ function displayAchievementBit(bit, doneFlag, data) {
   if (bit.type == 'Text')
     return bit.text + (doneFlag ? " - DONE" : '');
   else if (bit.type == 'Coins') {
-    var gold = Math.floor(bit.count / 10000);
-    var silver = Math.floor((bit.count % 10000) / 100);
-    var copper = Math.floor(bit.count % 100);
-    return "Coins: " + (gold > 0 ? gold + 'g ' : '') + (silver > 0 ? silver + 's ' : '') + (copper > 0 ? copper + 'c ' : '');
+    return "Coins: " + sf.coinToString(bit.count);
   } else if (bit.type == 'Mastery')
     return bit.region + " " + bit.type;
   else if (bit.type == 'Item') {

@@ -1,18 +1,16 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
-
 module.exports = function() {
   var ret = {
 
     addResponses: function(controller) {
-
 
       ////wallet
       controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         controller.storage.users.get(message.user, function(err, user) {
           if (err) {
             bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
-            bot.botkit.log("Error:wallet no user data " + err);
+            bot.botkit.log("Error: wallet no user data " + err);
             return;
           }
           //precheck - input scrub a bit
@@ -33,6 +31,8 @@ module.exports = function() {
 
           gw2api.accountWallet(function(walletList, headers) {
             if (isDungeonOnly) {
+              //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
+              //Hard coded ID instead of title, since both are subject to the same change
               var dungeonCurrencyList = [5, 9, 11, 10, 13, 12, 14, 6, 7, 24];
               walletList = walletList.filter(function(value) {
                 return (dungeonCurrencyList.indexOf(value.id) >= 0);
@@ -41,7 +41,6 @@ module.exports = function() {
                 return dungeonCurrencyList.indexOf(a.id) - dungeonCurrencyList.indexOf(b.id);
               });
             }
-            //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
             var text = [];
             var goldIcon = 'https://render.guildwars2.com/file/98457F504BA2FAC8457F532C4B30EDC23929ACF9/619316.png';
             var lastIcon;
@@ -49,13 +48,9 @@ module.exports = function() {
               var currency = gw2api.findInData('id', walletList[i].id, 'currencies');
               if (currency &&
                 (!searchTerm || (searchTerm && sf.removePunctuationAndToLower(currency.name).replace(/\s+/g, '').includes(searchTerm)))
-                //&& (!isDungeonOnly || (dungeonCurrencyList.indexOf(currency.name) >= 0))
               ) {
                 if (currency.name == 'Coin') {
-                  var gold = Math.floor(walletList[i].value / 10000);
-                  var silver = Math.floor((walletList[i].value % 10000) / 100);
-                  var copper = Math.floor(walletList[i].value % 100);
-                  text.push("Coin: " + (gold > 0 ? gold + 'g ' : '') + (silver > 0 ? silver + 's ' : '') + (copper > 0 ? copper + 'c ' : ''));
+                  text.push("Coin: " + sf.coinToString(walletList[i].value));
                 } else
                   text.push(currency.name + ": " + walletList[i].value);
                 lastIcon = currency.icon;
@@ -100,8 +95,11 @@ module.exports = function() {
             bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !sf.userHasPermission(user, 'inventories') ? "with correct 'inventories' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
             return;
           }
-          bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets for spare " + matches[2] + ".");
           var searchTerm = matches[2].replace(/\s+/g, '');
+          var bankAll = false;
+          if (searchTerm == 'all')
+            bankAll = true;
+          bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets" + (!bankAll ? " for spare " + matches[2] : '') + ".");
 
           var inventories = [];
           //callback to give to the character fetch at the end to kick all this off.
@@ -133,14 +131,14 @@ module.exports = function() {
               //Reset, add worn items
               idList = [];
               countList = [];
-              for(var slot in jsonList[ch].equipment){
-                if(jsonList[ch].equipment[slot] !== null){
+              for (var slot in jsonList[ch].equipment) {
+                if (jsonList[ch].equipment[slot] !== null) {
                   idList.push(jsonList[ch].equipment[slot].id);
                   countList.push(1);
                 }
               }
               inventories.push({
-                source: jsonList[ch].name+" (worn)",
+                source: jsonList[ch].name + " (worn)",
                 ids: idList,
                 counts: countList
               });
@@ -186,98 +184,158 @@ module.exports = function() {
                 }
                 return Promise.all(itemPagePromises);
               }).then(function(results) { //find items with our original search string
-
                 var itemList = [];
                 for (var list in results)
                   itemList = itemList.concat(results[list]);
                 if (debug) bot.botkit.log("results has " + itemList.length + " items");
                 if (debug)
                   analyzeForMissingItems(inventories, itemList);
-
-                var itemSearchResults = [];
-                for (var i in itemList) {
-                  if (sf.removePunctuationAndToLower(itemList[i].name).replace(/\s+/g, '').includes(searchTerm))
-                    itemSearchResults.push(itemList[i]);
-                }
-                //And Display!
-                if (itemSearchResults.length === 0) { //no match
-                  bot.reply(message, "No item names on your account contain that exact text.");
-                } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-                  tallyAndDisplay(itemSearchResults[0]);
-                } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-                  var itemNameList = [];
-                  for (var n in itemSearchResults) {
-                    itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
+                if (bankAll)
+                  tallyAndDisplay(null, itemList);
+                else {
+                  var itemSearchResults = [];
+                  for (var i in itemList) {
+                    if (sf.removePunctuationAndToLower(itemList[i].name).replace(/\s+/g, '').includes(searchTerm))
+                      itemSearchResults.push(itemList[i]);
                   }
-                  bot.reply(message, {
-                    attachments: {
-                      attachment: {
-                        fallback: 'Too many items found in search.',
-                        text: "Bro. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
-                      }
+                  //And Display!
+                  if (itemSearchResults.length === 0) { //no match
+                    bot.reply(message, "No item names on your account contain that exact text.");
+                  } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+                    tallyAndDisplay(itemSearchResults[0]);
+                  } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+                    var itemNameList = [];
+                    for (var n in itemSearchResults) {
+                      itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
                     }
-                  });
-                } else { //10 items or less, allow user to choose
-                  bot.startConversation(message, function(err, convo) {
-                    var listofItems = '';
-                    for (var i in itemSearchResults) {
-                      listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
-                    }
-                    convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-                      //number, no, or repeat
-                      pattern: new RegExp(/^(\d{1,2})/i),
-                      callback: function(response, convo) {
-                        //if it's a number, and that number is within our search results, print it
-                        var matches = response.text.match(/^(\d{1,2})/i);
-                        var selection = matches[0];
-                        if (selection < itemSearchResults.length) {
-                          tallyAndDisplay(itemSearchResults[selection]);
-                        } else convo.repeat(); //invalid number. repeat choices.
-                        convo.next();
+                    bot.reply(message, {
+                      attachments: {
+                        attachment: {
+                          fallback: 'Too many items found in search.',
+                          text: "Bro. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+                        }
                       }
-                    }, {
-                      //negative response. Stop repeating the list.
-                      pattern: bot.utterances.no,
-                      callback: function(response, convo) {
-                        convo.say('¯\\_(ツ)_/¯');
-                        convo.next();
+                    });
+                  } else { //10 items or less, allow user to choose
+                    bot.startConversation(message, function(err, convo) {
+                      var listofItems = '';
+                      for (var i in itemSearchResults) {
+                        listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
                       }
-                    }, {
-                      default: true,
-                      callback: function(response, convo) {
-                        // loop back, user needs to pick or say no.
-                        convo.say("Nope. Next time choose a number of the item you'd like to see.");
-                        convo.next();
-                      }
-                    }]);
-                  });
+                      convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+                        //number, no, or repeat
+                        pattern: new RegExp(/^(\d{1,2})/i),
+                        callback: function(response, convo) {
+                          //if it's a number, and that number is within our search results, print it
+                          var matches = response.text.match(/^(\d{1,2})/i);
+                          var selection = matches[0];
+                          if (selection < itemSearchResults.length) {
+                            tallyAndDisplay(itemSearchResults[selection]);
+                          } else convo.repeat(); //invalid number. repeat choices.
+                          convo.next();
+                        }
+                      }, {
+                        //negative response. Stop repeating the list.
+                        pattern: bot.utterances.no,
+                        callback: function(response, convo) {
+                          convo.say('¯\\_(ツ)_/¯');
+                          convo.next();
+                        }
+                      }, {
+                        default: true,
+                        callback: function(response, convo) {
+                          // loop back, user needs to pick or say no.
+                          convo.say("Nope. Next time choose a number of the item you'd like to see.");
+                          convo.next();
+                        }
+                      }]);
+                    });
+                  }
                 }
               }).catch(function(error) {
                 bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
-                if(convo) convo.next();
+                if (convo) convo.next();
               });
           };
 
-          var tallyAndDisplay = function(itemToDisplay) {
+          var tallyAndDisplay = function(itemToDisplay, itemList) {
             var total = 0;
             var totalStrings = [];
-            for (var inv in inventories) {
-              var start = 0;
-              var sourceCount = 0;
-              var ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
-              while (ind >= 0) {
-                sourceCount += inventories[inv].counts[ind];
-                total += inventories[inv].counts[ind];
-                start = ind + 1;
-                ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+            if (itemToDisplay) { //find and count this item
+              for (var inv in inventories) {
+                var start = 0;
+                var sourceCount = 0;
+                var ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+                while (ind >= 0) {
+                  sourceCount += inventories[inv].counts[ind];
+                  total += inventories[inv].counts[ind];
+                  start = ind + 1;
+                  ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+                }
+                if (sourceCount > 0)
+                  totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
               }
-              if (sourceCount > 0)
-                totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
+              if (total > 0 && totalStrings.length > 0) {
+                bot.reply(message, "*" + itemToDisplay.name + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+              } else
+                bot.reply(message, "You have none of that. None.");
+            } else { //bank all command. List ALL items
+              itemToDisplay = {
+                name: 'Everything'
+              };
+              var tallyAllItemsArray = []; //index is id, object is like {total:total,sources:[{source: 'source', count:count}]}
+              for (var i in inventories) {
+                var begin = 0;
+                var uniqueIds = sf.arrayUnique(inventories[i].ids);
+                console.log(uniqueIds.length +" vs "+ inventories[i].ids.length);
+                for (var uid in uniqueIds) {
+                  var foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], begin);
+                  var subCount = 0;
+                  while (foundIndex >= 0) {
+                    subCount += inventories[i].counts[foundIndex];
+                    total += inventories[i].counts[foundIndex];
+                    begin = foundIndex + 1;
+                    foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], begin);
+                  }
+                  if (subCount > 0) {
+                    if (!tallyAllItemsArray[uniqueIds[uid]]) { //new item
+                      tallyAllItemsArray[uniqueIds[uid]] = {
+                        total: 0,
+                        sources: []
+                      };
+                    }
+                    tallyAllItemsArray[uniqueIds[uid]].total += subCount;
+                    tallyAllItemsArray[uniqueIds[uid]].sources.push({
+                      source: inventories[i].source,
+                      count: subCount
+                    });
+                  }
+                }
+              }
+              itemList.sort(function(a, b) {
+                if (a.name < b.name) return -1;
+                if (a.name > b.name) return 1;
+                return 0;
+              });
+              for (var il in itemList) {
+                if (tallyAllItemsArray[itemList[il].id]) {
+                  var pushString = itemList[il].name + ": " + tallyAllItemsArray[itemList[il].id].total
+                  for (var n in tallyAllItemsArray[itemList[il].id].sources)
+                    pushString += ", " + tallyAllItemsArray[itemList[il].id].sources[n].source + " has " + tallyAllItemsArray[itemList[il].id].sources[n].count;
+                  totalStrings.push(pushString)
+                }
+
+              }
+              bot.reply(message, {
+                attachments: {
+                  attachment: {
+                    fallback: 'ALL THE ITEMS',
+                    text: "==" + itemToDisplay.name + " Report: " + total + " owned==\n" + totalStrings.join('\n')
+                  }
+                }
+              });
+
             }
-            if (total > 0 && totalStrings.length > 0) {
-              bot.reply(message, "*" + itemToDisplay.name + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
-            } else
-              bot.reply(message, "You have none of that. None.");
           };
 
           //setup: fetch character list and callback

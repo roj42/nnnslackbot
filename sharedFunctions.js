@@ -101,13 +101,19 @@ module.exports = function() {
 			if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
 			else return this.randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
 		},
+		coinToString: function(value) {
+			var gold = Math.floor(value / 10000);
+			var silver = Math.floor((value % 10000) / 100);
+			var copper = Math.floor(value % 100);
+			return (gold > 0 ? gold + 'g ' : '') + (silver > 0 ? silver + 's ' : '') + (copper > 0 ? copper + 'c ' : '');
+		},
 
 		//return a random tantrum from the list
 		tantrum: function() {
 			var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.", "It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!",
 				"I'm quitting school! I'm gonna be a paperback writer!", "It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ",
 				"This was a terrible day to quit heroin!", "Inconceivable!", "You miserable piece of... dick-brained... horseshit... slime-sucking son of a whore, bitch!",
-				"Oh, it's on now!", "You're wrong, wrong, absolutely brimming over with wrong-ability.","Eat table!","I'm going to live with my Auntie and Uncle in Bel Air!"
+				"Oh, it's on now!", "You're wrong, wrong, absolutely brimming over with wrong-ability.", "Eat table!", "I'm going to live with my Auntie and Uncle in Bel Air!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},
