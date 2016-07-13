@@ -117,6 +117,7 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
   var todoList = [
     "shopping list: what you need yet to make a given recipe, given your inventory. Given.",
     "Scan achievements for low-hanging achievement fruit",
+    "show skinned character items as their skin, not their item name",
     "merge bank and wallet? (bank also searches your wallet)",
     "logging",
     "add sass from slack"
