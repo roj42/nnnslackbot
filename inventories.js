@@ -287,7 +287,6 @@ module.exports = function() {
               for (var i in inventories) {
                 var begin = 0;
                 var uniqueIds = sf.arrayUnique(inventories[i].ids);
-                console.log(uniqueIds.length +" vs "+ inventories[i].ids.length);
                 for (var uid in uniqueIds) {
                   var foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], begin);
                   var subCount = 0;
@@ -326,13 +325,28 @@ module.exports = function() {
                 }
 
               }
-              bot.reply(message, {
-                attachments: {
-                  attachment: {
+              var attachments = [];
+              var loopString = '';
+              for (var i in totalStrings) {
+                if (loopString.length + totalStrings[i].length > 7900) { //if we're about to go above the limit, peel off an attachment
+                  attachments.push({
                     fallback: 'ALL THE ITEMS',
-                    text: "==" + itemToDisplay.name + " Report: " + total + " owned==\n" + totalStrings.join('\n')
-                  }
+                    text: loopString
+                  });
+                  loopString = '';
                 }
+                loopString += totalStrings[i] + '\n';
+              }
+              if (loopString.length > 0) //catch the last attachment.
+                attachments.push({
+                fallback: 'ALL THE ITEMS',
+                text: loopString
+              });
+
+              attachments[0].title = "Everything Report: " + total + " total items";
+
+              bot.reply(message, {
+                attachments: attachments
               });
 
             }
