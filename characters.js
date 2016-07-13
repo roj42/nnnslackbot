@@ -30,7 +30,7 @@ module.exports = function() {
               for (var n in jsonList) {
                 if (debug) bot.botkit.log("char :" + jsonList[n]);
                 attachment.fields.push({
-                  value: jsonList[n].name + '\n' + jsonList[n].level + ' ' + (jsonList[n].race == 'Charr' ? 'Filthy Charr' : jsonList[n].race) + ' ' + jsonList[n].profession,
+                  value: jsonList[n].name + '\n' + (jsonList[n].race == 'Charr' ? 'Filthy Charr' : jsonList[n].race) + ' ' + jsonList[n].profession + ' ' + jsonList[n].level,
                   title: jsonList[n].deaths,
                   short: true,
                 });
