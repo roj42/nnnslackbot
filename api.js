@@ -4,7 +4,7 @@
 
 var config = {
 	baseUrl: 'https://api.guildwars2.com/v2/',
-	cacheTime: 86400,
+	cacheTime: 360,
 	cacheFile: null,
 	cachePath: '',
 	debug: false,
@@ -118,8 +118,10 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 
 	// Time to update and recache
 	var cacheKey = apiKey + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
-	if (config.debug && typeof cache.get(apiKey, cacheKey) === 'undefined') console.log("cacheKey for " + apiKey + " undefined: " + cacheKey);
-	if (bypassCache || typeof cache.get(apiKey, cacheKey) === 'undefined' || Date.now() > (cache.get(apiKey, cacheKey).updateAt + config.api[apiKey].cacheTime*1000)) {
+	if (config.debug)
+		if (typeof cache.get(apiKey, cacheKey) === 'undefined') console.log("cacheKey for " + apiKey + " undefined: " + cacheKey);
+		else console.log(apiKey + ", bypass: " + (bypassCache ? true : false) + ", written: " + new Date(cache.get(apiKey, cacheKey).updateAt) + ", comparing now to: " + new Date(cache.get(apiKey, cacheKey).updateAt + config.api[apiKey].cacheTime * 1000));
+	if (bypassCache || typeof cache.get(apiKey, cacheKey) === 'undefined' || Date.now() > (cache.get(apiKey, cacheKey).updateAt + config.api[apiKey].cacheTime * 1000)) {
 		if (config.debug && options) console.log("options are " + decodeURIComponent(querystring.stringify(options)));
 		var url = config.baseUrl + config.api[apiKey].uri + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
 
@@ -139,15 +141,16 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 					}, {
 						options: options
 					});
-					return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
-					// throw new Gw2ApiLibException(msg);
 				} else {
-						console.log(" Retrying: " + retry + " " + msg);
+					console.log(" Retrying: " + retry + " " + msg);
 					request({
 						uri: url,
 						timeout: 10000
 					}, retryCallback);
 				}
+				return; //roj42 - A thrown exception strangles the bot upstream, catching it doesn't stop a full halt.
+				// throw new Gw2ApiLibException(msg);
+
 			}
 			if (response.statusCode == 206) console.log("Received a 206 error, not all ids fetched.");
 			var headerSet = { //add header data for auto loading, if it came back
@@ -219,6 +222,7 @@ module.exports = function() {
 		// Returns true if successful, false if bad arguments
 		setCacheTime: function(seconds, apiKey) {
 			// Using argument structure [seconds]
+			if (config.debug) console.log("Setting cache of " + seconds + " sec on " + (apiKey ? apiKey : 'all apikeys'));
 			if (typeof seconds === 'undefined') {
 				seconds = apiKey;
 				apiKey = null;
@@ -271,7 +275,6 @@ module.exports = function() {
 			if (typeof callback !== 'function' || (typeof params !== 'undefined' && typeof params !== 'object')) {
 				return false;
 			}
-
 			apiRequest(apiKey, params, callback, bypassCache);
 			return true;
 		};
@@ -315,7 +318,7 @@ module.exports = function() {
 		}
 	};
 	ret.forgeRequest = function(callback) {
-		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || Date.now() > (cache.get('recipes', 'forgeRecipes').updateAt + (config.api[apiKey].cacheTime*1000))) {
+		if (typeof cache.get('recipes', 'forgeRecipes') === 'undefined' || Date.now() > (cache.get('recipes', 'forgeRecipes').updateAt + (config.api[apiKey].cacheTime * 1000))) {
 
 			request(forgeOptions, function(error, response, body) {
 				if (error) return new Error(error);

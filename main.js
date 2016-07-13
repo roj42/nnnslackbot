@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.13"; //hardcode for now
+var version = "2.13.1"; //hardcode for now
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -81,8 +81,15 @@ prefix.addHelp(helpFile);
 
 
 var gw2api = require('./api.js');
+gw2api.setCacheTime(86400, 'quaggans');
+gw2api.setCacheTime(86400, 'currencies');
+gw2api.setCacheTime(86400, 'items');
+gw2api.setCacheTime(86400, 'skins');
+gw2api.setCacheTime(86400, 'titles');
+gw2api.setCacheTime(86400, 'minis');
 gw2api.setCacheTime(3600, 'achievements');
 gw2api.setCacheTime(3600, 'achievementsCategories');
+
 gw2api.setCachePath('./slackbotDB/caches/');
 gw2api.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
@@ -465,7 +472,7 @@ function halfCallback(apiKey) {
 }
 
 function errorCallback(msg) {
-  sf.replyWith("Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.', true);
+  sf.replyWith("Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.', false);
   bot.botkit.log("error loading: " + msg);
 }
 
@@ -581,6 +588,7 @@ function reloadAllData(bypass) {
   gw2api.load("currencies", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);
+  sf.replyWith("Starting to load currencies.", true);
 
   gw2api.data.recipes = [];
   gw2api.data.items = [];
