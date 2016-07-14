@@ -1,7 +1,9 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = [];
-
+var itemList = [];
+var skinList = [];
+var debug = true;
 module.exports = function() {
   var ret = {
 
@@ -115,12 +117,15 @@ module.exports = function() {
               for (var ch in jsonList) {
                 var idList = [];
                 var countList = [];
+                var skinList = [];
+
                 for (var bg in jsonList[ch].bags) {
                   if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot
                     for (var it in jsonList[ch].bags[bg].inventory) {
                       if (jsonList[ch].bags[bg].inventory[it] !== null) { //there can be no item in the bag
                         idList.push(jsonList[ch].bags[bg].inventory[it].id);
                         countList.push(jsonList[ch].bags[bg].inventory[it].count);
+                        skinList.push(jsonList[ch].bags[bg].inventory[it].skin || 0);
                       }
                     }
                   }
@@ -128,109 +133,107 @@ module.exports = function() {
                 inventories.push({
                   source: jsonList[ch].name,
                   ids: idList,
-                  counts: countList
+                  counts: countList,
+                  skins: skinList
                 });
                 //Reset, add worn items
                 idList = [];
                 countList = [];
+                skinList = [];
                 for (var slot in jsonList[ch].equipment) {
                   if (jsonList[ch].equipment[slot] !== null) {
                     idList.push(jsonList[ch].equipment[slot].id);
                     countList.push(1);
+                    skinList.push(jsonList[ch].equipment[slot].skin || 0);
                   }
                 }
                 inventories.push({
                   source: jsonList[ch].name + " (worn)",
                   ids: idList,
-                  counts: countList
+                  counts: countList,
+                  skins: skinList
                 });
               }
             })
             //setup: promise fetch shared inventory, bank, and material storage.
 
-          .then(function() {
-            Promise.all([
-                gw2api.promise.accountBank(['all'], user.access_token),
-                gw2api.promise.accountInventory(['all'], user.access_token),
-                gw2api.promise.accountMaterials(['all'], user.access_token)
-              ])
-              .then(collateOwnedItems)
-              .then(fetchAllItemIds).then(function(results) { //find items with our original search string
-                var itemList = [];
-                for (var list in results)
-                  itemList = itemList.concat(results[list]);
-                if (debug) bot.botkit.log("results has " + itemList.length + " items");
-                if (debug)
-                  analyzeForMissingItems(inventories, itemList);
-                if (bankAll)
-                  tallyAndDisplay(null, itemList);
-                else {
-                  var itemSearchResults = [];
-                  for (var i in itemList) {
-                    if (sf.removePunctuationAndToLower(itemList[i].name).replace(/\s+/g, '').includes(searchTerm))
-                      itemSearchResults.push(itemList[i]);
-                  }
-                  //And Display!
-                  if (itemSearchResults.length === 0) { //no match
-                    bot.reply(message, "No item names on your account contain that exact text.");
-                  } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-                    tallyAndDisplay(itemSearchResults[0]);
-                  } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-                    var itemNameList = [];
-                    for (var n in itemSearchResults) {
-                      itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
-                    }
-                    bot.reply(message, {
-                      attachments: {
-                        attachment: {
-                          fallback: 'Too many items found in search.',
-                          text: "Bro. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
-                        }
-                      }
-                    });
-                  } else { //10 items or less, allow user to choose
-                    bot.startConversation(message, function(err, convo) {
-                      var listofItems = '';
-                      for (var i in itemSearchResults) {
-                        listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
-                      }
-                      convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-                        //number, no, or repeat
-                        pattern: new RegExp(/^(\d{1,2})/i),
-                        callback: function(response, convo) {
-                          //if it's a number, and that number is within our search results, print it
-                          var matches = response.text.match(/^(\d{1,2})/i);
-                          var selection = matches[0];
-                          if (selection < itemSearchResults.length) {
-                            tallyAndDisplay(itemSearchResults[selection]);
-                          } else convo.repeat(); //invalid number. repeat choices.
-                          convo.next();
-                        }
-                      }, {
-                        //negative response. Stop repeating the list.
-                        pattern: bot.utterances.no,
-                        callback: function(response, convo) {
-                          convo.say('¯\\_(ツ)_/¯');
-                          convo.next();
-                        }
-                      }, {
-                        default: true,
-                        callback: function(response, convo) {
-                          // loop back, user needs to pick or say no.
-                          convo.say("Nope. Next time choose a number of the item you'd like to see.");
-                          convo.next();
-                        }
-                      }]);
-                    });
-                  }
+          .then(Promise.all([
+              gw2api.promise.accountBank(['all'], user.access_token),
+              gw2api.promise.accountInventory(['all'], user.access_token),
+              gw2api.promise.accountMaterials(['all'], user.access_token)
+            ]))
+            .then(collateOwnedItems)
+            .then(fetchAllItemAndSkinIds)
+            .then(function() { //find items with our original search string
+              if (bankAll)
+                tallyAndDisplay(null, itemList);
+              else {
+                var itemSearchResults = [];
+                for (var i in itemList) {
+                  if (sf.removePunctuationAndToLower(getInventoryName(itemList[i])).replace(/\s+/g, '').includes(searchTerm))
+                    itemSearchResults.push(itemList[i]);
                 }
-              }).catch(function(error) {
-                bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
-                if (convo) convo.next();
-              });
-          });
+                //And Display!
+                if (itemSearchResults.length === 0) { //no match
+                  bot.reply(message, "No item names on your account contain that exact text.");
+                } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+                  tallyAndDisplay(itemSearchResults[0]);
+                } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+                  var itemNameList = [];
+                  for (var n in itemSearchResults) {
+                    itemNameList.push(getInventoryName(itemSearchResults[n]) + sf.levelAndRarityForItem(itemSearchResults[n]));
+                  }
+                  bot.reply(message, {
+                    attachments: {
+                      attachment: {
+                        fallback: 'Too many items found in search.',
+                        text: "Bro. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+                      }
+                    }
+                  });
+                } else { //10 items or less, allow user to choose
+                  bot.startConversation(message, function(err, convo) {
+                    var listofItems = '';
+                    for (var i in itemSearchResults) {
+                      listofItems += '\n' + [i] + ": " + getInventoryName(itemSearchResults[i]) + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+                    }
+                    convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+                      //number, no, or repeat
+                      pattern: new RegExp(/^(\d{1,2})/i),
+                      callback: function(response, convo) {
+                        //if it's a number, and that number is within our search results, print it
+                        var matches = response.text.match(/^(\d{1,2})/i);
+                        var selection = matches[0];
+                        if (selection < itemSearchResults.length) {
+                          tallyAndDisplay(itemSearchResults[selection]);
+                        } else convo.repeat(); //invalid number. repeat choices.
+                        convo.next();
+                      }
+                    }, {
+                      //negative response. Stop repeating the list.
+                      pattern: bot.utterances.no,
+                      callback: function(response, convo) {
+                        convo.say('¯\\_(ツ)_/¯');
+                        convo.next();
+                      }
+                    }, {
+                      default: true,
+                      callback: function(response, convo) {
+                        // loop back, user needs to pick or say no.
+                        convo.say("Nope. Next time choose a number of the item you'd like to see.");
+                        convo.next();
+                      }
+                    }]);
+                  });
+                }
+              }
+            })
+            .catch(function(error) {
+              bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
+              if (convo) convo.next();
+            });
 
-          var tallyAndDisplay = function(itemToDisplay, itemList) {
+          var tallyAndDisplay = function(itemToDisplay) {
             var total = 0;
             var totalStrings = [];
             if (itemToDisplay) { //find and count this item
@@ -248,7 +251,7 @@ module.exports = function() {
                   totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
               }
               if (total > 0 && totalStrings.length > 0) {
-                bot.reply(message, "*" + itemToDisplay.name + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+                bot.reply(message, "*" + getInventoryName(itemToDisplay) + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
               } else
                 bot.reply(message, "You have none of that. None.");
             } else { //bank all command. List ALL items
@@ -287,7 +290,7 @@ module.exports = function() {
               });
               for (var il in itemList) {
                 if (tallyAllItemsArray[itemList[il].id]) {
-                  var pushString = itemList[il].name + ": " + tallyAllItemsArray[itemList[il].id].total;
+                  var pushString = getInventoryName(itemList[il]) + ": " + tallyAllItemsArray[itemList[il].id].total;
                   for (var n in tallyAllItemsArray[itemList[il].id].sources) {
                     pushString += ", " + tallyAllItemsArray[itemList[il].id].sources[n].source + " has " + tallyAllItemsArray[itemList[il].id].sources[n].count;
                   }
@@ -318,10 +321,12 @@ module.exports = function() {
               bot.reply(message, {
                 attachments: attachments
               });
-
             }
-          };
+            inventories = [];
+            itemList = [];
+            skinList = [];
 
+          };
         });
       });
     },
@@ -336,39 +341,89 @@ module.exports = function() {
   return ret;
 }();
 
+
+function getInventoryName(itemToDisplay) {
+  var skinFind = function(skin) {
+    return skin.id == inventories[source].skins[inSource];
+  };
+  for (var source in inventories) {
+    var inSource = inventories[source].ids.indexOf(itemToDisplay.id);
+    if (inSource >= 0 && inventories[source].skins[inSource] !== 0)
+      return skinList.find(skinFind).name;
+  }
+  return itemToDisplay.name;
+}
+
 function collateOwnedItems(results) {
   var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
   for (var sourceList in results) {
     var idList = [];
     var countList = [];
+    var skinsList = [];
     for (var item in results[sourceList]) {
       if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
         if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
         idList.push(results[sourceList][item].id);
         countList.push(results[sourceList][item].count);
+        skinsList.push(results[sourceList][item].count || 0);
       }
     }
     inventories.push({
       source: sourceNames[sourceList],
       ids: idList,
-      counts: countList
+      counts: countList,
+      skins: skinsList
     });
   }
   if (debug)
     for (var ch in inventories)
-      bot.botkit.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
+      sf.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
   return inventories;
 }
 
-function fetchAllItemIds() { //collate the IDs of all items in all inventories, and fetch
-  var ownedItemIds = [];
-  for (var inv in inventories)
-    ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
-  ownedItemIds = sf.arrayUnique(ownedItemIds);
-  if (debug) bot.botkit.log("Fetching " + ownedItemIds.length + " unique items");
-  var itemPagePromises = [];
-  for (var i = 0; i < ownedItemIds.length; i += 200) {
-    itemPagePromises.push(gw2api.promise.items(ownedItemIds.slice(i, i + 200)));
-  }
-  return Promise.all(itemPagePromises);
+function fetchAllItemAndSkinIds() { //collate the IDs of all items in all inventories, and fetch
+  return new Promise(function(resolve, reject) {
+    var itemPagePromises = [];
+    var ownedItemIds = [];
+    for (var inv in inventories)
+      ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
+    ownedItemIds = sf.arrayUnique(ownedItemIds);
+    if (debug) sf.log("Fetching " + ownedItemIds.length + " unique items");
+    for (var i = 0; i < ownedItemIds.length; i += 200) {
+      itemPagePromises.push(gw2api.promise.items(ownedItemIds.slice(i, i + 200)));
+    }
+    return Promise.all(itemPagePromises)
+      .then(function(results) {
+        for (var list in results) {
+          itemList = itemList.concat(results[list]);
+        }
+        if (debug) {
+          sf.log("results has " + itemList.length + " items");
+        }
+
+        var skinPagePromises = [];
+        var ownedSkinIds = [];
+        for (var inv in inventories)
+          ownedSkinIds = ownedSkinIds.concat(inventories[inv].skins);
+        ownedSkinIds = sf.arrayUnique(ownedSkinIds);
+        ownedSkinIds.splice(ownedSkinIds.indexOf(0), 1);
+        if (debug) sf.log("Fetching " + ownedSkinIds.length + " unique skins");
+        for (var i = 0; i < ownedSkinIds.length; i += 200) {
+          skinPagePromises.push(gw2api.promise.skins(ownedSkinIds.slice(i, i + 200)));
+        }
+        Promise.all(skinPagePromises)
+          .then(function(results) {
+            for (var list in results) {
+              skinList = skinList.concat(results[list]);
+            }
+            if (debug) {
+              sf.log("results has " + skinList.length + " skins");
+            }
+          });
+      })
+      .then(resolve)
+      .catch(function(error) {
+        reject(error);
+      });
+  });
 }
