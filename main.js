@@ -87,6 +87,7 @@ gw2api.setCacheTime(86400, 'items');
 gw2api.setCacheTime(86400, 'skins');
 gw2api.setCacheTime(86400, 'titles');
 gw2api.setCacheTime(86400, 'minis');
+gw2api.setCacheTime(86400, 'recipes');
 gw2api.setCacheTime(3600, 'achievements');
 gw2api.setCacheTime(3600, 'achievementsCategories');
 
@@ -109,18 +110,17 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "bank all - a list of all items and qty by holder");
+  bot.reply(message, "show skinned character items as their skin, not their item name");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "shopping list: what you need yet to make a given recipe, given your inventory. Given.",
     "Scan achievements for low-hanging achievement fruit",
-    "show skinned character items as their skin, not their item name",
-    "merge bank and wallet? (bank also searches your wallet)",
     "logging",
-    "add sass from slack"
+    "add sass from slack",
+    "merge bank and wallet? (bank also searches your wallet)",
+    "shopping list: what you need yet to make a given recipe, given your inventory. Given."
   ];
   bot.reply(message, todoList.join("\n"));
 });
