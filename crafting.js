@@ -190,7 +190,7 @@ function getMessageWithRecipeAttachment(itemToMake) {
   if (itemToMake.description) {
     descripFlavorized = "\n" + sf.replaceGWFlavorTextTags(itemToMake.description, "_");
   }
-  if(debug) sf.log("Done crafting message for "+itemToMake.name);
+  if (debug) sf.log("Done crafting message for " + itemToMake.name);
 
   return {
     'text': itemToMake.name + (amountString ? " x " + amountString : "") + sf.levelAndRarityForItem(itemToMake) + descripFlavorized,
@@ -239,7 +239,7 @@ function assembleRecipeAttachment(itemToDisplay) {
     fields: [],
     "fallback": itemToDisplay.name + " has " + ingredients.length + " items."
   };
-  if(debug) sf.log("Item has an ingredient list of length "+ingredients.length);
+  if (debug) sf.log("Item has an ingredient list of length " + ingredients.length);
   for (var i in ingredients) {
     item = gw2api.findInData('id', ingredients[i].item_id, 'items');
     if (item) {
@@ -301,7 +301,7 @@ function findCraftableItemByName(searchName) {
   else return itemsFound;
 }
 
-function getBaseIngredients(ingredients) {
+function getBaseIngredients(ingredients, inventoryIngredients) {
 
   //Adds or increments ingredients
   var addIngredient = function(existingList, ingredientToAdd) {
@@ -318,7 +318,7 @@ function getBaseIngredients(ingredients) {
   };
   //ingredient format is {"item_id":19721,"count":1}
   var baseIngredients = []; //ingredients to send back, unmakeable atoms
-  var extraIngredients = []; //extra items left over after producing (usually a refinement)
+  var extraIngredients = inventoryIngredients || []; //extra items left over after producing (usually a refinement)
   //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
   for (var i = 0; i < ingredients.length; i++) { //Length changes. Careful, friend
     var makeableIngredient = gw2api.findInData('output_item_id', ingredients[i].item_id, 'recipes');
@@ -374,6 +374,7 @@ function getBaseIngredients(ingredients) {
       }
     }
   }
+  //The extra pile can be the characters entire inventory.
   if (debug) {
     sf.log("extra pile is:");
     for (var j in extraIngredients) {

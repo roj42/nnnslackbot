@@ -1,5 +1,7 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
+var inventories = [];
+
 module.exports = function() {
   var ret = {
 
@@ -101,89 +103,59 @@ module.exports = function() {
             bankAll = true;
           bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets" + (!bankAll ? " for spare " + matches[2] : '') + ".");
 
-          var inventories = [];
-          //callback to give to the character fetch at the end to kick all this off.
-          var charactersCallback = function(jsonList, headers) {
-            if (jsonList.text || jsonList.error) {
-              bot.reply(message, "Oops. I got this error when asking about your character inventories: " + (jsonList.text ? jsonList.text : jsonList.error) + '\n' + JSON.stringify(err));
-              return;
-            }
-            //Build a list of all inventories. Character and account
-            //setup:promise fetch items in each character inventory
-            for (var ch in jsonList) {
-              var idList = [];
-              var countList = [];
-              for (var bg in jsonList[ch].bags) {
-                if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot
-                  for (var it in jsonList[ch].bags[bg].inventory) {
-                    if (jsonList[ch].bags[bg].inventory[it] !== null) { //there can be no item in the bag
-                      idList.push(jsonList[ch].bags[bg].inventory[it].id);
-                      countList.push(jsonList[ch].bags[bg].inventory[it].count);
+          //setup: fetch character list and callback
+          gw2api.promise.characters(['all'], user.access_token)
+            .then(function(jsonList, headers) {
+              if (jsonList.text || jsonList.error) {
+                bot.reply(message, "Oops. I got this error when asking about your character inventories: " + (jsonList.text ? jsonList.text : jsonList.error) + '\n' + JSON.stringify(err));
+                return;
+              }
+              //Build a list of all inventories. Character and account
+              //setup:promise fetch items in each character inventory
+              for (var ch in jsonList) {
+                var idList = [];
+                var countList = [];
+                for (var bg in jsonList[ch].bags) {
+                  if (jsonList[ch].bags[bg] !== null) { //there can be no bag in the slot
+                    for (var it in jsonList[ch].bags[bg].inventory) {
+                      if (jsonList[ch].bags[bg].inventory[it] !== null) { //there can be no item in the bag
+                        idList.push(jsonList[ch].bags[bg].inventory[it].id);
+                        countList.push(jsonList[ch].bags[bg].inventory[it].count);
+                      }
                     }
                   }
                 }
-              }
-              inventories.push({
-                source: jsonList[ch].name,
-                ids: idList,
-                counts: countList
-              });
-              //Reset, add worn items
-              idList = [];
-              countList = [];
-              for (var slot in jsonList[ch].equipment) {
-                if (jsonList[ch].equipment[slot] !== null) {
-                  idList.push(jsonList[ch].equipment[slot].id);
-                  countList.push(1);
+                inventories.push({
+                  source: jsonList[ch].name,
+                  ids: idList,
+                  counts: countList
+                });
+                //Reset, add worn items
+                idList = [];
+                countList = [];
+                for (var slot in jsonList[ch].equipment) {
+                  if (jsonList[ch].equipment[slot] !== null) {
+                    idList.push(jsonList[ch].equipment[slot].id);
+                    countList.push(1);
+                  }
                 }
+                inventories.push({
+                  source: jsonList[ch].name + " (worn)",
+                  ids: idList,
+                  counts: countList
+                });
               }
-              inventories.push({
-                source: jsonList[ch].name + " (worn)",
-                ids: idList,
-                counts: countList
-              });
-            }
+            })
             //setup: promise fetch shared inventory, bank, and material storage.
+
+          .then(function() {
             Promise.all([
                 gw2api.promise.accountBank(['all'], user.access_token),
                 gw2api.promise.accountInventory(['all'], user.access_token),
                 gw2api.promise.accountMaterials(['all'], user.access_token)
               ])
-              .then(function(results) {
-                var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
-                for (var sourceList in results) {
-                  var idList = [];
-                  var countList = [];
-                  for (var item in results[sourceList]) {
-                    if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
-                      if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
-                      idList.push(results[sourceList][item].id);
-                      countList.push(results[sourceList][item].count);
-                    }
-                  }
-                  inventories.push({
-                    source: sourceNames[sourceList],
-                    ids: idList,
-                    counts: countList
-                  });
-                }
-                if (debug)
-                  for (var ch in inventories)
-                    bot.botkit.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
-                return inventories;
-              })
-              .then(function() { //collate the IDs of all items in all inventories, and fetch
-                var ownedItemIds = [];
-                for (var inv in inventories)
-                  ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
-                ownedItemIds = sf.arrayUnique(ownedItemIds);
-                if (debug) bot.botkit.log("Fetching " + ownedItemIds.length + " unique items");
-                var itemPagePromises = [];
-                for (var i = 0; i < ownedItemIds.length; i += 200) {
-                  itemPagePromises.push(gw2api.promise.items(ownedItemIds.slice(i, i + 200)));
-                }
-                return Promise.all(itemPagePromises);
-              }).then(function(results) { //find items with our original search string
+              .then(collateOwnedItems)
+              .then(fetchAllItemIds).then(function(results) { //find items with our original search string
                 var itemList = [];
                 for (var list in results)
                   itemList = itemList.concat(results[list]);
@@ -256,7 +228,7 @@ module.exports = function() {
                 bot.reply(message, "I got an error on my way to promise land from the bank. Send help!\nTell them " + error);
                 if (convo) convo.next();
               });
-          };
+          });
 
           var tallyAndDisplay = function(itemToDisplay, itemList) {
             var total = 0;
@@ -280,9 +252,6 @@ module.exports = function() {
               } else
                 bot.reply(message, "You have none of that. None.");
             } else { //bank all command. List ALL items
-              itemToDisplay = {
-                name: 'Everything'
-              };
               var tallyAllItemsArray = []; //index is id, object is like {total:total,sources:[{source: 'source', count:count}]}
               for (var i in inventories) {
                 var begin = 0;
@@ -318,24 +287,25 @@ module.exports = function() {
               });
               for (var il in itemList) {
                 if (tallyAllItemsArray[itemList[il].id]) {
-                  var pushString = itemList[il].name + ": " + tallyAllItemsArray[itemList[il].id].total
-                  for (var n in tallyAllItemsArray[itemList[il].id].sources)
+                  var pushString = itemList[il].name + ": " + tallyAllItemsArray[itemList[il].id].total;
+                  for (var n in tallyAllItemsArray[itemList[il].id].sources) {
                     pushString += ", " + tallyAllItemsArray[itemList[il].id].sources[n].source + " has " + tallyAllItemsArray[itemList[il].id].sources[n].count;
-                  totalStrings.push(pushString)
+                  }
+                  totalStrings.push(pushString);
                 }
 
               }
               var attachments = [];
               var loopString = '';
-              for (var i in totalStrings) {
-                if (loopString.length + totalStrings[i].length > 7900) { //if we're about to go above the limit, peel off an attachment
+              for (var ls in totalStrings) {
+                if (loopString.length + totalStrings[ls].length > 7900) { //if we're about to go above the limit, peel off an attachment
                   attachments.push({
                     fallback: 'ALL THE ITEMS',
                     text: loopString
                   });
                   loopString = '';
                 }
-                loopString += totalStrings[i] + '\n';
+                loopString += totalStrings[ls] + '\n';
               }
               if (loopString.length > 0) //catch the last attachment.
                 attachments.push({
@@ -352,11 +322,6 @@ module.exports = function() {
             }
           };
 
-          //setup: fetch character list and callback
-          gw2api.characters(charactersCallback, {
-            access_token: user.access_token,
-            ids: 'all'
-          });
         });
       });
     },
@@ -370,3 +335,40 @@ module.exports = function() {
   };
   return ret;
 }();
+
+function collateOwnedItems(results) {
+  var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
+  for (var sourceList in results) {
+    var idList = [];
+    var countList = [];
+    for (var item in results[sourceList]) {
+      if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
+        if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
+        idList.push(results[sourceList][item].id);
+        countList.push(results[sourceList][item].count);
+      }
+    }
+    inventories.push({
+      source: sourceNames[sourceList],
+      ids: idList,
+      counts: countList
+    });
+  }
+  if (debug)
+    for (var ch in inventories)
+      bot.botkit.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
+  return inventories;
+}
+
+function fetchAllItemIds() { //collate the IDs of all items in all inventories, and fetch
+  var ownedItemIds = [];
+  for (var inv in inventories)
+    ownedItemIds = ownedItemIds.concat(inventories[inv].ids);
+  ownedItemIds = sf.arrayUnique(ownedItemIds);
+  if (debug) bot.botkit.log("Fetching " + ownedItemIds.length + " unique items");
+  var itemPagePromises = [];
+  for (var i = 0; i < ownedItemIds.length; i += 200) {
+    itemPagePromises.push(gw2api.promise.items(ownedItemIds.slice(i, i + 200)));
+  }
+  return Promise.all(itemPagePromises);
+}
