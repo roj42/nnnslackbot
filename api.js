@@ -289,7 +289,7 @@ module.exports = function() {
 				else if (idsToFetch.length > 200) reject("Limit 200 ids per fetch");
 				else {
 					var listCallback = function(jsonRes, headers) {
-						if (config.debug) console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
+						if (config.debug)console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
 						if (jsonRes.text || jsonRes.err) {
 							reject(JSON.stringify(jsonRes));
 						} else {

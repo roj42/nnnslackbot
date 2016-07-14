@@ -3,7 +3,7 @@ var sf = require('./sharedFunctions.js');
 var inventories = [];
 var itemList = [];
 var skinList = [];
-var debug = true;
+var debug = false;
 module.exports = function() {
   var ret = {
 
@@ -11,6 +11,7 @@ module.exports = function() {
 
       ////wallet
       controller.hears(['^wallet(.*)', '^dungeonwallet(.*)', '^dw(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+
         controller.storage.users.get(message.user, function(err, user) {
           if (err) {
             bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
@@ -81,6 +82,10 @@ module.exports = function() {
 
       ////BANK
       controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+        inventories = [];
+        itemList = [];
+        skinList = [];
+
         controller.storage.users.get(message.user, function(err, user) {
           if (err) {
             bot.reply(message, "I got an error loading your data (or you have no access token set up). Try again later");
@@ -322,10 +327,6 @@ module.exports = function() {
                 attachments: attachments
               });
             }
-            inventories = [];
-            itemList = [];
-            skinList = [];
-
           };
         });
       });
@@ -356,6 +357,7 @@ function getInventoryName(itemToDisplay) {
 
 function collateOwnedItems(results) {
   var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
+  if (debug) sf.log((results ? results.length : 0) + " owned item results returned.\n" + JSON.stringify(results));
   for (var sourceList in results) {
     var idList = [];
     var countList = [];
