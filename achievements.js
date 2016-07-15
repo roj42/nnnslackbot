@@ -354,7 +354,7 @@ function displayAchievementBit(bit, doneFlag, data) {
       var cheevoName = 'unknown achievement';
       var foundCheevo = gw2api.findInData('id', foundTitle.achievement, 'achievements');
       if (foundCheevo) cheevoName = foundCheevo.name;
-      return foundTitle.name + " (Title from " + cheevoName + ")";
+      return foundTitle.name;// + " (Title from " + cheevoName + ")";
     } else {
       return "Unknown title: " + bit.id + (doneFlag ? " - DONE" : '');
     }
