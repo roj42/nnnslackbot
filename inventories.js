@@ -162,11 +162,13 @@ module.exports = function() {
             })
             //setup: promise fetch shared inventory, bank, and material storage.
 
-          .then(Promise.all([
-              gw2api.promise.accountBank(['all'], user.access_token),
-              gw2api.promise.accountInventory(['all'], user.access_token),
-              gw2api.promise.accountMaterials(['all'], user.access_token)
-            ]))
+          .then(function() {
+              return Promise.all([
+                gw2api.promise.accountBank(['all'], user.access_token),
+                gw2api.promise.accountInventory(['all'], user.access_token),
+                gw2api.promise.accountMaterials(['all'], user.access_token)
+              ])
+            })
             .then(collateOwnedItems)
             .then(fetchAllItemAndSkinIds)
             .then(function() { //find items with our original search string
@@ -344,43 +346,47 @@ module.exports = function() {
 
 
 function getInventoryName(itemToDisplay) {
-  var skinFind = function(skin) {
-    return skin.id == inventories[source].skins[inSource];
-  };
   for (var source in inventories) {
     var inSource = inventories[source].ids.indexOf(itemToDisplay.id);
-    if (inSource >= 0 && inventories[source].skins[inSource] !== 0)
-      return skinList.find(skinFind).name;
+    if (inSource >= 0 && inventories[source].skins[inSource] != 0) {
+      var skinFound = skinList.find(function(skin) {
+        return skin.id == inventories[source].skins[inSource];
+      });
+      if (skinFound)
+        return skinFound.name;
+    }
   }
   return itemToDisplay.name;
 }
 
 function collateOwnedItems(results) {
-  var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
-  if (debug) sf.log((results ? results.length : 0) + " owned item results returned.\n" + JSON.stringify(results));
-  for (var sourceList in results) {
-    var idList = [];
-    var countList = [];
-    var skinsList = [];
-    for (var item in results[sourceList]) {
-      if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
-        if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
-        idList.push(results[sourceList][item].id);
-        countList.push(results[sourceList][item].count);
-        skinsList.push(results[sourceList][item].count || 0);
+  return new Promise(function(resolve, reject) {
+    var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
+    if (debug) sf.log((results ? results.length : "0 (undefined)") + " owned item results returned, " + ((results[0] ? results[0].length : 0) + (results[1] ? results[1].length : 0) + (results[2] ? results[2].length : 0)) + " total items");
+    for (var sourceList in results) {
+      var idList = [];
+      var countList = [];
+      var skinsList = [];
+      for (var item in results[sourceList]) {
+        if (results[sourceList][item] !== null && (results[sourceList][item].count && results[sourceList][item].count !== 0)) {
+          if (results[sourceList][item].id === null) console.log("null item " + JSON.stringify(results[sourceList][item]));
+          idList.push(results[sourceList][item].id);
+          countList.push(results[sourceList][item].count);
+          skinsList.push(results[sourceList][item].skin || 0);
+        }
       }
+      inventories.push({
+        source: sourceNames[sourceList],
+        ids: idList,
+        counts: countList,
+        skins: skinsList
+      });
     }
-    inventories.push({
-      source: sourceNames[sourceList],
-      ids: idList,
-      counts: countList,
-      skins: skinsList
-    });
-  }
-  if (debug)
-    for (var ch in inventories)
-      sf.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
-  return inventories;
+    if (debug)
+      for (var ch in inventories)
+        sf.log(inventories[ch].source + " has " + (inventories[ch].counts.length == inventories[ch].ids.length ? inventories[ch].counts.length + " items" : " an error"));
+    resolve(inventories);
+  });
 }
 
 function fetchAllItemAndSkinIds() { //collate the IDs of all items in all inventories, and fetch
@@ -408,7 +414,7 @@ function fetchAllItemAndSkinIds() { //collate the IDs of all items in all invent
         for (var inv in inventories)
           ownedSkinIds = ownedSkinIds.concat(inventories[inv].skins);
         ownedSkinIds = sf.arrayUnique(ownedSkinIds);
-        ownedSkinIds.splice(ownedSkinIds.indexOf(0), 1);
+        ownedSkinIds.splice(ownedSkinIds.indexOf(0), 1); //Remove 0 (inserted as a placeholder for blank skins)
         if (debug) sf.log("Fetching " + ownedSkinIds.length + " unique skins");
         for (var i = 0; i < ownedSkinIds.length; i += 200) {
           skinPagePromises.push(gw2api.promise.skins(ownedSkinIds.slice(i, i + 200)));
