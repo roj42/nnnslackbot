@@ -116,8 +116,9 @@ controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "shopping list: what you need yet to make a given recipe, given your inventory. Given.",
-    "Scan achievements for low-hanging achievement fruit",
+  	"dyes: list known dyes for a given player",
+  	"dyes: list common colors between given players",
+  	"dyes: generate random 3 color scheme given common colors between players", 
     "logging",
     "add sass from slack",
     "merge bank and wallet? (bank also searches your wallet)"
