@@ -23,23 +23,37 @@ module.exports = function() {
 						var userColorPromises = [];
 						for (var usr in validUsers)
 							if (validUsers[usr] !== null) {
-								sf.replyWith(validUsers[usr].name + " is a valid user", true);
+								if (debug) sf.log(validUsers[usr].name + " is a valid user", true);
 								userColorPromises.push(gw2api.promise.accountDyes(["all"], validUsers[usr].access_token, true));
 							}
-						if(debug) sf.log(userColorPromises.length + " account dye lists to fetch");
+						if (debug) sf.log(userColorPromises.length + " account dye lists to fetch");
 						return Promise.all(userColorPromises);
 					})
 					.then(function(colorLists) {
-						if(debug) sf.log("Colorlists: " + JSON.stringify(colorLists));
+						if (debug) sf.log("Colorlists: " + JSON.stringify(colorLists));
 						var colorText = [];
+						var colorIcons = ["http://wiki.guildwars2.com/images/c/c4/Unidentified_Dye.png"];
 						for (var id in colorLists[0]) {
 							var color = gw2api.findInData("id", colorLists[0][id], "colors");
 							if (color && color.name)
 								colorText.push(color.name);
 							else sf.log("Invalid color id: " + colorLists[0][id]);
+							var item = gw2api.findInData("id", color.item, "items");
+							if (item && item.icon)
+								colorIcons.push(item.icon);
 						}
 						colorText.sort();
-						sf.replyWith("*" + colorText.length + " Known Dyes:*\n" + colorText.join(", "));
+						sf.log(JSON.stringify(colorIcons));
+						sf.replyWith({
+							attachments: {
+								attachment: {
+									fallback: 'A list of ' + colorText.length + ' dyes.',
+									title: "Dyes Known: " + colorText.length,
+									text: colorText.join(", "),
+									thumb_url: sf.randomOneOf(colorIcons)
+								}
+							}
+						});
 					})
 					.catch(function(error) {
 						sf.replyWith(message, "I got an error on my way to promise land from colors. Send help!\nTell them " + error);
