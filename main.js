@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.13.5"; //hardcode for now
+var version = "2.13.6"; //hardcode for now
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -116,15 +116,16 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "Bank: show/search skinned items as their skin, not their item name");
+  bot.reply(message, "New command(s)! colors/dyes: list known dyes for asking user");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-  	"dyes: list known dyes for a given player",
   	"dyes: list common colors between given players",
   	"dyes: generate random 3 color scheme given common colors between players", 
+    "shopping list, you lazy fuck",
+    "toggle recursion on crafting",
     "logging",
     "add sass from slack",
     "merge bank and wallet? (bank also searches your wallet)"
