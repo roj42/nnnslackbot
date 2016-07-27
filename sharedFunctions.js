@@ -5,6 +5,7 @@
 var fs = require('fs');
 var globalMessage = null;
 var bot = null;
+var controller = null;
 module.exports = function() {
 
 	var ret = {
@@ -99,7 +100,7 @@ module.exports = function() {
 		//return given userid appended with HI-LARIOUS appelation
 		randomHonoriffic: function(inName, userId) {
 			if (userId && userId == 'U1BCBG6BW' && (inName == 'c' || inName == 'C')) return '$'; //chrisseh
-			else return this.randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
+			else return ret.randomOneOf(["-dawg", "-money", "-diggity", "-bits", "-dude", "-diddly", "-boots", "-pants", "-ding-dong-dibble-duddly", "-base", "-face"]);
 		},
 		coinToString: function(value) {
 			var gold = Math.floor(value / 10000);
@@ -112,11 +113,12 @@ module.exports = function() {
 		tantrum: function() {
 			var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.",
 				"It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!", "I'm quitting school! I'm gonna be a paperback writer!",
-				"It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ", "This was a terrible day to quit heroin!",
+				"It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "\t\t┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ", "This was a terrible day to quit heroin!",
 				"Inconceivable!", "You miserable piece of... dick-brained... horseshit... slime-sucking son of a whore, bitch!", "Oh, it's on now!",
 				"You're wrong, wrong, absolutely brimming over with wrong-ability.", "Eat this! This table! Eat it!", "I'm going to live with my Auntie and Uncle in Bel Air!",
-				"I dream of a galaxy where your eyes are tables and the universe worships the flips!", "[redacted]er!","I'm not a little dissappointed, I'm angry",
-				"This sucks! You suck!","Buy me a new table!"
+				"I dream of a galaxy where your eyes are tables and the universe worships the flips!", "[redacted]er!", "I'm not a little dissappointed, I'm angry!",
+				"This sucks! This is total BS!", "Buy me a new table!", "There's a spider on here!", "You get a table! And you get a table! And you get a table TO THE FACE.",
+				"Narfle the garthok!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},
@@ -156,8 +158,73 @@ module.exports = function() {
 			if (levelString > 0 || rarityString.length > 0)
 				infoTag = " (" + (levelString ? "level " + levelString : "") + (rarityString ? (levelString ? " " : "") + rarityString : '') + ")";
 			return infoTag;
-		}
+		},
+		//Prereq Check functions
+		setController: function(inController) {
+			controller = inController;
+		},
+		storageUsersGetSynch: function(user) {
+			return new Promise(function(resolve, reject) {
+				if (user)
+					controller.storage.users.get(user, function(err, user) {
+						if (err) {
+							ret.log("Error:no user data " + JSON.stringify(err));
+							reject("I got an error loading your data (or you have no access token set up). Try again later");
+						} else resolve([user]);
+					});
+				else controller.storage.users.all(function(err, userData) {
+					if (err) {
+						ret.log("Error:no user data " + JSON.stringify(err));
+						reject("I got an error loading user data. Try again later");
+					} else resolve(userData);
+				});
 
+			});
+		},
+		userPermissionsAndReplyPromise: function(user, permissions) {
+			return new Promise(function(resolve, reject) {
+				if (!user || !permissions) {
+					ret.log('ERROR: no user or permissions');
+					ret.replyWith("Sorry, I couldn't find user data for " + user.name + " or I couldn't find permissions. Or both.", true);
+					resolve(null);
+					return;
+				}
+				if (typeof permissions != 'string' && !Array.isArray(permissions)) {
+					ret.log('ERROR: malformed permissions ' + JSON.stringify(permissions));
+					reject("Malformed permissions: " + JSON.stringify(permissions));
+					return;
+				}
+				if (!user || !user.access_token) {
+					ret.log('ERROR: no access token: ' + JSON.stringify(user));
+					ret.replyWith("Sorry, I don't have an access token for " + user.name + ".", true);
+					resolve(null);
+					return;
+				}
+				if (typeof permissions == 'string')
+					permissions = [].concat(permissions);
+				var missingPermissions = [];
+				for (var perm in permissions) {
+					if (!ret.userHasPermission(user, permissions[perm])) {
+						ret.log('ERROR: incorrect permission ' + permissions[perm] + ' for user ' + user.name);
+						missingPermissions.push(permissions[perm]);
+					}
+					if (missingPermissions.length > 0) {
+						ret.replyWith("Sorry, the access token on file for " + user.name + " needs the following permission" +
+							(missingPermissions.length > 1 ? "s" : "") + ": " + missingPermissions.join(", ") + ".", true);
+						resolve(null);
+						return;
+					}
+				}
+				resolve(user);
+			});
+		},
+		userHasPermissionsAndReply: function(users, permissions) {
+			var permissionPromises = [];
+			for (var user in users) {
+				permissionPromises.push(ret.userPermissionsAndReplyPromise(users[user], permissions));
+			}
+			return Promise.all(permissionPromises);
+		}
 	};
 	return ret;
 }();

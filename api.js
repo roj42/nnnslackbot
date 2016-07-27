@@ -15,11 +15,13 @@ var config = {
 		quaggans: 'quaggans',
 		build: 'build',
 		characters: 'characters',
+		colors: 'colors',
 		currencies: 'currencies',
 		accountWallet: 'account/wallet',
 		achievements: 'achievements',
 		achievementsCategories: 'achievements/categories',
 		accountAchievements: 'account/achievements',
+		accountDyes: 'account/dyes',
 		items: 'items',
 		recipes: 'recipes',
 		account: 'account',
@@ -359,6 +361,7 @@ module.exports = function() {
 			return;
 		} //check apiKey
 		ret.loaded[apiKey] = false;
+		ret.data[apiKey].length = 0;
 		var total = 0; //hold total page size
 		var half_length = 0; //variable to identify half of max pages
 		var retry = config.dataLoadRetry; //hold number of retries.

@@ -50,6 +50,7 @@ var bot = controller.spawn({
 //load shared code to the global scope
 var sf = require('./sharedFunctions.js');
 sf.setBot(bot);
+sf.setController(controller);
 //Add standalone responses: Riker, catfacts, sass
 var standalone = require('./standaloneResponses.js');
 standalone.addResponses(controller);
@@ -78,11 +79,16 @@ dungeonFrequenter.addHelp(helpFile);
 var prefix = require('./prefix.js');
 prefix.addResponses(controller);
 prefix.addHelp(helpFile);
+//add colors
+var colors = require('./colors.js');
+colors.addResponses(controller);
+colors.addHelp(helpFile);
 
 
 var gw2api = require('./api.js');
 gw2api.setCacheTime(86400, 'quaggans');
 gw2api.setCacheTime(86400, 'currencies');
+gw2api.setCacheTime(86400, 'colors');
 gw2api.setCacheTime(86400, 'items');
 gw2api.setCacheTime(86400, 'skins');
 gw2api.setCacheTime(86400, 'titles');
@@ -586,23 +592,24 @@ function compileIngredientIds() {
 
 function reloadAllData(bypass) {
   start = new Date().getTime();
-  numToLoad = 5; //recipies is recipies and items
-  gw2api.load("currencies", {
+  numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
+
+  gw2api.load("colors", {
+    ids: 'all'
+  }, bypass, halfCallback, doneAllOtherCallback);
+  sf.replyWith("Starting to load colors.", true);
+
+ gw2api.load("currencies", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);
   sf.replyWith("Starting to load currencies.", true);
 
-  gw2api.data.recipes = [];
-  gw2api.data.items = [];
-  gw2api.data.forged = [];
   sf.replyWith("Starting to load recipes.", true);
   gw2api.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
 
-  gw2api.data.achievements = [];
   sf.replyWith("Starting to load achievements.", true);
   gw2api.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
 
-  gw2api.data.achievementsCategories = [];
   sf.replyWith("Starting to load achievement categories.", true);
   gw2api.load("achievementsCategories", {
     ids: 'all'

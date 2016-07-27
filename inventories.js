@@ -33,7 +33,7 @@ module.exports = function() {
           var searchTerm = (matches[2] ? matches[2].replace(/\s+/g, '') : null);
           var isDungeonOnly = (matches[1] == "dungeonwallet" || matches[1] == 'dw');
           if (searchTerm) bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
-
+          else bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", what's in YOUR wallet?");
           gw2api.accountWallet(function(walletList, headers) {
             if (isDungeonOnly) {
               //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];

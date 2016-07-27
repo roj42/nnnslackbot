@@ -3,6 +3,7 @@
 
 var sf = require('./sharedFunctions.js');
 var prefixData = sf.loadStaticDataFromFile('prefix.json');
+var debug = false;
 
 module.exports = function() {
 
@@ -60,23 +61,23 @@ function scrubType(type) {
 function prefixSearch(searchTerm, type, level) {
 	var prefixList = {};
 	type = scrubType(type);
-	if (debug) bot.botkit.log("searching " + searchTerm + " of type " + type + " and level " + level);
+	if (debug) sf.log("searching " + searchTerm + " of type " + type + " and level " + level);
 	findPrefixesByStat(searchTerm, type, prefixList);
 	filterPrefixesByLevel(prefixList, (level ? level : 80));
-	findPrefixByName(searchTerm, prefixList);
+	findPrefixByName(searchTerm, type, prefixList);
 	return prefixList;
 }
 
 //Search given prefix data for matching name
-function findPrefixByName(name, prefixList) {
+function findPrefixByName(name, type, prefixList) {
 	for (var key in prefixData) {
 		var compare = sf.removePunctuationAndToLower(key);
-		if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1) { // && (type == 'all' || prefixData[key].type == type)) {
-			if (debug) bot.botkit.log("added key from name " + key);
+		if (prefixData.hasOwnProperty(key) && compare.indexOf(name) > -1 && (type == 'all' || prefixData[key].type == type)) {
+			if (debug) sf.log("added key from name " + key);
 			prefixList[key] = prefixData[key];
 		}
 	}
-	if (debug) bot.botkit.log("Total after ByName search " + Object.keys(prefixList).length);
+	if (debug) sf.log("Total after ByName search " + Object.keys(prefixList).length);
 }
 
 //Search given prefix data for matching stat
@@ -85,16 +86,16 @@ function findPrefixesByStat(stat, type, prefixList) {
 		if (prefixData.hasOwnProperty(key) && (type == 'all' || prefixData[key].type == type)) {
 			for (var subKey in prefixData[key].stats) {
 				var compare = sf.removePunctuationAndToLower(prefixData[key].stats[subKey]);
-				if (debug) bot.botkit.log("subkey " + prefixData[key].stats[subKey]);
+				if (debug) sf.log("subkey " + prefixData[key].stats[subKey]);
 				if (compare.indexOf(stat) === 0) {
-					if (debug) bot.botkit.log("added key from stat " + key);
+					if (debug) sf.log("added key from stat " + key);
 					prefixList[key] = prefixData[key];
 					break;
 				}
 			}
 		}
 	}
-	if (debug) bot.botkit.log("Total after ByStat search " + Object.keys(prefixList).length);
+	if (debug) sf.log("Total after ByStat search " + Object.keys(prefixList).length);
 }
 
 function filterPrefixesByLevel(prefixList, level) {
