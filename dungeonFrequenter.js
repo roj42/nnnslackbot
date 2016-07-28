@@ -13,7 +13,7 @@ module.exports = function() {
 				//precheck: account achievements loaded 
 				if (!gw2api.loaded.achievements || !gw2api.loaded.achievementsCategories) {
 					bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-					setGlobalMessage(message);
+					sf.setGlobalMessage(message);
 					return;
 				}
 
