@@ -1,13 +1,12 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.13.6"; //hardcode for now
+var version = "2.13.7"; //color/mycolor/colorscheme
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
 
 var Botkit = require('botkit');
-// var winston = require('winston');
 
 helpFile = [];
 cheevoList = {};
@@ -15,18 +14,6 @@ cheevoList = {};
 controller = Botkit.slackbot({
   debug: debug,
   json_file_store: 'slackbotDB',
-  // logger: new winston.Logger({
-  //   transports: [
-  //     new(winston.transports.Console)({
-  //       level: 'info'
-  //     }),
-  //     new(winston.transports.File)({
-  //       filename: './bot.log',
-  //       level: 'warning'
-  //     })
-  //   ]
-  // })
-
 });
 
 //Check for bot token
@@ -43,9 +30,6 @@ var bot = controller.spawn({
     throw new Error('Could not connect to Slack');
   }
 });
-// bot.botkit.log.warning("WARN TEST");
-// bot.botkit.log.error("ERROR TEST");
-// bot.botkit.log("INFO TEST");
 
 //load shared code to the global scope
 var sf = require('./sharedFunctions.js');
@@ -116,19 +100,16 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "New command(s)! colors/dyes: list known dyes for asking user");
+  bot.reply(message, "New command(s): color, mycolor, colorscheme, mycolorscheme. Also squadgoals.");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-  	"dyes: list common colors between given players",
-  	"dyes: generate random 3 color scheme given common colors between players", 
-    "shopping list, you lazy fuck",
     "toggle recursion on crafting",
-    "logging",
-    "add sass from slack",
-    "merge bank and wallet? (bank also searches your wallet)"
+    "shopping list, you lazy fuck",
+    "dyes: capture subsets of users, liek dungeon freuqenter",
+    "add sass from slack"
   ];
   bot.reply(message, todoList.join("\n"));
 });

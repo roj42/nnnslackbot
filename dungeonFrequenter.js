@@ -9,7 +9,7 @@ module.exports = function() {
 
 		addResponses: function(controller) {
 
-			controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['^squadgoals(.*)','^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				//precheck: account achievements loaded 
 				if (!gw2api.loaded.achievements || !gw2api.loaded.achievementsCategories) {
 					bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -29,7 +29,7 @@ module.exports = function() {
 				var goodUsers = [];
 				var individualBitsArrays = {};
 
-				var matches = message.text.match(/(dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
+				var matches = message.text.match(/(squadgoals|dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
 
 				var verbose = false;
 				if (matches && (matches[1].toLowerCase() == 'dfv' || matches[1].toLowerCase() == 'dungeonfriendsverbose'))
@@ -157,6 +157,8 @@ module.exports = function() {
 				//fetch access tokens from storage
 				controller.storage.users.all(function(err, userData) {
 
+					var selectedUsers = [];
+
 					var requesterName = '';
 					for (var u in userData) {
 						//remove those without permissions
@@ -169,7 +171,6 @@ module.exports = function() {
 					//goodUsers is now a list of users with good access tokens
 					bot.botkit.log(goodUsers.length + " of " + userData.length + " users were elegible for dungeonfriends.");
 
-					var selectedUsers = [];
 					for (var c in goodUsers) {
 						if (matches[2] && matches[2].indexOf(goodUsers[c].dfid) > -1)
 							selectedUsers.push(goodUsers[c]);

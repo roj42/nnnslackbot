@@ -45,8 +45,12 @@ module.exports = function() {
 		},
 		//reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalMessage
 		replyWith: function(messageToSend, keepGlobalMessage) {
+			if(debug) ret.log("Global message: "+messageToSend+", keep: "+keepGlobalMessage);
 			if (!globalMessage) return;
-			if (globalMessage.say) //convo
+			else if (typeof messageToSend != 'string' && typeof messageToSend.attachments == 'undefined') {
+				ret.log("Attempted to reply with non-string message: " + JSON.stringify(messageToSend));
+ 
+			} else if (globalMessage.say) //convo
 				globalMessage.say(messageToSend);
 			else
 				bot.reply(globalMessage, messageToSend);
@@ -147,7 +151,7 @@ module.exports = function() {
 				levelString = item.level;
 			} else if (item.description) {
 				var matches = item.description.match(/level (\d{1,2})/i);
-				if (debug) sf.log("matches " + JSON.stringify(matches) + " of description " + item.description);
+				if (debug) ret.log("matches " + JSON.stringify(matches) + " of description " + item.description);
 				if (matches && matches[1]) {
 					levelString = Number(matches[1]);
 				}
