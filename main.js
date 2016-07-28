@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.14"; //color/mycolor/colorscheme
+var version = "2.14.1"; //made shutdown impossible
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -290,7 +290,7 @@ controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', funct
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-  botShutdown(message);
+  botShutdown(message, true);
 });
 helpFile.restart = "Command Lessdremoth to restart.";
 controller.hears(['restart'], 'direct_message,direct_mention,mention', function(bot, message) {
