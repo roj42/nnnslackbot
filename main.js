@@ -106,9 +106,10 @@ controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
+    "improve aliasing for asscraft",
     "toggle recursion on crafting",
     "shopping list, you lazy fuck",
-    "dyes: capture subsets of users, liek dungeon freuqenter",
+    "dyes: capture subsets of users, like dungeon freuqenter",
     "add sass from slack"
   ];
   bot.reply(message, todoList.join("\n"));
@@ -581,7 +582,7 @@ function reloadAllData(bypass) {
   }, bypass, halfCallback, doneAllOtherCallback);
   sf.replyWith("Starting to load colors.", true);
 
- gw2api.load("currencies", {
+  gw2api.load("currencies", {
     ids: 'all'
   }, bypass, halfCallback, doneAllOtherCallback);
   sf.replyWith("Starting to load currencies.", true);
