@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.14.4"; //improve aliasing for asscraft
+var version = "2.14.5"; //"basscraft/bac/bcraft/bc: toggle recursion on crafting/asscrafting"
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -35,10 +35,6 @@ var bot = controller.spawn({
 var sf = require('./sharedFunctions.js');
 sf.setBot(bot);
 sf.setController(controller);
-//Add standalone responses: Riker, catfacts, sass
-var standalone = require('./standaloneResponses.js');
-standalone.addResponses(controller);
-standalone.addHelp(helpFile);
 //add craft function
 var craft = require('./crafting.js');
 craft.addResponses(controller);
@@ -67,6 +63,11 @@ prefix.addHelp(helpFile);
 var colors = require('./colors.js');
 colors.addResponses(controller);
 colors.addHelp(helpFile);
+
+//Add standalone responses: Riker, catfacts, sass
+var standalone = require('./standaloneResponses.js');
+standalone.addResponses(controller);
+standalone.addHelp(helpFile);
 
 
 var gw2api = require('./api.js');
@@ -100,13 +101,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "improved aliasing for asscraft. 'ac' is also now a valid command.");
+  bot.reply(message,     "basscraft/bac/bcraft/bc: toggle recursion on crafting/asscrafting");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "toggle recursion on crafting/asscrafting",
     "shopping list, you lazy fuck",
     "dyes: capture subsets of users, like dungeon freuqenter",
     "add sass from slack"

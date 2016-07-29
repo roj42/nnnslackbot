@@ -167,12 +167,12 @@ module.exports = function() {
                 gw2api.promise.accountBank(['all'], user.access_token),
                 gw2api.promise.accountInventory(['all'], user.access_token),
                 gw2api.promise.accountMaterials(['all'], user.access_token)
-              ])
+              ]);
             })
             .then(collateOwnedItems)
             .then(fetchAllItemAndSkinIds)
             .then(function() { //find items with our original search string
-                if(debug) sf.log(itemList.length + " items in list.");
+              if (debug) sf.log(itemList.length + " items in list.");
               if (bankAll)
                 tallyAndDisplay(null, itemList);
               else {
@@ -347,12 +347,14 @@ module.exports = function() {
 
 
 function getInventoryName(itemToDisplay) {
+  var findSkinInInventories = function(skin) {
+    return skin.id == inventories[source].skins[inSource];
+  };
+
   for (var source in inventories) {
     var inSource = inventories[source].ids.indexOf(itemToDisplay.id);
-    if (inSource >= 0 && inventories[source].skins[inSource] != 0) {
-      var skinFound = skinList.find(function(skin) {
-        return skin.id == inventories[source].skins[inSource];
-      });
+    if (inSource >= 0 && inventories[source].skins[inSource] !== 0) {
+      var skinFound = skinList.find(findSkinInInventories);
       if (skinFound)
         return skinFound.name;
     }

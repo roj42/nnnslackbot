@@ -117,12 +117,12 @@ module.exports = function() {
 		tantrum: function() {
 			var tantrums = ["FINE.", "You're not my real dad!", "I hate you!", "I'll be in my room.", "You, alright? I learned it by watching YOU.",
 				"It is coded, My channel shall be called the house of sass; but ye have made it a den of cats!", "I'm quitting school! I'm gonna be a paperback writer!",
-				"It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "\t\t┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ", "This was a terrible day to quit heroin!",
+				"It's a travesty!", "You're all PIGS!", "You're the worst!", "ᕙ(‶⇀‸↼)ᕗ", "\n┻━┻ ︵ ╯(°□° ╯)\n(╯°□°)╯︵ sʞɔnɟ ʎɯ llɐ", "This was a terrible day to quit heroin!",
 				"Inconceivable!", "You miserable piece of... dick-brained... horseshit... slime-sucking son of a whore, bitch!", "Oh, it's on now!",
 				"You're wrong, wrong, absolutely brimming over with wrong-ability.", "Eat this! This table! Eat it!", "I'm going to live with my Auntie and Uncle in Bel Air!",
 				"I dream of a galaxy where your eyes are tables and the universe worships the flips!", "[redacted]er!", "I'm not a little dissappointed, I'm angry!",
 				"This sucks! This is total BS!", "Buy me a new table!", "There's a spider on here!", "You get a table! And you get a table! And you get a table TO THE FACE.",
-				"Narfle the garthok!"
+				"Narfle the garthok!", "Ahrenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.","Keep the change, you filthy animal!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},

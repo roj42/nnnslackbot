@@ -37,8 +37,8 @@ var slotAliases = {
   Harpoon: ["harpoons"],
   Speargun: ["spearguns"],
   Trident: ["tridents"],
-  LargeBundle: ["largebundle", "large"],
-  SmallBundle: ["smallbundle", "small"],
+  LargeBundle: ["largebundle"],
+  SmallBundle: ["smallbundle"],
   Toy: ["toys", "1htoy"],
   TwoHandedToy: ["twohandedtoys", "2htoys"]
 };
@@ -49,7 +49,7 @@ module.exports = function() {
 
     addResponses: function(controller) {
 
-      controller.hears(['^craft (.*)', '^asscraft (.*)', '^ac (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+      controller.hears(['^craft (.*)', '^bcraft (.*)', '^bc (.*)', '^asscraft (.*)', '^basscraft (.*)', '^bac (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.recipes || !gw2api.loaded.items) { //still loading
           bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
           sf.setGlobalMessage(message);
@@ -58,7 +58,12 @@ module.exports = function() {
         var itemSearchResults = [];
         var command = message.text.slice(0, message.text.indexOf(' '));
         var args = message.text.slice(message.text.indexOf(' ') + 1, message.text.length);
-        if (sf.removePunctuationAndToLower(command) === 'craft') { //straighforward craft
+        var isBaseCraft = false;
+        if (sf.removePunctuationAndToLower(command)[0] == 'b') {
+          isBaseCraft = true;
+          command = command.slice(1, command.length);
+        }
+        if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
           itemSearchResults = findCraftableItemByName(args);
         } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
           //Build and filter the list of search results
@@ -98,14 +103,14 @@ module.exports = function() {
           }
           bot.reply(message, "Your final search was for: " + termsArray.join(" "));
         } else {
-          bot.reply(message, "I didn't quite get that. Maybe ask \'help " + matches[0] + "\'?");
+          bot.reply(message, "I didn't quite get that. Maybe ask \'help " + command + "\'?");
           return;
         }
         if (debug) sf.log(itemSearchResults.length + " matches found for search string");
         if (itemSearchResults.length === 0) { //no match
           bot.reply(message, "No item names contain that exact text.");
         } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-          bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0]));
+          bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));
         } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
           var itemNameList = [];
           for (var n in itemSearchResults) {
@@ -133,7 +138,7 @@ module.exports = function() {
                 var matches = response.text.match(/^(\d{1,2})/i);
                 var selection = matches[0];
                 if (selection < itemSearchResults.length) {
-                  convo.say(getMessageWithRecipeAttachment(itemSearchResults[selection]));
+                  convo.say(getMessageWithRecipeAttachment(itemSearchResults[selection], isBaseCraft));
                 } else convo.repeat(); //invalid number. repeat choices.
                 convo.next();
               }
@@ -157,9 +162,13 @@ module.exports = function() {
       });
     },
     addHelp: function(helpFile) {
-      helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
-      helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
       helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
+      helpFile.bcraft = "'base' craft. Same output as craft, but simply lists ingredients and will not recursively fetch sub-recipes for base ingredients.";
+      helpFile.bc = "Alias for bcraft: " + JSON.stringify(helpFile.bcraft);
+      helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
+      helpFile.basscraft = "'base' ascended craft. Same output as asscraft, but simply lists ingredients and will not recursively fetch sub-recipes for base ingredients.";
+      helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
+      helpFile.bac = "Alias for basscraft: " + JSON.stringify(helpFile.basscraft);
     }
   };
   return ret;
@@ -208,8 +217,8 @@ function getValidTermFromAlias(searchTerm, source) {
   return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
 
-function getMessageWithRecipeAttachment(itemToMake) {
-  var attachments = assembleRecipeAttachment(itemToMake);
+function getMessageWithRecipeAttachment(itemToMake, isBaseCraft) {
+  var attachments = assembleRecipeAttachment(itemToMake, isBaseCraft);
   var foundRecipe = gw2api.findInData('output_item_id', itemToMake.id, 'recipes');
   var amountString;
   if (foundRecipe && foundRecipe.output_item_count && foundRecipe.output_item_count > 1) { //if it's a multiple, collect multiple amount
@@ -230,18 +239,18 @@ function getMessageWithRecipeAttachment(itemToMake) {
 }
 
 //For a given item, find its base ingredients and prepare an attachment displaying it
-function assembleRecipeAttachment(itemToDisplay) {
+function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   var ingredients;
-  //is it a standard recipe
-  if (!itemToDisplay.forged) {
-    var foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
-    if (foundRecipe)
-      ingredients = getBaseIngredients(foundRecipe.ingredients);
-  } else { //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
-    var forgeRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
-    if (forgeRecipe)
-      ingredients = forgeRecipe.ingredients;
-  }
+  var foundRecipe;
+    //is it a standard recipe
+  if (itemToDisplay.forged)
+  //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
+    foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
+  else
+    foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
+  if (typeof foundRecipe !== 'undefined')
+    ingredients = (isBaseCraft || itemToDisplay.forged ? foundRecipe.ingredients : getBaseIngredients(foundRecipe.ingredients));
+
   //Recipe not found.
   if (!ingredients) return [];
   //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
