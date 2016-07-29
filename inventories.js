@@ -172,6 +172,7 @@ module.exports = function() {
             .then(collateOwnedItems)
             .then(fetchAllItemAndSkinIds)
             .then(function() { //find items with our original search string
+                if(debug) sf.log(itemList.length + " items in list.");
               if (bankAll)
                 tallyAndDisplay(null, itemList);
               else {
@@ -419,19 +420,17 @@ function fetchAllItemAndSkinIds() { //collate the IDs of all items in all invent
         for (var i = 0; i < ownedSkinIds.length; i += 200) {
           skinPagePromises.push(gw2api.promise.skins(ownedSkinIds.slice(i, i + 200)));
         }
-        Promise.all(skinPagePromises)
+        return Promise.all(skinPagePromises)
           .then(function(results) {
+
             for (var list in results) {
               skinList = skinList.concat(results[list]);
             }
             if (debug) {
               sf.log("results has " + skinList.length + " skins");
             }
+            resolve();
           });
-      })
-      .then(resolve)
-      .catch(function(error) {
-        reject(error);
       });
   });
 }

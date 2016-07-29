@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.14.2"; //properly snag message on dungeonfrequenter.
+var version = "2.14.4"; //improve aliasing for asscraft
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,14 +100,13 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "New command(s): color, mycolor, colorscheme, mycolorscheme. Also squadgoals.");
+  bot.reply(message, "improved aliasing for asscraft. 'ac' is also now a valid command.");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "improve aliasing for asscraft",
-    "toggle recursion on crafting",
+    "toggle recursion on crafting/asscrafting",
     "shopping list, you lazy fuck",
     "dyes: capture subsets of users, like dungeon freuqenter",
     "add sass from slack"

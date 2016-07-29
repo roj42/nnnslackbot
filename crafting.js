@@ -3,13 +3,53 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var debug = false;
+var weightAliases = {
+  Weapon: ["weapon"],
+  Light: ["light", "lite", "cloth", "scholar"],
+  Medium: ["medium", "leather", "adventurer"],
+  Heavy: ["heavy", "hev", "plate", "soldier"]
+};
+
+var slotAliases = {
+  Boots: ["boots", "feet", "shoes", "foot"],
+  Coat: ["coats", "chest", "torso", "robe", "doublet", "breastplate"],
+  Gloves: ["gloves", "hands"],
+  Helm: ["helms", "head", "hat"],
+  HelmAquatic: ["helmaquatic", "headaquatic", "hataquatic"],
+  Leggings: ["leggings", "legs", "pants"],
+  Shoulders: ["shoulders"],
+  Axe: ["axes"],
+  Dagger: ["daggers"],
+  Mace: ["maces"],
+  Pistol: ["pistols"],
+  Scepter: ["scepters"],
+  Sword: ["swords"],
+  Focus: ["focus", "foci"],
+  Shield: ["shields"],
+  Torch: ["torches"],
+  Warhorn: ["warhorns"],
+  Greatsword: ["greatswords"],
+  Hammer: ["hammers"],
+  LongBow: ["longbows"],
+  Rifle: ["rifles"],
+  ShortBow: ["shortbows"],
+  Staff: ["staffs", "staves"],
+  Harpoon: ["harpoons"],
+  Speargun: ["spearguns"],
+  Trident: ["tridents"],
+  LargeBundle: ["largebundle", "large"],
+  SmallBundle: ["smallbundle", "small"],
+  Toy: ["toys", "1htoy"],
+  TwoHandedToy: ["twohandedtoys", "2htoys"]
+};
+
 module.exports = function() {
 
   var ret = {
 
     addResponses: function(controller) {
 
-      controller.hears(['^craft (.*)', '^asscraft (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+      controller.hears(['^craft (.*)', '^asscraft (.*)', '^ac (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.recipes || !gw2api.loaded.items) { //still loading
           bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
           sf.setGlobalMessage(message);
@@ -39,7 +79,7 @@ module.exports = function() {
           });
           //weight or is a weapon
           if (termsArray[1] && sf.removePunctuationAndToLower(termsArray[1]) != 'any') {
-            var weight = getAscendedWeight(termsArray[1]);
+            var weight = getValidTermFromAlias(termsArray[1], 'weight');
             termsArray[1] = weight;
             itemSearchResults = itemSearchResults.filter(function(value) {
               if (weight == 'Weapon')
@@ -50,7 +90,7 @@ module.exports = function() {
           }
           //slot or weapon type
           if (termsArray[2] && sf.removePunctuationAndToLower(termsArray[2]) != 'any') {
-            var slot = getItemSlot(termsArray[2]);
+            var slot = getValidTermFromAlias(termsArray[2], 'slot');
             termsArray[2] = slot;
             itemSearchResults = itemSearchResults.filter(function(value) {
               return (value.details && value.details.type == slot);
@@ -147,34 +187,23 @@ function getAscendedItemsByPrefix(prefixSearch) {
   return [];
 }
 
-function getAscendedWeight(weight) {
-  //where weight is light/med/heavy/weapon or a substring thereof or 'any'
-  //Maybe add some alt names for the weights. Light/lite/cloth/scholar, medium/med/leather/adventurer, heavy/hev/plate/solider
-  var possibleWeights = {
-    Weapon: ["weapon"],
-    Light: ["light", "lite", "cloth", "scholar"],
-    Medium: ["medium", "leather", "adventurer"],
-    Heavy: ["heavy", "hev", "plate", "soldier"]
-  };
-  for (var weightName in possibleWeights) {
-    for (var j in possibleWeights[weightName])
-      if (sf.removePunctuationAndToLower(possibleWeights[weightName][j]).includes(weight))
-        return weightName;
+//Generic function for mapping valid search terms to aliases
+function getValidTermFromAlias(searchTerm, source) {
+  if (typeof source == 'string') {
+    if (source == 'weight')
+      source = weightAliases;
+    else if (source == 'slot')
+      source = slotAliases;
+    else {
+      sf.log("Invalid source for getValidTermFromAlias: " + source);
+      source = [];
+    }
   }
-  return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
-}
 
-function getItemSlot(slotName) {
-  //and slot is a big six armor slot or a weapon type or 'any'
-  var possibleSlots = ['Boots', 'Coat', 'Gloves', 'Helm', 'HelmAquatic', 'Leggings', 'Shoulders',
-    'Axe', 'Dagger', 'Mace', 'Pistol', 'Scepter', 'Sword', 'Focus', 'Shield', 'Torch', 'Warhorn',
-    'Greatsword', 'Hammer', 'LongBow', 'Rifle', 'ShortBow', 'Staff',
-    'Harpoon', 'Speargun', 'Trident',
-    'LargeBundle', 'SmallBundle', 'Toy', 'TwoHandedToy'
-  ];
-  for (var i in possibleSlots) {
-    if (sf.removePunctuationAndToLower(possibleSlots[i]).includes(slotName))
-      return possibleSlots[i];
+  for (var weightName in source) {
+    for (var j in source[weightName])
+      if (sf.removePunctuationAndToLower(source[weightName][j]).includes(searchTerm))
+        return weightName;
   }
   return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
 }
