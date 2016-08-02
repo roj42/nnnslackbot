@@ -1,8 +1,6 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = [];
-var itemList = [];
-var skinList = [];
 var debug = false;
 module.exports = function() {
   var ret = {
@@ -37,15 +35,16 @@ module.exports = function() {
           gw2api.accountWallet(function(walletList, headers) {
             if (isDungeonOnly) {
               //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
-              //Hard coded ID instead of title, since both are subject to the same change
+              //Hard coded ID instead of title, since both are subject to change, but id is probably more stable
               var dungeonCurrencyList = [5, 9, 11, 10, 13, 12, 14, 6, 7, 24];
               walletList = walletList.filter(function(value) {
                 return (dungeonCurrencyList.indexOf(value.id) >= 0);
               });
-              walletList.sort(function(a, b) {
-                return dungeonCurrencyList.indexOf(a.id) - dungeonCurrencyList.indexOf(b.id);
-              });
             }
+            walletList.sort(function(a, b) {
+              return (gw2api.findInData('id', a.id, 'currencies').order - gw2api.findInData('id', b.id, 'currencies').order);
+            });
+
             var text = [];
             var goldIcon = 'https://render.guildwars2.com/file/98457F504BA2FAC8457F532C4B30EDC23929ACF9/619316.png';
             var lastIcon;
@@ -83,8 +82,6 @@ module.exports = function() {
       ////BANK
       controller.hears(['^bank (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         inventories = [];
-        itemList = [];
-        skinList = [];
 
         controller.storage.users.get(message.user, function(err, user) {
           if (err) {
@@ -112,7 +109,7 @@ module.exports = function() {
 
           //setup: fetch character list and callback
           gw2api.promise.characters(['all'], user.access_token)
-            .then(function(jsonList, headers) {
+            .then(function(jsonList) {
               if (jsonList.text || jsonList.error) {
                 bot.reply(message, "Oops. I got this error when asking about your character inventories: " + (jsonList.text ? jsonList.text : jsonList.error) + '\n' + JSON.stringify(err));
                 return;
@@ -171,25 +168,25 @@ module.exports = function() {
             })
             .then(collateOwnedItems)
             .then(fetchAllItemAndSkinIds)
-            .then(function() { //find items with our original search string
+            .then(function(itemList) { //find items with our original search string
               if (debug) sf.log(itemList.length + " items in list.");
               if (bankAll)
-                tallyAndDisplay(null, itemList);
+                tallyAndDisplay(itemList);
               else {
                 var itemSearchResults = [];
                 for (var i in itemList) {
-                  if (sf.removePunctuationAndToLower(getInventoryName(itemList[i])).replace(/\s+/g, '').includes(searchTerm))
+                  if (sf.removePunctuationAndToLower(itemList[i].inventoryName).replace(/\s+/g, '').includes(searchTerm))
                     itemSearchResults.push(itemList[i]);
                 }
                 //And Display!
                 if (itemSearchResults.length === 0) { //no match
                   bot.reply(message, "No item names on your account contain that exact text.");
                 } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-                  tallyAndDisplay(itemSearchResults[0]);
+                  tallyAndDisplay([itemSearchResults[0]]);
                 } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
                   var itemNameList = [];
                   for (var n in itemSearchResults) {
-                    itemNameList.push(getInventoryName(itemSearchResults[n]) + sf.levelAndRarityForItem(itemSearchResults[n]));
+                    itemNameList.push(itemList[n].inventoryName + sf.levelAndRarityForItem(itemSearchResults[n]));
                   }
                   bot.reply(message, {
                     attachments: {
@@ -203,7 +200,7 @@ module.exports = function() {
                   bot.startConversation(message, function(err, convo) {
                     var listofItems = '';
                     for (var i in itemSearchResults) {
-                      listofItems += '\n' + [i] + ": " + getInventoryName(itemSearchResults[i]) + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+                      listofItems += '\n' + [i] + ": " + itemSearchResults[i].inventoryName + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
                     }
                     convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
                       //number, no, or repeat
@@ -213,7 +210,7 @@ module.exports = function() {
                         var matches = response.text.match(/^(\d{1,2})/i);
                         var selection = matches[0];
                         if (selection < itemSearchResults.length) {
-                          tallyAndDisplay(itemSearchResults[selection]);
+                          tallyAndDisplay([itemSearchResults[selection]]);
                         } else convo.repeat(); //invalid number. repeat choices.
                         convo.next();
                       }
@@ -241,10 +238,11 @@ module.exports = function() {
               if (convo) convo.next();
             });
 
-          var tallyAndDisplay = function(itemToDisplay) {
+          var tallyAndDisplay = function(itemList) {
             var total = 0;
             var totalStrings = [];
-            if (itemToDisplay) { //find and count this item
+            if (itemList.length === 1) { //find and count this item
+              var itemToDisplay = itemList[0];
               for (var inv in inventories) {
                 var start = 0;
                 var sourceCount = 0;
@@ -259,7 +257,7 @@ module.exports = function() {
                   totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
               }
               if (total > 0 && totalStrings.length > 0) {
-                bot.reply(message, "*" + getInventoryName(itemToDisplay) + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+                bot.reply(message, "*" + itemToDisplay.inventoryName + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
               } else
                 bot.reply(message, "You have none of that. None.");
             } else { //bank all command. List ALL items
@@ -298,7 +296,7 @@ module.exports = function() {
               });
               for (var il in itemList) {
                 if (tallyAllItemsArray[itemList[il].id]) {
-                  var pushString = getInventoryName(itemList[il]) + ": " + tallyAllItemsArray[itemList[il].id].total;
+                  var pushString = itemList[il].inventoryName + ": " + tallyAllItemsArray[itemList[il].id].total;
                   for (var n in tallyAllItemsArray[itemList[il].id].sources) {
                     pushString += ", " + tallyAllItemsArray[itemList[il].id].sources[n].source + " has " + tallyAllItemsArray[itemList[il].id].sources[n].count;
                   }
@@ -345,23 +343,6 @@ module.exports = function() {
   return ret;
 }();
 
-
-function getInventoryName(itemToDisplay) {
-  var findSkinInInventories = function(skin) {
-    return skin.id == inventories[source].skins[inSource];
-  };
-
-  for (var source in inventories) {
-    var inSource = inventories[source].ids.indexOf(itemToDisplay.id);
-    if (inSource >= 0 && inventories[source].skins[inSource] !== 0) {
-      var skinFound = skinList.find(findSkinInInventories);
-      if (skinFound)
-        return skinFound.name;
-    }
-  }
-  return itemToDisplay.name;
-}
-
 function collateOwnedItems(results) {
   return new Promise(function(resolve, reject) {
     var sourceNames = ['Your bank', 'Your shared inventory', 'Your materials storage'];
@@ -392,8 +373,9 @@ function collateOwnedItems(results) {
   });
 }
 
-function fetchAllItemAndSkinIds() { //collate the IDs of all items in all inventories, and fetch
+function fetchAllItemAndSkinIds(inventories) { //collate the IDs of all items in all inventories, and fetch
   return new Promise(function(resolve, reject) {
+
     var itemPagePromises = [];
     var ownedItemIds = [];
     for (var inv in inventories)
@@ -405,6 +387,7 @@ function fetchAllItemAndSkinIds() { //collate the IDs of all items in all invent
     }
     return Promise.all(itemPagePromises)
       .then(function(results) {
+        var itemList = [];
         for (var list in results) {
           itemList = itemList.concat(results[list]);
         }
@@ -424,14 +407,35 @@ function fetchAllItemAndSkinIds() { //collate the IDs of all items in all invent
         }
         return Promise.all(skinPagePromises)
           .then(function(results) {
-
+            var skinList = [];
             for (var list in results) {
               skinList = skinList.concat(results[list]);
             }
             if (debug) {
               sf.log("results has " + skinList.length + " skins");
             }
-            resolve();
+
+            //add skin data to items
+            function getInventoryName(itemToDisplay) {
+              var findSkinInInventories = function(skin) {
+                return skin.id == inventories[source].skins[inSource];
+              };
+
+              for (var source in inventories) {
+                var inSource = inventories[source].ids.indexOf(itemToDisplay.id);
+                if (inSource >= 0 && inventories[source].skins[inSource] !== 0) {
+                  var skinFound = skinList.find(findSkinInInventories);
+                  if (skinFound)
+                    return skinFound.name;
+                }
+              }
+              return itemToDisplay.name;
+            }
+
+            for (var i in itemList)
+              itemList[i].inventoryName = getInventoryName(itemList[i]);
+
+            resolve(itemList);
           });
       });
   });
