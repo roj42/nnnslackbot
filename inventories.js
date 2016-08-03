@@ -246,14 +246,12 @@ module.exports = function() {
             var totalStrings = [];
             if (itemToDisplay) { //find and count this item
               for (var inv in inventories) {
-                var start = 0;
                 var sourceCount = 0;
-                var ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+                var ind = inventories[inv].ids.indexOf(itemToDisplay.id, 0);
                 while (ind >= 0) {
                   sourceCount += inventories[inv].counts[ind];
                   total += inventories[inv].counts[ind];
-                  start = ind + 1;
-                  ind = inventories[inv].ids.indexOf(itemToDisplay.id, start);
+                  ind = inventories[inv].ids.indexOf(itemToDisplay.id, (ind + 1));
                 }
                 if (sourceCount > 0)
                   totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
@@ -265,16 +263,14 @@ module.exports = function() {
             } else { //bank all command. List ALL items
               var tallyAllItemsArray = []; //index is id, object is like {total:total,sources:[{source: 'source', count:count}]}
               for (var i in inventories) {
-                var begin = 0;
                 var uniqueIds = sf.arrayUnique(inventories[i].ids);
                 for (var uid in uniqueIds) {
-                  var foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], begin);
+                  var foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], 0);
                   var subCount = 0;
                   while (foundIndex >= 0) {
                     subCount += inventories[i].counts[foundIndex];
                     total += inventories[i].counts[foundIndex];
-                    begin = foundIndex + 1;
-                    foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], begin);
+                    foundIndex = inventories[i].ids.indexOf(uniqueIds[uid], (foundIndex + 1));
                   }
                   if (subCount > 0) {
                     if (!tallyAllItemsArray[uniqueIds[uid]]) { //new item
