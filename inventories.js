@@ -109,7 +109,6 @@ module.exports = function() {
           inventories = [];
 
           ret.fetchAllCharacterData(user.access_token)
-            .then(ret.collateStorageItems)
             .then(fetchAllItemAndSkinIds)
             .then(function(itemList) { //find items with our original search string
               if (debug) sf.log(itemList.length + " unique items in character inventories.");
@@ -181,10 +180,11 @@ module.exports = function() {
               if (convo) convo.next();
             });
 
-          var tallyAndDisplay = function(itemToDisplay) {
+          var tallyAndDisplay = function(itemList) {
             var total = 0;
             var totalStrings = [];
-            if (itemToDisplay) { //find and count this item
+            if (itemList.length==1) { //find and count this item
+              var itemToDisplay = itemList[0];
               for (var inv in inventories) {
                 var sourceCount = 0;
                 var ind = inventories[inv].ids.indexOf(itemToDisplay.id, 0);
@@ -197,7 +197,7 @@ module.exports = function() {
                   totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
               }
               if (total > 0 && totalStrings.length > 0) {
-                bot.reply(message, "*" + getInventoryName(itemToDisplay) + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+                bot.reply(message, "*" + itemToDisplay.inventoryName + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
               } else
                 bot.reply(message, "You have none of that. None.");
             } else { //bank all command. List ALL items
@@ -234,7 +234,7 @@ module.exports = function() {
               });
               for (var il in itemList) {
                 if (tallyAllItemsArray[itemList[il].id]) {
-                  var pushString = getInventoryName(itemList[il]) + ": " + tallyAllItemsArray[itemList[il].id].total;
+                  var pushString = itemList[il].inventoryName + ": " + tallyAllItemsArray[itemList[il].id].total;
                   for (var n in tallyAllItemsArray[itemList[il].id].sources) {
                     pushString += ", " + tallyAllItemsArray[itemList[il].id].sources[n].source + " has " + tallyAllItemsArray[itemList[il].id].sources[n].count;
                   }
@@ -285,7 +285,8 @@ module.exports = function() {
             gw2api.promise.accountBank(['all'], access_token),
             gw2api.promise.accountInventory(['all'], access_token),
             gw2api.promise.accountMaterials(['all'], access_token)
-          ]);
+          ])
+          .then(ret.collateStorageItems);
         });
     },
     collateCharacterItems: function(characterList) {
