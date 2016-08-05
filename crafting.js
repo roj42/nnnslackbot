@@ -2,6 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
+var inventories = require('./inventories.js');
 var debug = false;
 var weightAliases = {
   Weapon: ["weapon"],
@@ -49,12 +50,13 @@ module.exports = function() {
 
     addResponses: function(controller) {
 
-      controller.hears(['^craft (.*)', '^bcraft (.*)', '^bc (.*)', '^asscraft (.*)', '^basscraft (.*)', '^bac (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+      controller.hears(['^craft (.*)', '^bcraft (.*)', '^bc (.*)', '^asscraft (.*)', '^basscraft (.*)', '^bac (.*)', '^shop (.*)', '^bshop (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.recipes || !gw2api.loaded.items) { //still loading
           bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
           sf.setGlobalMessage(message);
           return;
         }
+
         var itemSearchResults = [];
         var command = message.text.slice(0, message.text.indexOf(' '));
         var args = message.text.slice(message.text.indexOf(' ') + 1, message.text.length);
@@ -63,9 +65,33 @@ module.exports = function() {
           isBaseCraft = true;
           command = command.slice(1, command.length);
         }
-        if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
+
+        if (sf.removePunctuationAndToLower(command) === 'shop') {
+
+          bot.reply(message, "Let's shop 'til we " + sf.randomOneOf(['plop', 'crop', 'bop', 'fop', 'hop', 'cop', 'lop', 'mop', 'pop', 'qwop', 'sop', 'top(less)', 'zip zop']) + "!");
+          sf.setGlobalMessage(message);
+          //Chceck for permissions needed for shopping
+          sf.storageUsersGetSynch([message.user])
+            .then(function(users) {
+              return sf.userHasPermissionsAndReply(users, "inventories");
+            })
+            .then(function(validUsers) {
+              //should only be one valid guy, use validUsers[0]
+              if (!validUsers[0])
+                return Promise.reject("there were no users with correct permissions.");
+              else {
+                if (debug) sf.log(validUsers[0].name + " is a valid user");
+                return gw2api.promise.characters(['all'], validUsers[0].access_token)
+              }
+            }).then(function(characterData) {
+              bot.reply(message, 'Character data is length:' + characterData.length);
+            });
+          return;
+        } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
+          bot.reply(message, "Let's get crafty.");
           itemSearchResults = findCraftableItemByName(args);
         } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
+          bot.reply(message, "Let's get asscrafty.");
           //Build and filter the list of search results
           var termsArray = args.split(" ");
           //Prefix. Translate to an ascended prefix
@@ -242,7 +268,7 @@ function getMessageWithRecipeAttachment(itemToMake, isBaseCraft) {
 function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   var ingredients;
   var foundRecipe;
-    //is it a standard recipe
+  //is it a standard recipe
   if (itemToDisplay.forged)
   //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');

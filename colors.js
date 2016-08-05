@@ -20,13 +20,13 @@ module.exports = function() {
 					return;
 				}
 
-				var userToFetch;
-				//If single user, make userToFetch a list of that user
-				if (matches[1] && matches[1].toLowerCase() == 'my') userToFetch = [message.user];
+				var usersToFetch;
+				//If single user, make usersToFetch a list of that user, otherwise leave blank to fetch all users
+				if (matches[1] && matches[1].toLowerCase() == 'my') usersToFetch = [message.user];
 				//if "cheme" i.e. colorscheme set isScheme to true
 				var isScheme = (matches[2] && matches[2].toLowerCase() == 'cheme');
 
-				sf.storageUsersGetSynch(userToFetch)
+				sf.storageUsersGetSynch(usersToFetch)
 					.then(function(users) {
 						return sf.userHasPermissionsAndReply(users, "unlocks");
 					})
@@ -35,7 +35,7 @@ module.exports = function() {
 						var userColorPromises = [];
 						for (var usr in validUsers)
 							if (validUsers[usr] !== null) {
-								if (debug) sf.log(validUsers[usr].name + " is a valid user", true);
+								if (debug) sf.log(validUsers[usr].name + " is a valid user");
 								userColorPromises.push(gw2api.promise.accountDyes(["all"], validUsers[usr].access_token));
 							}
 						if (debug) sf.log(userColorPromises.length + " account dye lists to fetch");
