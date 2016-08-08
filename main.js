@@ -108,8 +108,8 @@ helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
     "shopping list outputs stuff used, and a special message when you already have everything.",
-    "dyes: capture subsets of users, like dungeon freuqenter",
-    "Sprinkle pre-req improvments to inventories to otehr parts of the project. Make a generic chooser function for multi-results"
+    "dyes: capture subsets of users, like dungeon frequenter",
+    "Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
     "add sass from slack",
     "logging"
   ];
