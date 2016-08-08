@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.14.5"; //"basscraft/bac/bcraft/bc: toggle recursion on crafting/asscrafting"
+var version = "2.15"; //Shop 1.0
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -101,15 +101,17 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message,     "basscraft/bac/bcraft/bc: toggle recursion on crafting/asscrafting");
+  bot.reply(message,"shop/shop <item>: exactly like craft, but subtracts your inventory. Still in Beta.");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "shopping list, you lazy fuck",
+    "shopping list outputs stuff used, and a special message when you already have everything.",
     "dyes: capture subsets of users, like dungeon freuqenter",
-    "add sass from slack"
+    "Sprinkle pre-req improvments to inventories to otehr parts of the project. Make a generic chooser function for multi-results"
+    "add sass from slack",
+    "logging"
   ];
   bot.reply(message, todoList.join("\n"));
 });

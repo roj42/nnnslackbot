@@ -3,7 +3,8 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = false;
+var debug = true;
+var allInventory = [];
 var weightAliases = {
   Weapon: ["weapon"],
   Light: ["light", "lite", "cloth", "scholar"],
@@ -58,6 +59,7 @@ module.exports = function() {
         }
 
         var itemSearchResults = [];
+        allInventory = [];
         var command = message.text.slice(0, message.text.indexOf(' '));
         var args = message.text.slice(message.text.indexOf(' ') + 1, message.text.length);
         var isBaseCraft = false;
@@ -81,12 +83,31 @@ module.exports = function() {
                 return Promise.reject("there were no users with correct permissions.");
               else {
                 if (debug) sf.log(validUsers[0].name + " is a valid user");
-                return gw2api.promise.characters(['all'], validUsers[0].access_token)
+                return Promise.resolve(validUsers[0].access_token);
               }
-            }).then(function(characterData) {
-              bot.reply(message, 'Character data is length:' + characterData.length);
+            }).then(function(access_token) {
+              return inventories.fetchAllCharacterData(access_token);
+            })
+            .then(function(inventories) {
+              if (debug) sf.log('inventories: ' + inventories.length);
+              //fill allIngredients with inventory contents
+              //ingredient format is {"item_id":19721,"count":1}
+              for (var inv in inventories) {
+                for (var i in inventories[inv].ids) {
+                  if (!allInventory[inventories[inv].ids[i]])
+                    allInventory[inventories[inv].ids[i]] = {
+                      item_id: inventories[inv].ids[i],
+                      count: 0
+                    };
+                  allInventory[inventories[inv].ids[i]].count += inventories[inv].counts[i]
+                }
+              }
+              allInventory = allInventory.filter(Boolean);
+              if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
+              //find item as normal.
             });
-          return;
+          itemSearchResults = findCraftableItemByName(args);
+
         } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
           bot.reply(message, "Let's get crafty.");
           itemSearchResults = findCraftableItemByName(args);
@@ -269,13 +290,14 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   var ingredients;
   var foundRecipe;
   //is it a standard recipe
+  if (debug) sf.log("Starting with a pile of extra ingredients of size: " + allInventory.length);
   if (itemToDisplay.forged)
   //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
   else
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
   if (typeof foundRecipe !== 'undefined')
-    ingredients = (isBaseCraft || itemToDisplay.forged ? foundRecipe.ingredients : getBaseIngredients(foundRecipe.ingredients));
+    ingredients = (isBaseCraft || itemToDisplay.forged ? foundRecipe.ingredients : getBaseIngredients(foundRecipe.ingredients, allInventory));
 
   //Recipe not found.
   if (!ingredients) return [];
@@ -380,12 +402,34 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
     //not in list, add to the end.
     existingList.push(ingredientToAdd);
   };
+
+  var useExtra = function(numberNeeded, ingredientNeededId) {
+    for (var x in extraIngredients) {
+      //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
+      if (extraIngredients[x].item_id == ingredientNeededId) { //we've already made some
+        if (numberNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
+          numberNeeded -= extraIngredients[x].count;
+          extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
+          if (debug) sf.log("that was it for extra " + listItem);
+        } else {
+          extraIngredients[x].count -= numberNeeded; //we have more than enough, subtract what we used.
+          numberNeeded = 0; // we need make no more
+          if (debug) sf.log("had enough spare " + listItem);
+          break;
+        }
+      }
+    }
+    return numberNeeded;
+  };
   //ingredient format is {"item_id":19721,"count":1}
   var baseIngredients = []; //ingredients to send back, unmakeable atoms
   var extraIngredients = inventoryIngredients || []; //extra items left over after producing (usually a refinement)
+  if (debug) sf.log("Starting with a pile of extra ingredients of size: " + inventoryIngredients.length);
   //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
   for (var i = 0; i < ingredients.length; i++) { //Length changes. Careful, friend
     var makeableIngredient = gw2api.findInData('output_item_id', ingredients[i].item_id, 'recipes');
+    var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
+
     //special cutout for jewelry, ignore the transmog types that change tiers of gems, so we don't always see piled of the lowest tier gem
     //if it makes an upgrade component that is a gem, ignore.
     var outputItem = gw2api.findInData('id', ingredients[i].item_id, 'items');
@@ -393,17 +437,22 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
 
     if (!makeableIngredient || jewelryTransmog) { //if it's not made, base ingredient. Also refineable jewelry
       if (debug) sf.log(gw2api.findInData('id', ingredients[i].item_id, 'items').name + " is a " + (jewelryTransmog ? "jewelry transmog" : "base ingredient")); //Ex1: 1 vial of blood
-      addIngredient(baseIngredients, ingredients[i]);
+      ingredientsNeeded = useExtra(ingredientsNeeded, ingredients[i].item_id);
+      if (ingredientsNeeded > 0)
+        addIngredient(baseIngredients, {
+          item_id: ingredients[i].item_id,
+          count: ingredientsNeeded
+        });
     } else { //Ex1: an axe blade
       if (debug) sf.log("need " + ingredients[i].count + " of " + gw2api.findInData('id', ingredients[i].item_id, 'items').name + '(' + makeableIngredient.output_item_count + ')');
       //Add parts of this sub-recipe to the ingredients list
-      var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
       var listItem;
       if (debug) listItem = outputItem.name;
       //Check if we have any in extra ingredients
       if (debug) sf.log('see if we already have any of the ' + ingredientsNeeded + ' ' + listItem + '(s) we need');
+      ingredientsNeeded = useExtra(ingredientsNeeded, makeableIngredient.output_item_id);
       for (var x in extraIngredients) {
-        if (debug) sf.log("we have " + extraIngredients[x].count + " " + gw2api.findInData('id', extraIngredients[x].item_id, 'items').name);
+        //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
         if (extraIngredients[x].item_id == makeableIngredient.output_item_id) { //we've already made some
           if (ingredientsNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
             ingredientsNeeded -= extraIngredients[x].count;
@@ -443,10 +492,10 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
     sf.log("extra pile is:");
     for (var j in extraIngredients) {
       var item2 = gw2api.findInData('id', extraIngredients[j].item_id, 'items');
-      if (item2)
+      if (item2 && item2.name)
         sf.log(extraIngredients[j].count + " " + item2.name);
       else
-        sf.log('Unknown Item of id: ' + extraIngredients[j].item_id + '(' + extraIngredients[j].count + ')');
+        sf.log(extraIngredients[j].count + ' unknown item (id: ' + extraIngredients[j].item_id + ')');
     }
   }
   return baseIngredients; //return our list of non-makeable ingredients

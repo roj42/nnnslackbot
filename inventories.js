@@ -1,6 +1,6 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
-var debug = true;
+var debug = false;
 module.exports = function() {
   var ret = {
 
@@ -106,7 +106,6 @@ module.exports = function() {
           bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your pockets" + (!bankAll ? " for spare " + matches[2] : '') + ".");
 
           //setup: fetch character list and callback
-          inventories = [];
 
           ret.fetchAllCharacterData(user.access_token)
             .then(fetchAllItemAndSkinIds)
@@ -183,7 +182,7 @@ module.exports = function() {
           var tallyAndDisplay = function(itemList) {
             var total = 0;
             var totalStrings = [];
-            if (itemList.length==1) { //find and count this item
+            if (itemList.length == 1) { //find and count this item
               var itemToDisplay = itemList[0];
               for (var inv in inventories) {
                 var sourceCount = 0;
@@ -278,15 +277,17 @@ module.exports = function() {
     },
     fetchAllCharacterData: function(access_token) {
       //setup: promise fetch shared inventory, bank, and material storage.
+      inventories = [];
+
       return gw2api.promise.characters(['all'], access_token)
         .then(ret.collateCharacterItems)
         .then(function() {
           return Promise.all([
-            gw2api.promise.accountBank(['all'], access_token),
-            gw2api.promise.accountInventory(['all'], access_token),
-            gw2api.promise.accountMaterials(['all'], access_token)
-          ])
-          .then(ret.collateStorageItems);
+              gw2api.promise.accountBank(['all'], access_token),
+              gw2api.promise.accountInventory(['all'], access_token),
+              gw2api.promise.accountMaterials(['all'], access_token)
+            ])
+            .then(ret.collateStorageItems);
         });
     },
     collateCharacterItems: function(characterList) {
