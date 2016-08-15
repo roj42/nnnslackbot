@@ -68,144 +68,152 @@ module.exports = function() {
           command = command.slice(1, command.length);
         }
 
-        if (sf.removePunctuationAndToLower(command) === 'shop') {
+        return new Promise(function(resolve, reject) {
+          if (sf.removePunctuationAndToLower(command) === 'shop') {
 
-          bot.reply(message, "Let's shop 'til we " + sf.randomOneOf(['plop', 'crop', 'bop', 'fop', 'hop', 'cop', 'lop', 'mop', 'pop', 'qwop', 'sop', 'top(less)', 'zip zop']) + "!");
-          sf.setGlobalMessage(message);
-          //Chceck for permissions needed for shopping
-          sf.storageUsersGetSynch([message.user])
-            .then(function(users) {
-              return sf.userHasPermissionsAndReply(users, "inventories");
-            })
-            .then(function(validUsers) {
-              //should only be one valid guy, use validUsers[0]
-              if (!validUsers[0])
-                return Promise.reject("there were no users with correct permissions.");
-              else {
-                if (debug) sf.log(validUsers[0].name + " is a valid user");
-                return Promise.resolve(validUsers[0].access_token);
-              }
-            }).then(function(access_token) {
-              return inventories.fetchAllCharacterData(access_token);
-            })
-            .then(function(inventories) {
-              if (debug) sf.log('inventories: ' + inventories.length);
-              //fill allIngredients with inventory contents
-              //ingredient format is {"item_id":19721,"count":1}
-              for (var inv in inventories) {
-                for (var i in inventories[inv].ids) {
-                  if (!allInventory[inventories[inv].ids[i]])
-                    allInventory[inventories[inv].ids[i]] = {
-                      item_id: inventories[inv].ids[i],
-                      count: 0
-                    };
-                  allInventory[inventories[inv].ids[i]].count += inventories[inv].counts[i]
+            bot.reply(message, "Let's shop 'til we " + sf.randomOneOf(['plop', 'crop', 'bop', 'fop', 'hop', 'cop', 'lop', 'mop', 'pop', 'qwop', 'sop', 'top(less)', 'zip zop']) + "!");
+            sf.setGlobalMessage(message);
+            //Chceck for permissions needed for shopping
+
+            sf.storageUsersGetSynch([message.user])
+              .then(function(users) {
+                return sf.userHasPermissionsAndReply(users, "inventories");
+              })
+              .then(function(validUsers) {
+                //should only be one valid guy, use validUsers[0]
+                if (!validUsers[0])
+                  return Promise.reject("there were no users with correct permissions.");
+                else {
+                  if (debug) sf.log(validUsers[0].name + " is a valid user");
+                  return Promise.resolve(validUsers[0].access_token);
+                }
+              }).then(function(access_token) {
+                return inventories.fetchAllCharacterData(access_token);
+              })
+              .then(function(inventories) {
+                if (debug) sf.log('inventories: ' + inventories.length);
+                //fill allIngredients with inventory contents
+                //ingredient format is {"item_id":19721,"count":1}
+                for (var inv in inventories) {
+                  for (var i in inventories[inv].ids) {
+                    if (!allInventory[inventories[inv].ids[i]])
+                      allInventory[inventories[inv].ids[i]] = {
+                        item_id: inventories[inv].ids[i],
+                        count: 0
+                      };
+                    allInventory[inventories[inv].ids[i]].count += inventories[inv].counts[i]
+                  }
+                }
+                allInventory = allInventory.filter(Boolean);
+                if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
+                //find item as normal.
+              });
+            itemSearchResults = findCraftableItemByName(args);
+          } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
+            bot.reply(message, "Let's get crafty.");
+            itemSearchResults = findCraftableItemByName(args);
+          } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
+            bot.reply(message, "Let's get asscrafty.");
+            //Build and filter the list of search results
+            var termsArray = args.split(" ");
+            //Prefix. Translate to an ascended prefix
+            var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
+            if (!termsArray[0] || sf.removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
+              bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
+              return;
+            }
+            termsArray[0] = prefixSearchTerms.join("|");
+            for (var i in prefixSearchTerms) {
+              itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
+            }
+            //they should all be ascended, but just in case:
+            itemSearchResults = itemSearchResults.filter(function(value) {
+              return value.rarity == 'Ascended';
+            });
+            //weight or is a weapon
+            if (termsArray[1] && sf.removePunctuationAndToLower(termsArray[1]) != 'any') {
+              var weight = getValidTermFromAlias(termsArray[1], 'weight');
+              termsArray[1] = weight;
+              itemSearchResults = itemSearchResults.filter(function(value) {
+                if (weight == 'Weapon')
+                  return value.type == weight;
+                else
+                  return (value.details && value.details.weight_class == weight);
+              });
+            }
+            //slot or weapon type
+            if (termsArray[2] && sf.removePunctuationAndToLower(termsArray[2]) != 'any') {
+              var slot = getValidTermFromAlias(termsArray[2], 'slot');
+              termsArray[2] = slot;
+              itemSearchResults = itemSearchResults.filter(function(value) {
+                return (value.details && value.details.type == slot);
+              });
+            }
+            bot.reply(message, "Your final search was for: " + termsArray.join(" "));
+          } else {
+            bot.reply(message, "I didn't quite get that. Maybe ask \'help " + command + "\'?");
+            return ['error'];
+          }
+          resolve(itemSearchResults);
+        }).then(function(itemSearchResults) {
+          if (debug) sf.log(itemSearchResults.length + " matches found for search string");
+          if (itemSearchResults.length === 0) { //no match
+            bot.reply(message, "No item names contain that exact text.");
+          } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
+            if (itemSearchResults[0] == 'error')
+              return;
+            else
+              bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));
+          } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+            var itemNameList = [];
+            for (var n in itemSearchResults) {
+              itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
+            }
+            bot.reply(message, {
+              attachments: {
+                attachment: {
+                  fallback: 'Too many items found in search.',
+                  text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
                 }
               }
-              allInventory = allInventory.filter(Boolean);
-              if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
-              //find item as normal.
             });
-          itemSearchResults = findCraftableItemByName(args);
-
-        } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
-          bot.reply(message, "Let's get crafty.");
-          itemSearchResults = findCraftableItemByName(args);
-        } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
-          bot.reply(message, "Let's get asscrafty.");
-          //Build and filter the list of search results
-          var termsArray = args.split(" ");
-          //Prefix. Translate to an ascended prefix
-          var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
-          if (!termsArray[0] || sf.removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
-            bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
-            return;
-          }
-          termsArray[0] = prefixSearchTerms.join("|");
-          for (var i in prefixSearchTerms) {
-            itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
-          }
-          //they should all be ascended, but just in case:
-          itemSearchResults = itemSearchResults.filter(function(value) {
-            return value.rarity == 'Ascended';
-          });
-          //weight or is a weapon
-          if (termsArray[1] && sf.removePunctuationAndToLower(termsArray[1]) != 'any') {
-            var weight = getValidTermFromAlias(termsArray[1], 'weight');
-            termsArray[1] = weight;
-            itemSearchResults = itemSearchResults.filter(function(value) {
-              if (weight == 'Weapon')
-                return value.type == weight;
-              else
-                return (value.details && value.details.weight_class == weight);
-            });
-          }
-          //slot or weapon type
-          if (termsArray[2] && sf.removePunctuationAndToLower(termsArray[2]) != 'any') {
-            var slot = getValidTermFromAlias(termsArray[2], 'slot');
-            termsArray[2] = slot;
-            itemSearchResults = itemSearchResults.filter(function(value) {
-              return (value.details && value.details.type == slot);
+          } else { //10 items or less, allow user to choose
+            bot.startConversation(message, function(err, convo) {
+              var listofItems = '';
+              for (var i in itemSearchResults) {
+                listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
+              }
+              convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
+                //number, no, or repeat
+                pattern: new RegExp(/^(\d{1,2})/i),
+                callback: function(response, convo) {
+                  //if it's a number, and that number is within our search results, print it
+                  var matches = response.text.match(/^(\d{1,2})/i);
+                  var selection = matches[0];
+                  if (selection < itemSearchResults.length) {
+                    convo.say("Got it. Let me just get the list here...");
+                    convo.say(getMessageWithRecipeAttachment(itemSearchResults[selection], isBaseCraft));
+                  } else convo.repeat(); //invalid number. repeat choices.
+                  convo.next();
+                }
+              }, {
+                //negative response. Stop repeating the list.
+                pattern: bot.utterances.no,
+                callback: function(response, convo) {
+                  convo.say('¯\\_(ツ)_/¯');
+                  convo.next();
+                }
+              }, {
+                default: true,
+                callback: function(response, convo) {
+                  // loop back, user needs to pick or say no.
+                  convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
+                  convo.next();
+                }
+              }]);
             });
           }
-          bot.reply(message, "Your final search was for: " + termsArray.join(" "));
-        } else {
-          bot.reply(message, "I didn't quite get that. Maybe ask \'help " + command + "\'?");
-          return;
-        }
-        if (debug) sf.log(itemSearchResults.length + " matches found for search string");
-        if (itemSearchResults.length === 0) { //no match
-          bot.reply(message, "No item names contain that exact text.");
-        } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-          bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));
-        } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
-          var itemNameList = [];
-          for (var n in itemSearchResults) {
-            itemNameList.push(itemSearchResults[n].name + sf.levelAndRarityForItem(itemSearchResults[n]));
-          }
-          bot.reply(message, {
-            attachments: {
-              attachment: {
-                fallback: 'Too many items found in search.',
-                text: "Dude. I found " + itemSearchResults.length + ' items. Get more specific.\n' + itemNameList.join("\n")
-              }
-            }
-          });
-        } else { //10 items or less, allow user to choose
-          bot.startConversation(message, function(err, convo) {
-            var listofItems = '';
-            for (var i in itemSearchResults) {
-              listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
-            }
-            convo.ask('I found multiple items with that name. Which number you mean? (say no to quit)' + listofItems, [{
-              //number, no, or repeat
-              pattern: new RegExp(/^(\d{1,2})/i),
-              callback: function(response, convo) {
-                //if it's a number, and that number is within our search results, print it
-                var matches = response.text.match(/^(\d{1,2})/i);
-                var selection = matches[0];
-                if (selection < itemSearchResults.length) {
-                  convo.say(getMessageWithRecipeAttachment(itemSearchResults[selection], isBaseCraft));
-                } else convo.repeat(); //invalid number. repeat choices.
-                convo.next();
-              }
-            }, {
-              //negative response. Stop repeating the list.
-              pattern: bot.utterances.no,
-              callback: function(response, convo) {
-                convo.say('¯\\_(ツ)_/¯');
-                convo.next();
-              }
-            }, {
-              default: true,
-              callback: function(response, convo) {
-                // loop back, user needs to pick or say no.
-                convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
-                convo.next();
-              }
-            }]);
-          });
-        }
+        });
       });
     },
     addHelp: function(helpFile) {
@@ -290,17 +298,15 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   var ingredients;
   var foundRecipe;
   //is it a standard recipe
-  if (debug) sf.log("Starting with a pile of extra ingredients of size: " + allInventory.length);
   if (itemToDisplay.forged)
   //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
   else
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
   if (typeof foundRecipe !== 'undefined')
-    ingredients = (isBaseCraft || itemToDisplay.forged ? foundRecipe.ingredients : getBaseIngredients(foundRecipe.ingredients, allInventory));
-
-  //Recipe not found.
-  if (!ingredients) return [];
+    ingredients = getBaseIngredients(foundRecipe.ingredients, allInventory, (isBaseCraft || itemToDisplay.forged));
+  else //Recipe not found.
+    return [];
   //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
   //[&AgEOTQAA] is not 10 characters long, but rather 13 (Soft Wood Log)
   //gwPasteString is the actual series of chatlinks for pasting
@@ -387,7 +393,7 @@ function findCraftableItemByName(searchName) {
   else return itemsFound;
 }
 
-function getBaseIngredients(ingredients, inventoryIngredients) {
+function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
 
   //Adds or increments ingredients
   var addIngredient = function(existingList, ingredientToAdd) {
@@ -423,10 +429,12 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
   };
   //ingredient format is {"item_id":19721,"count":1}
   var baseIngredients = []; //ingredients to send back, unmakeable atoms
-  var extraIngredients = inventoryIngredients || []; //extra items left over after producing (usually a refinement)
+  var extraIngredients = inventoryIngredients || []; //extra items left over after producing (a refinement, or character inventory.)
   if (debug) sf.log("Starting with a pile of extra ingredients of size: " + inventoryIngredients.length);
   //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
-  for (var i = 0; i < ingredients.length; i++) { //Length changes. Careful, friend
+  var dnrLimit;
+  if (doNotRecurse) dnrLimit = ingredients.length;
+  for (var i = 0; i < (dnrLimit || ingredients.length); i++) { //Length changes. Careful, friend
     var makeableIngredient = gw2api.findInData('output_item_id', ingredients[i].item_id, 'recipes');
     var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
 
@@ -470,12 +478,19 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
         if (debug) sf.log("still need " + ingredientsNeeded + " " + listItem + ". making " + numToMake);
         //Calculate number of times to make the recipe to reach ingredientsNeeded
         //add all its parts times the number-to-make to the ingredient list for processing
-        for (var n in makeableIngredient.ingredients) { //Ex1: add 10 copper and 1 tin to ingredients
-          var singleComponent = {
-            item_id: makeableIngredient.ingredients[n].item_id,
-            count: (makeableIngredient.ingredients[n].count * numToMake) //Unqualified multiplication. Hope we're not a float
-          };
-          ingredients = ingredients.concat([singleComponent]); //add this to the end of the list of ingredients, if it has sub components, we'll get to them there
+        if (doNotRecurse)
+          addIngredient(baseIngredients, {
+            item_id: makeableIngredient.output_item_id,
+            count: ingredientsNeeded
+          });
+        else {
+          for (var n in makeableIngredient.ingredients) { //Ex1: add 10 copper and 1 tin to ingredients
+            var singleComponent = {
+              item_id: makeableIngredient.ingredients[n].item_id,
+              count: (makeableIngredient.ingredients[n].count * numToMake) //Unqualified multiplication. Hope we're not a float
+            };
+            ingredients = ingredients.concat([singleComponent]); //add this to the end of the list of ingredients, if it has sub components, we'll get to them there
+          }
         }
         var excessCount = (makeableIngredient.output_item_count * numToMake) - ingredientsNeeded; //Ex1: made 5 bars, need 3
         if (excessCount > 0) { //add extra to a pile
@@ -488,7 +503,7 @@ function getBaseIngredients(ingredients, inventoryIngredients) {
     }
   }
   //The extra pile can be the characters entire inventory.
-  if (debug) {
+  if (debug && false) {
     sf.log("extra pile is:");
     for (var j in extraIngredients) {
       var item2 = gw2api.findInData('id', extraIngredients[j].item_id, 'items');
