@@ -3,7 +3,7 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = true;
+var debug = false;
 var allInventory = [];
 var weightAliases = {
   Weapon: ["weapon"],
