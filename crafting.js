@@ -350,14 +350,23 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
       });
     }
   }
+  if (attachment.fields.length == 0) { //This is a shopped item for which no ingredients need to be bought.
+    attachment.fields.push({
+      title: "0 Items of any kind",
+      value: "Just go make it.",
+      short: false
+    });
+
+  }
   attachments.push(attachment);
   // attachments[0].pretext = gwPasteString;
-  attachments.push({
-    color: '#2200EE',
-    fields: [{
-      value: gwPasteString
-    }]
-  });
+  if (gwPasteString.length > 0)
+    attachments.push({
+      color: '#2200EE',
+      fields: [{
+        value: gwPasteString
+      }]
+    });
   return attachments;
 }
 
