@@ -107,11 +107,11 @@ module.exports = function() {
                 allInventory = allInventory.filter(Boolean);
                 if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
                 //find item as normal.
+                resolve(findCraftableItemByName(args));
               });
-            itemSearchResults = findCraftableItemByName(args);
           } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
             bot.reply(message, "Let's get crafty.");
-            itemSearchResults = findCraftableItemByName(args);
+            resolve(findCraftableItemByName(args));
           } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
             bot.reply(message, "Let's get asscrafty.");
             //Build and filter the list of search results
@@ -150,11 +150,11 @@ module.exports = function() {
               });
             }
             bot.reply(message, "Your final search was for: " + termsArray.join(" "));
+            resolve(itemSearchResults);
           } else {
             bot.reply(message, "I didn't quite get that. Maybe ask \'help " + command + "\'?");
-            return ['error'];
+            resolve(['error']);
           }
-          resolve(itemSearchResults);
         }).then(function(itemSearchResults) {
           if (debug) sf.log(itemSearchResults.length + " matches found for search string");
           if (itemSearchResults.length === 0) { //no match
@@ -427,7 +427,7 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
         if (numberNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
           numberNeeded -= extraIngredients[x].count;
           extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
-          if (debug) sf.log("that was it for extra " + listItem);
+          if (debug) sf.log("Used " + numberNeeded + " extra " + listItem);
         } else {
           extraIngredients[x].count -= numberNeeded; //we have more than enough, subtract what we used.
           numberNeeded = 0; // we need make no more
@@ -446,6 +446,7 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
   var dnrLimit;
   if (doNotRecurse) dnrLimit = ingredients.length;
   for (var i = 0; i < (dnrLimit || ingredients.length); i++) { //Length changes. Careful, friend
+    if (debug) sf.log('processing ' + i + "/" + ((dnrLimit || ingredients.length) - 1));
     var makeableIngredient = gw2api.findInData('output_item_id', ingredients[i].item_id, 'recipes');
     var ingredientsNeeded = ingredients[i].count; //How many of this sub recipe to make
 
