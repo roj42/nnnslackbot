@@ -218,12 +218,14 @@ module.exports = function() {
     },
     addHelp: function(helpFile) {
       helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
-      helpFile.bcraft = "'base' craft. Same output as craft, but simply lists ingredients and will not recursively fetch sub-recipes for base ingredients.";
+      helpFile.bcraft = "'base' craft. Same output as craft, but will not recursively fetch sub-recipes for the recipe's ingredients.";
       helpFile.bc = "Alias for bcraft: " + JSON.stringify(helpFile.bcraft);
       helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
-      helpFile.basscraft = "'base' ascended craft. Same output as asscraft, but simply lists ingredients and will not recursively fetch sub-recipes for base ingredients.";
+      helpFile.basscraft = "'base' ascended craft. Same output as asscraft, but will not recursively fetch sub-recipes for the recipe's ingredients.";
       helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
       helpFile.bac = "Alias for basscraft: " + JSON.stringify(helpFile.basscraft);
+      helpFile.shop = "Same as craft, but Lessy looks up your inventory and removes items you already own from the list.";
+      helpFile.bshop = "'base' shop. Same output as shop, but will not recursively fetch sub-recipes for the recipe's ingredients.";
     }
   };
   return ret;

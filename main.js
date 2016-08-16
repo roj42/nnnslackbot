@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.16"; //Shop 1.1
+var version = "2.17"; //Retries to 20, added shop help
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -24,7 +24,7 @@ if (!process.env.token) {
 //fire up the bot
 var bot = controller.spawn({
   token: process.env.token,
-  retry: 5
+  retry: 20
 }).startRTM(function(err, bot, payload) {
   if (err) {
     throw new Error('Could not connect to Slack');
