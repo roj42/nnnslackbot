@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17"; //Retries to 20, added shop help
+var version = "2.17.1"; //Retries to 20, added shop help
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -101,7 +101,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message,"shop/shop <item>: exactly like craft, but subtracts your inventory. Still in Beta\nbshop now works, and there is a special message when you already have everything.");
+  bot.reply(message,"Shop Actually working. Sass now pure insults.");
 });
 
 helpFile.todo = "Display the backlog";
