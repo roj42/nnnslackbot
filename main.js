@@ -342,11 +342,11 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
       uptime = uptime / 60;
       unit = 'hour';
     }
-    if (uptime >= 2) {
+    if (uptime.toFixed(0) >= 2) {
       unit = unit + 's';
     }
 
-    uptime = uptime.toFixed(0) + ' ' + unit + (uptime == 1 ? '' : 's');
+    uptime = uptime.toFixed(0) + ' ' + unit;
     return uptime;
   };
 
