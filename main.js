@@ -346,7 +346,7 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
       unit = unit + 's';
     }
 
-    uptime = uptime.toFixed(0) + ' ' + unit;
+    uptime = uptime.toFixed(0) + ' ' + unit + (uptime == 1 ? '' : 's');
     return uptime;
   };
 
