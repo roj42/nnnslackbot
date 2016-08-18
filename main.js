@@ -101,13 +101,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message,"Shop Actually working. Sass now pure insults.");
+  bot.reply(message, "shopping list outputs stuff used");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
-    "shopping list outputs stuff used",
     "dyes: capture subsets of users, like dungeon frequenter",
     "Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
     "add sass from slack",

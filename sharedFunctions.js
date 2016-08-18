@@ -124,7 +124,8 @@ module.exports = function() {
 				"This sucks! This is total BS!", "Buy me a new table!", "There's a spider on here!", "You get a table! And you get a table! And you get a table TO THE FACE.",
 				"Narfle the garthok!", "Ahrenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.","Keep the change, you filthy animal!",
 				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!","There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
-				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!"
+				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!", "Fuck this jumping puzzle!", "Centaurs! Make a barricade!",
+				"I am very VERY dissappointed!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},

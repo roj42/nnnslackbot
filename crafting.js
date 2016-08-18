@@ -3,7 +3,7 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = false;
+var debug = true;
 var allInventory = [];
 var weightAliases = {
   Weapon: ["weapon"],
@@ -101,7 +101,7 @@ module.exports = function() {
                         item_id: inventories[inv].ids[i],
                         count: 0
                       };
-                    allInventory[inventories[inv].ids[i]].count += inventories[inv].counts[i]
+                    allInventory[inventories[inv].ids[i]].count += inventories[inv].counts[i];
                   }
                 }
                 allInventory = allInventory.filter(Boolean);
@@ -299,6 +299,7 @@ function getMessageWithRecipeAttachment(itemToMake, isBaseCraft) {
 function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   var ingredients;
   var foundRecipe;
+  var usedIngredients = [];
   //is it a standard recipe
   if (itemToDisplay.forged)
   //mystic forge recipe. Do Not getBaseIngredients. Forge recipes that will shift the tier of the item means that most things will be reduced toa  giant pile of tier 1 ingredients
@@ -306,7 +307,7 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   else
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
   if (typeof foundRecipe !== 'undefined')
-    ingredients = getBaseIngredients(foundRecipe.ingredients, allInventory, (isBaseCraft || itemToDisplay.forged));
+    ingredients = getBaseIngredients(foundRecipe.ingredients, allInventory, (isBaseCraft || itemToDisplay.forged), usedIngredients);
   else //Recipe not found.
     return [];
   //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
@@ -316,7 +317,6 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   //gwlenght records the length of the names of the items
   var gwLength = 0;
   var attachments = [];
-  var item;
 
   //if we'd go above 255 chars after expansion, put in a newline before adding on.
   var gwPasteStringMaxInt = function(addString) {
@@ -327,32 +327,41 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
     gwPasteString += addString;
   };
 
+  var addIngredientsAsFields = function(ingredients, useValue) {
+    var item;
+    var fields = [];
+    var keyToUse = (useValue ? 'value' : 'title');
+    var field;
+    for (var i in ingredients) {
+      item = gw2api.findInData('id', ingredients[i].item_id, 'items');
+      field = {};
+      if (item) {
+        gwLength += (" " + ingredients[i].count + "x[" + item.name + "]").length;
+        gwPasteStringMaxInt(" " + ingredients[i].count + "x" + item.chat_link);
+        field[keyToUse] = ingredients[i].count + " " + item.name + (item.level ? " (level " + item.level + ")" : "");
+        field.short = false;
+        fields.push(field);
+      } else {
+        gwLength += (" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id).length;
+        gwPasteStringMaxInt(" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id);
+        field[keyToUse] = ingredients[i].count + " of unknown item id " + ingredients[i].item_id;
+        field.short = false;
+        fields.push(field);
+      }
+    }
+    if(debug) sf.log('fields: '+JSON.stringify(fields));
+    return fields;
+  };
+
   var attachment = {
-    color: '#000000',
+    color: '#EA9810',
     thumb_url: itemToDisplay.icon,
     fields: [],
     "fallback": itemToDisplay.name + " has " + ingredients.length + " items."
   };
   if (debug) sf.log("Item has an ingredient list of length " + ingredients.length);
-  for (var i in ingredients) {
-    item = gw2api.findInData('id', ingredients[i].item_id, 'items');
-    if (item) {
-      gwLength += (" " + ingredients[i].count + "x[" + item.name + "]").length;
-      gwPasteStringMaxInt(" " + ingredients[i].count + "x" + item.chat_link);
-      attachment.fields.push({
-        title: ingredients[i].count + " " + item.name + (item.level ? " (level " + item.level + ")" : ""),
-        short: false
-      });
-    } else {
-      gwLength += (" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id).length;
-      gwPasteStringMaxInt(" " + ingredients[i].count + " of unknown item id " + ingredients[i].item_id);
-      attachment.fields.push({
-        title: ingredients[i].count + " of unknown item id " + ingredients[i].item_id,
-        short: false
-      });
-    }
-  }
-  if (attachment.fields.length == 0) { //This is a shopped item for which no ingredients need to be bought.
+  attachment.fields = attachment.fields.concat(addIngredientsAsFields(ingredients));
+  if (attachment.fields.length === 0) { //This is a shopped item for which no ingredients need to be bought.
     attachment.fields.push({
       title: "0 Items of any kind",
       value: "Just go make it.",
@@ -364,11 +373,25 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
   // attachments[0].pretext = gwPasteString;
   if (gwPasteString.length > 0)
     attachments.push({
-      color: '#2200EE',
+      color: '#253034',
       fields: [{
         value: gwPasteString
       }]
     });
+  if (usedIngredients.length > 0) {
+    var usedAttachment = {
+      color: '#E7E0A9',
+      fields: [],
+      "fallback": "There are " + usedIngredients.length + " items in the used ingredients list."
+    };
+    usedAttachment.fields.push({
+      title: "Used own ingredients:",
+      short: false
+    });
+    usedAttachment.fields = usedAttachment.fields.concat(addIngredientsAsFields(usedIngredients, true));
+    attachments.push(usedAttachment);
+
+  }
   return attachments;
 }
 
@@ -404,7 +427,7 @@ function findCraftableItemByName(searchName) {
   else return itemsFound;
 }
 
-function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
+function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse, usedIngredients) {
 
   //Adds or increments ingredients
   var addIngredient = function(existingList, ingredientToAdd) {
@@ -425,11 +448,17 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
       //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
       if (extraIngredients[x].item_id == ingredientNeededId) { //we've already made some
         if (numberNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
+          if (debug)
+            addIngredient(usedIngredients, extraIngredients[x]);
           numberNeeded -= extraIngredients[x].count;
           extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
           if (debug) sf.log("Used " + numberNeeded + " extra " + listItem);
         } else {
           extraIngredients[x].count -= numberNeeded; //we have more than enough, subtract what we used.
+          addIngredient(usedIngredients, {
+            item_id: ingredientNeededId,
+            count: numberNeeded
+          });
           numberNeeded = 0; // we need make no more
           if (debug) sf.log("had enough spare " + listItem);
           break;
@@ -439,7 +468,7 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
     return numberNeeded;
   };
   //ingredient format is {"item_id":19721,"count":1}
-  var baseIngredients = []; //ingredients to send back, unmakeable atoms
+  var baseIngredients = []; //ingredients to send back
   var extraIngredients = inventoryIngredients || []; //extra items left over after producing (a refinement, or character inventory.)
   if (debug) sf.log("Starting with a pile of extra ingredients of size: " + inventoryIngredients.length);
   //Ex1: mighty bronze axe (simple) 1 weak blood, 1 blade (3 bars (10 copper, 1 tin)), one haft (two planks(6 logs))
@@ -471,20 +500,22 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
       //Check if we have any in extra ingredients
       if (debug) sf.log('see if we already have any of the ' + ingredientsNeeded + ' ' + listItem + '(s) we need');
       ingredientsNeeded = useExtra(ingredientsNeeded, makeableIngredient.output_item_id);
-      for (var x in extraIngredients) {
-        //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
-        if (extraIngredients[x].item_id == makeableIngredient.output_item_id) { //we've already made some
-          if (ingredientsNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
-            ingredientsNeeded -= extraIngredients[x].count;
-            extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
-            if (debug) sf.log("that was it for extra " + listItem);
-          } else {
-            extraIngredients[x].count -= ingredientsNeeded; //we have more than enough, subtract what we used.
-            ingredientsNeeded = 0; // we need make no more
-            if (debug) sf.log("had enough spare " + listItem);
-          }
-        }
-      }
+      // for (var x in extraIngredients) {
+      //   //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
+      //   if (extraIngredients[x].item_id == makeableIngredient.output_item_id) { //we've already made some
+      //     if (ingredientsNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
+      //       usedIngredients.push(extraIngredients[x]);
+      //       ingredientsNeeded -= extraIngredients[x].count;
+      //       extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
+      //       if (debug) sf.log("that was it for extra " + listItem);
+      //     } else {
+      //       extraIngredients[x].count -= ingredientsNeeded; //we have more than enough, subtract what we used.
+      //       usedIngredients.push(extraIngredients[x]);
+      //       ingredientsNeeded = 0; // we need make no more
+      //       if (debug) sf.log("had enough spare " + listItem);
+      //     }
+      //   }
+      // }
       if (ingredientsNeeded > 0) { //Do we still need to make some after our extra ingredients pass?
         var numToMake = Math.ceil(ingredientsNeeded / makeableIngredient.output_item_count); //Ex 1: need 3, makes 5 so produce once.
         if (debug) sf.log("still need " + ingredientsNeeded + " " + listItem + ". making " + numToMake);
@@ -508,7 +539,8 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
         if (excessCount > 0) { //add extra to a pile
           addIngredient(extraIngredients, { //EX1: add two here
             item_id: makeableIngredient.output_item_id,
-            count: excessCount
+            count: excessCount,
+            justMade: true
           });
         }
       }
@@ -525,5 +557,6 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse) {
         sf.log(extraIngredients[j].count + ' unknown item (id: ' + extraIngredients[j].item_id + ')');
     }
   }
+  if (debug) sf.log("used ingredients size: " + usedIngredients.length);
   return baseIngredients; //return our list of non-makeable ingredients
 }

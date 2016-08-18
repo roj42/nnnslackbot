@@ -292,7 +292,7 @@ module.exports = function() {
 				else {
 					var listCallback = function(jsonRes, headers) {
 						if (config.debug)console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
-						if (jsonRes.text || jsonRes.err) {
+						if (jsonRes.text || jsonRes.err || jsonRes.error) {
 							if(config.debug) console.log(apiKey+" promise error: "+JSON.stringify(jsonRes));
 							reject(JSON.stringify(jsonRes));
 						} else {
