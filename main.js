@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.2"; //shop now shows used ingredients
+var version = "2.17.3"; //Sassy insults
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -86,7 +86,6 @@ gw2api.setCachePath('./slackbotDB/caches/');
 gw2api.loadCacheFromFile('cache.json'); //note that this file name is a suffix. Creates itemscache.json, recipecache,json, and so on
 
 reloadAllData(false);
-
 
 
 ////HELP
@@ -437,9 +436,17 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
   var replyMessage = 'no debugs right now';
   if (message.user && message.user == 'U1AGDSX3K') {
     bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
-    replyMessage = "testy:" + sf.getTest();
+    replyMessage = "testy:" + (sf.getTest ? sf.getTest() : "");
   } else replyMessage += "...   for YOU";
-  bot.reply(message, replyMessage);
+
+  bot.startConversation(message, function(err, convo) {
+    convo.say(replyMessage);
+  });
+
+  bot.startPrivateConversation(message, function(err, dm) {
+    dm.say('Private reply!');
+  });
+
 });
 
 ////DATA
@@ -454,6 +461,17 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
   standalone.reloadAllData();
   reloadAllData(true);
 });
+
+var messagesReceived = 0;
+controller.on('ambient', function(bot, message) {
+  if (++messagesReceived > 4) {
+    standalone.sass(bot, message);
+    messagesReceived = 0;
+  } else {
+    if (debug) bot.reply(message, 'message # ' + messagesReceived);
+  }
+});
+
 
 function halfCallback(apiKey) {
   var end = new Date().getTime();

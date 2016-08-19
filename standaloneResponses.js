@@ -4,6 +4,9 @@ var helps = {};
 var sf = require('./sharedFunctions.js');
 var debug = false;
 module.exports = function() {
+	var sass = sf.loadStaticDataFromFile('sass.json');
+	var lastSass = [];
+
 	var ret = {
 		addResponses: function(controller) {
 
@@ -85,21 +88,8 @@ module.exports = function() {
 			});
 
 			//SASS
-			var sass = sf.loadStaticDataFromFile('sass.json');
-			var lastSass = [];
 			controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-				var replySass = sf.randomOneOf(sass);
-				while (lastSass.indexOf(replySass) > -1) {
-					if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
-					replySass = sf.randomOneOf(sass);
-				}
-				lastSass.push(replySass);
-				if (lastSass.length > 5) lastSass.shift();
-				if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
-					var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
-					replySass += sf.randomOneOf(suffix);
-				}
-				bot.reply(message, replySass);
+				ret.sass(bot, message);
 			});
 
 			//CATFACTS
@@ -136,6 +126,21 @@ module.exports = function() {
 			catFacts = sf.loadStaticDataFromFile("catFacts.json");
 			rikerText = sf.loadStaticDataFromFile('riker.json');
 			rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
+		},
+		sass: function(bot, message) {
+
+			var replySass = sf.randomOneOf(sass);
+			while (lastSass.indexOf(replySass) > -1) {
+				if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
+				replySass = sf.randomOneOf(sass);
+			}
+			lastSass.push(replySass);
+			if (lastSass.length > 5) lastSass.shift();
+			if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
+				var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
+				replySass += sf.randomOneOf(suffix);
+			}
+			bot.reply(message, replySass);
 		}
 	};
 	return ret;
