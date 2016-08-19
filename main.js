@@ -435,16 +435,16 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
   var replyMessage = 'no debugs right now';
   if (message.user && message.user == 'U1AGDSX3K') {
+    var pm = messagesReceived;
     bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
-    replyMessage = "testy:" + (sf.getTest ? sf.getTest() : "");
+    replyMessage = "testy:" + (sf.getTest ? sf.getTest() : '');
+
   } else replyMessage += "...   for YOU";
 
-  bot.startConversation(message, function(err, convo) {
-    convo.say(replyMessage);
-  });
-
+  bot.reply(message, replyMessage);
+ 
   bot.startPrivateConversation(message, function(err, dm) {
-    dm.say('Private reply!');
+    dm.say('Private reply!'+ pm);
   });
 
 });
