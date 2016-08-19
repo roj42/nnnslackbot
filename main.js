@@ -464,7 +464,7 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
 
 var messagesReceived = 0;
 controller.on('ambient', function(bot, message) {
-  if (++messagesReceived > 4) {
+  if (++messagesReceived > 50) {
     standalone.sass(bot, message);
     messagesReceived = 0;
   } else {
