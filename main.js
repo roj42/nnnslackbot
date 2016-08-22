@@ -434,8 +434,9 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 
 controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
   var replyMessage = 'no debugs right now';
+  var pm = '';
   if (message.user && message.user == 'U1AGDSX3K') {
-    var pm = messagesReceived;
+    pm = ' '+messagesReceived;
     bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
     replyMessage = "testy:" + (sf.getTest ? sf.getTest() : '');
 
