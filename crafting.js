@@ -117,7 +117,7 @@ module.exports = function() {
             //Build and filter the list of search results
             var termsArray = args.split(" ");
             //Prefix. Translate to an ascended prefix
-            var prefixSearchTerms = getAscendedItemsByPrefix(termsArray[0]);
+            var prefixSearchTerms = getAscendedItemsByPrefix(sf.removePunctuationAndToLower(termsArray[0]));
             if (!termsArray[0] || sf.removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
               bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
               return;
