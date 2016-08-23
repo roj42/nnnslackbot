@@ -196,7 +196,7 @@ module.exports = function() {
                   totalStrings.push(inventories[inv].source + " has " + (sourceCount > 500 ? sourceCount + ' of the goddamn things' : sourceCount));
               }
               if (total > 0 && totalStrings.length > 0) {
-                bot.reply(message, "*" + itemToDisplay.inventoryName + " Report: " + total + " owned*\n" + totalStrings.join('\n'));
+                bot.reply(message, "*" + itemToDisplay.inventoryName + ": " + total + " owned*\n" + totalStrings.join('\n'));
               } else
                 bot.reply(message, "You have none of that. None.");
             } else { //bank all command. List ALL items
