@@ -71,7 +71,7 @@ module.exports = function() {
 			var rikerText = sf.loadStaticDataFromFile('riker.json');
 			var rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
 			var lastRiker = [];
-			controller.hears(['^pick me up', '^riker'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['pick me up', 'riker', 'pick up', 'suave', 'sexy'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replyker = sf.randomOneOf(rikerText);
 				while (lastRiker.indexOf(replyker) > -1) {
 					if (debug) bot.botkit.log('dropping recent riker: ' + replyker);
