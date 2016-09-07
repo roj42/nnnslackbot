@@ -58,7 +58,7 @@ bash
 node ./main.js
 ```
 
-Standard out will show hopefulyl helpful log messages whenever nnnslackbot is doing something. Save this output when submitting bugs.
+Standard out will show (hopefully) helpful log messages whenever nnnslackbot is doing something. Save this output when submitting bugs.
 
 ## Containerized Service
 
@@ -79,11 +79,8 @@ bash nnnslackbot/launch.sh
 
 Thanks for trying out nnnslackbot. Please email the author with questions or submit issues/feature requests/general insults as issues in git and they will be seen in short order. 
 
-List of commands as of v2.17.4 
+List of commands as of v2.17.4:
+
 craft, bcraft, bc, asscraft, basscraft, ac, bac, shop, bshop, professionReport, pr, deaths, characters, cheevo, cheevor, cheevof, daily, today, tomorrow, wallet, dungeonWallet, dw, bank, dungeonfriends, dungeonfriendsverbose, df, dfv, prefix, suffix, mycolors, colors, mycolorscheme, colorscheme, dye, latest, todo, access, quaggans, quaggan, hello, hi, shutdown, restart, uptime, who are you, sample
 
-Responses without help:
-tantrum
-riker
-catfact
-Other 'easter eggs' that are easily findable in a text editor. :)
+Responses without help: tantrum, riker, catfact, other 'easter eggs' that are easily findable in a text editor. :)
