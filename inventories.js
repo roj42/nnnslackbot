@@ -127,7 +127,7 @@ module.exports = function() {
                 } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
                   var itemNameList = [];
                   for (var n in itemSearchResults) {
-                    itemNameList.push(itemList[n].inventoryName + sf.levelAndRarityForItem(itemSearchResults[n]));
+                    itemNameList.push(itemSearchResults[n].inventoryName + sf.levelAndRarityForItem(itemSearchResults[n]));
                   }
                   bot.reply(message, {
                     attachments: {
