@@ -32,7 +32,12 @@ https://api.slack.com/custom-integrations
 Note that the bot's name will be whatever you call it in custom integrations. The bot will automatically connect but must be invited into channels aside from the default channel you set up in custom integrations.
 
 ## Usage
-Say 'help' in a chamnnel with nnnslackbot for a list of commands, and help 'command' for specific command help.
+Say 'help' in a channel with nnnslackbot for a list of commands, and help 'command' for specific command help.
+
+```
+help deaths
+```
+
 
 nnnslackbot can save guild wars 2 access tokens to fetch account-specific data. Tell nnnslackbot 'access token help' for steps.
 
@@ -77,3 +82,8 @@ Thanks for trying out nnnslackbot. Please email the author with questions or sub
 List of commands as of v2.17.4 
 craft, bcraft, bc, asscraft, basscraft, ac, bac, shop, bshop, professionReport, pr, deaths, characters, cheevo, cheevor, cheevof, daily, today, tomorrow, wallet, dungeonWallet, dw, bank, dungeonfriends, dungeonfriendsverbose, df, dfv, prefix, suffix, mycolors, colors, mycolorscheme, colorscheme, dye, latest, todo, access, quaggans, quaggan, hello, hi, shutdown, restart, uptime, who are you, sample
 
+Responses without help:
+tantrum
+riker
+catfact
+Other 'easter eggs' that are easily findable in a text editor. :)
