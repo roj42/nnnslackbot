@@ -50,7 +50,7 @@ module.exports = function() {
 				bot.reply(message, sf.randomOneOf(responses));
 			});
 
-			controller.hears(['\barah\b'], 'direct_message,ambient', function(bot, message) {
+			controller.hears([' arah ','^arah','arah$','^arah$'], 'direct_message,ambient', function(bot, message) {
 				var responses = [
 					"ARAHENGE YOU GLAD TO... oh, nevermind.",
 					"AH-RAH, OOO LA-LA",
