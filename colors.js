@@ -83,7 +83,7 @@ module.exports = function() {
 
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
-								title = singleUser?"Dyes Known: " + colorText.length:"Common Dyes";
+								title = singleUser ? "Your " + sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter']) + " palette of " + colorText.length + " colors!" : "All of the beautiful people are wearing:";
 								icon = singleUser ? "https://render.guildwars2.com/file/109A6B04C4E577D9266EEDA21CC30E6B800DD452/66587.png" : "https://render.guildwars2.com/file/E3EAA9D80D4216D1E092915AFD90C069CEE8E470/222694.png";
 								text = colorText.sort().join(", ");
 
@@ -91,9 +91,11 @@ module.exports = function() {
 									icon = sf.randomOneOf(colorIcons);
 
 								sf.replyWith({
+									"username": "Joan Rivers' Head",
+									"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									attachments: {
 										attachment: {
-											fallback: 'A list of ' + colorText.length + ' dyes.',
+											fallback: 'Look, Melissa! ' + colorText.length + ' dyes.',
 											title: title,
 											text: text,
 											thumb_url: icon
@@ -101,11 +103,8 @@ module.exports = function() {
 									}
 								});
 							} else {
-								if(isJoan)
-									title = "This " +sf.randomOneOf(['Oscar Season','spring','summer','fall','winter','year'])+ " you're wearing:";
-								else
-									title = (singleUser?"Your":"Our")+" new Color Scheme:";
-																var index = Math.floor(Math.random() * colorText.length);
+								title = (singleUser ? "Your" : "Our") + " new Color Scheme:";
+								var index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
 								index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
@@ -116,8 +115,26 @@ module.exports = function() {
 									//"username": "Joan Rivers' Head",
 									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									"text": "*" + title + "*\n" + text
+								}, true);
+								sf.replyWith({
+									"username": "Joan Rivers' Head",
+									"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+									"text": "What great colors for " + sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter', 'year']) + sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!"])
 								});
 							}
+						} else {
+							sf.replyWith({
+								"username": "Joan Rivers' Head",
+								"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+								attachments: {
+									attachment: {
+										fallback: 'No dyes!',
+										title: title,
+										text: "There are no colors here.\nShut off the fucking camera.",
+										thumb_url: icon
+									}
+								}
+							});
 						}
 					})
 					.catch(function(error) {
