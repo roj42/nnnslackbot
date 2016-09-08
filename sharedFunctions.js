@@ -6,6 +6,7 @@ var fs = require('fs');
 var globalMessage = null;
 var bot = null;
 var controller = null;
+var debug = false;
 module.exports = function() {
 
 	var ret = {
@@ -45,11 +46,13 @@ module.exports = function() {
 		},
 		//reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalMessage
 		replyWith: function(messageToSend, keepGlobalMessage) {
-			if(debug) ret.log("Global message: "+messageToSend+", keep: "+keepGlobalMessage);
+			if (debug) ret.log("Global message: " + JSON.stringify(messageToSend) + "\nkeep: " + keepGlobalMessage);
 			if (!globalMessage) return;
-			else if (typeof messageToSend != 'string' && typeof messageToSend.attachments == 'undefined') {
-				ret.log("Attempted to reply with non-string message: " + JSON.stringify(messageToSend));
- 
+			else if (!(typeof messageToSend == 'string' ||
+					(typeof messageToSend == 'object' && ((Object.keys(messageToSend).indexOf("text") >= 0) || (Object.keys(messageToSend).indexOf("attachments") >= 0)))
+				)) {
+				ret.log("Attempted to reply with non-string or no-text message: " + JSON.stringify(messageToSend));
+
 			} else if (globalMessage.say) //convo
 				globalMessage.say(messageToSend);
 			else
@@ -122,10 +125,10 @@ module.exports = function() {
 				"You're wrong, wrong, absolutely brimming over with wrong-ability.", "Eat this! This table! Eat it!", "I'm going to live with my Auntie and Uncle in Bel Air!",
 				"I dream of a galaxy where your eyes are tables and the universe worships the flips!", "[redacted]er!", "I'm not a little dissappointed, I'm angry!",
 				"This sucks! This is total BS!", "Buy me a new table!", "There's a spider on here!", "You get a table! And you get a table! And you get a table TO THE FACE.",
-				"Narfle the garthok!", "Arahenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.","Keep the change, you filthy animal!",
-				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!","There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
+				"Narfle the garthok!", "Arahenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.", "Keep the change, you filthy animal!",
+				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!", "There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
 				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!", "Fuck this jumping puzzle!", "Centaurs! Make a barricade!",
-				"I am VERY dissappointed!", "This table only has two legs!","They're all gonna laugh at you!", "Suck eggs!"
+				"I am VERY dissappointed!", "This table only has two legs!", "They're all gonna laugh at you!", "Suck eggs!","ARRRRRRRRRRRRRRAHHHHHHHHHHHHHHH!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},

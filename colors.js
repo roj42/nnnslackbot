@@ -8,13 +8,15 @@ module.exports = function() {
 
 	var ret = {
 		addResponses: function(controller) {
-			controller.hears(['^color(.*)', '^mycolor(.*)', '^dye(.*)', '^mydye(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-				bot.reply(message, "colors go!");
+			controller.hears(['^color(.*)', '^mycolor(.*)', '^dye(.*)', '^mydye(.*)', '^joan$', '^joanrivers$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+				bot.reply(message, {
+					"text": "colors go!"
+				});
 				sf.setGlobalMessage(message);
 
 				//establish everyone or just current user.
-				var matches = message.text.match(/(my)?(?:colors?|dyes?)(cheme)?(?: (\w+)$)?/i);
-				if(debug) sf.log("Color matches: "+JSON.stringify(matches));
+				var matches = message.text.match(/(my|joan)?(?:colors?|dyes?)?(cheme)?(?: (\w+)$)?/i);
+				if (debug) sf.log("Color matches: " + JSON.stringify(matches));
 				if (!matches) {
 					sf.replyWith("I didn't quite get that. Try 'help color'.");
 					return;
@@ -22,9 +24,10 @@ module.exports = function() {
 
 				var usersToFetch;
 				//If single user, make usersToFetch a list of that user, otherwise leave blank to fetch all users
-				if (matches[1] && matches[1].toLowerCase() == 'my') usersToFetch = [message.user];
+				var isJoan = (matches[1] && matches[1].toLowerCase() == 'joan');
+				if (matches[1] && (matches[1].toLowerCase() == 'my' || isJoan)) usersToFetch = [message.user];
 				//if "cheme" i.e. colorscheme set isScheme to true
-				var isScheme = (matches[2] && matches[2].toLowerCase() == 'cheme');
+				var isScheme = ((matches[2] && matches[2].toLowerCase() == 'cheme') || isJoan);
 
 				sf.storageUsersGetSynch(usersToFetch)
 					.then(function(users) {
@@ -81,33 +84,41 @@ module.exports = function() {
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
 								title = singleUser?"Dyes Known: " + colorText.length:"Common Dyes";
-								icon = singleUser?"https://render.guildwars2.com/file/109A6B04C4E577D9266EEDA21CC30E6B800DD452/66587.png"
-								:"https://render.guildwars2.com/file/E3EAA9D80D4216D1E092915AFD90C069CEE8E470/222694.png";
+								icon = singleUser ? "https://render.guildwars2.com/file/109A6B04C4E577D9266EEDA21CC30E6B800DD452/66587.png" : "https://render.guildwars2.com/file/E3EAA9D80D4216D1E092915AFD90C069CEE8E470/222694.png";
 								text = colorText.sort().join(", ");
+
+								if (colorIcons.length > 0)
+									icon = sf.randomOneOf(colorIcons);
+
+								sf.replyWith({
+									attachments: {
+										attachment: {
+											fallback: 'A list of ' + colorText.length + ' dyes.',
+											title: title,
+											text: text,
+											thumb_url: icon
+										}
+									}
+								});
 							} else {
-								title = (singleUser?"Your":"Our")+" new Color Scheme:";
-								// icon = "https://render.guildwars2.com/file/FFE3A6302A0409148059239E05C9064D5DAF1E04/561734.png";
-								var index = Math.floor(Math.random() * colorText.length);
+								if(isJoan)
+									title = "This " +sf.randomOneOf(['Oscar Season','spring','summer','fall','winter','year'])+ " you're wearing:";
+								else
+									title = (singleUser?"Your":"Our")+" new Color Scheme:";
+																var index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
 								index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
 								index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB[index]) + " " + colorText[index];
-								sf.replyWith("*" + title + "*\n" + text);
+								sf.replyWith({
+									//This doesn't work. Slack doesn't render these as colors if there's an icon
+									//"username": "Joan Rivers' Head",
+									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+									"text": "*" + title + "*\n" + text
+								});
 							}
-							if (colorIcons.length > 0)
-								icon = sf.randomOneOf(colorIcons);
 						}
-						sf.replyWith({
-							attachments: {
-								attachment: {
-									fallback: 'A list of ' + colorText.length + ' dyes.',
-									title: title,
-									text: text,
-									thumb_url: icon
-								}
-							}
-						});
 					})
 					.catch(function(error) {
 						sf.replyWith("I got an error that says " + error);

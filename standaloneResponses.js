@@ -51,6 +51,7 @@ module.exports = function() {
 			});
 
 			controller.hears([' arah ','^arah','arah$','^arah$'], 'direct_message,ambient', function(bot, message) {
+				//\b does not work, hence the above crap
 				var responses = [
 					"ARAHENGE YOU GLAD TO... oh, nevermind.",
 					"AH-RAH, OOO LA-LA",
