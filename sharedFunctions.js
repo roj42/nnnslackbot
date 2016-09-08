@@ -122,7 +122,7 @@ module.exports = function() {
 				"You're wrong, wrong, absolutely brimming over with wrong-ability.", "Eat this! This table! Eat it!", "I'm going to live with my Auntie and Uncle in Bel Air!",
 				"I dream of a galaxy where your eyes are tables and the universe worships the flips!", "[redacted]er!", "I'm not a little dissappointed, I'm angry!",
 				"This sucks! This is total BS!", "Buy me a new table!", "There's a spider on here!", "You get a table! And you get a table! And you get a table TO THE FACE.",
-				"Narfle the garthok!", "Ahrenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.","Keep the change, you filthy animal!",
+				"Narfle the garthok!", "Arahenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.","Keep the change, you filthy animal!",
 				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!","There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
 				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!", "Fuck this jumping puzzle!", "Centaurs! Make a barricade!",
 				"I am VERY dissappointed!", "This table only has two legs!","They're all gonna laugh at you!", "Suck eggs!"
