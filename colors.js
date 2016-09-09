@@ -116,22 +116,28 @@ module.exports = function() {
 									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									"text": "*" + title + "*\n" + text
 								}, true);
-								var fashionSpice = [' perking up your ', ' sprucing up that ', ' ', ' ', ' ']; //remember: spice provides whitespace as well
-								var fashionAdj = ['oscar', 'spring', 'summer', 'fall', 'winter', 'your lobster', 'fancy-ass'];
-								var fashionNoun = ['season', 'this year', 'pregnancy', 'outfit', 'night', 'ensemble', 'closet', 'fest']
-								text = "What great colors for" + sf.randomOneOf(fashionSpice) + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun) + sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!"]);
-								if((Math.floor(Math.random() * 20) > 18))
-									text = "Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave!";
+								var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up that', 'spicing up an old', 'giving some oomph to my', 'your', 'a', 'that', 'my', 'our'];
+								var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual','king crab leg'];
+								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'fest', 'gala', ' costume party', 'fashion']
+								text = "What great colors for ";
+								if((Math.floor(Math.random() * 50) > 48))
+									text += " Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
+								else
+									text += sf.randomOneOf(fashionSpice) +" "+ sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
+								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!",", people!",", fashion fans!"]);
+								var joanIcons = ["http://t.fod4.com/t/3bcd68f303/c1280x720_64.jpg",
+								"https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+								"http://www.aveleyman.com/Gallery/ActorsY/18825-17920.jpg"]
 								sf.replyWith({
 									"username": "Joan Rivers' Head",
-									"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+									"icon_url": sf.randomOneOf(joanIcons),
 									"text": text
 								});
 							}
 						} else {
 							sf.replyWith({
 								"username": "Joan Rivers' Head",
-								"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+								"icon_url": "http://cdn2.holytaco.com/wp-content/uploads/2014/07/joan-rivers.jpg",
 								attachments: {
 									attachment: {
 										fallback: 'No dyes!',
