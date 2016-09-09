@@ -31,6 +31,8 @@ https://api.slack.com/custom-integrations
 
 Note that the bot's name will be whatever you call it in custom integrations. The bot will automatically connect but must be invited into channels aside from the default channel you set up in custom integrations.
 
+Note! Lessdremoth uses some custom emoji. I may remove them if the bot gets at all popular. In the meantime, consider adding custom emoji with these names to your slack channel: hello, eyebulge, facepalm, gir, coollink, frasier, butt, gary_busey, fu, bustin
+
 ## Usage
 Say 'help' in a channel with nnnslackbot for a list of commands, and help 'command' for specific command help.
 
