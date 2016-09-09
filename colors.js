@@ -116,9 +116,9 @@ module.exports = function() {
 									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									"text": "*" + title + "*\n" + text
 								}, true);
-								var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up that', 'spicing up an old', 'giving some oomph to my', 'your', 'a', 'that', 'my', 'our'];
+								var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up an old', 'spicing up that', 'giving some oomph to my', 'your', 'that', 'my', 'our'];
 								var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual','king crab leg'];
-								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'fest', 'gala', 'costume party', 'fashion']
+								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'fest', 'gala', 'costume party', 'fashion', 'vacation']
 								text = "What great colors for ";
 								if((Math.floor(Math.random() * 50) > 48))
 									text += " Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
