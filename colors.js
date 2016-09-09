@@ -116,13 +116,16 @@ module.exports = function() {
 									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									"text": "*" + title + "*\n" + text
 								}, true);
-								var fashionSpice = [' perking up your ',' sprucing up that ',' ',' ',' '];//remember: spice provides whitespace as well
-								var fashionAdj = ['oscar','spring', 'summer', 'fall', 'winter', 'your lobster','fancy-ass'];
-								var fashionNoun = ['season',  'this year', 'pregnancy', 'outfit', 'night', 'ensemble', 'closet']
+								var fashionSpice = [' perking up your ', ' sprucing up that ', ' ', ' ', ' ']; //remember: spice provides whitespace as well
+								var fashionAdj = ['oscar', 'spring', 'summer', 'fall', 'winter', 'your lobster', 'fancy-ass'];
+								var fashionNoun = ['season', 'this year', 'pregnancy', 'outfit', 'night', 'ensemble', 'closet', 'fest']
+								text = "What great colors for" + sf.randomOneOf(fashionSpice) + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun) + sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!"]);
+								if((Math.floor(Math.random() * 20) > 18))
+									text = "Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave!";
 								sf.replyWith({
 									"username": "Joan Rivers' Head",
 									"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
-									"text": "What great colors for" + sf.randomOneOf(fashionSpice)+sf.randomOneOf(fashionAdj) +" "+sf.randomOneOf(fashionNoun) +sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!"])
+									"text": text
 								});
 							}
 						} else {
