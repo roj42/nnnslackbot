@@ -108,7 +108,7 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
   var todoList = [
     "dyes: capture subsets of users, like dungeon frequenter",
     "Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
-    "dyes: a color lookup that will display the (very inaccurate) swatch"
+    "dyes: a color lookup that will display the (very inaccurate) swatch",
     "add sass from slack",
     "logging"
   ];
