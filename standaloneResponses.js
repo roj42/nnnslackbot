@@ -88,6 +88,26 @@ module.exports = function() {
 				bot.reply(message, reply);
 			});
 
+			//unicorn
+			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
+			var unicornPics = sf.loadStaticDataFromFile('unicornPics.json')
+			var lastunicorn = [];
+			controller.hears(['bitch', 'unicorn', 'so mean', 'awesome', 'great', 'so good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+				var replycorn = sf.randomOneOf(unicornText);
+				while (lastunicorn.indexOf(replycorn) > -1) {
+					if (debug) bot.botkit.log('dropping recent unicorn: ' + replycorn);
+					replycorn = sf.randomOneOf(unicornText);
+				}
+				lastunicorn.push(replycorn);
+				if (lastunicorn.length > 3) lastunicorn.shift();
+				var reply = {
+					"username": "Backhand the Unicorn",
+					icon_url: sf.randomOneOf(unicornPics),
+					text: replycorn
+				};
+				bot.reply(message, reply);
+			});
+
 			//SASS
 			controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				ret.sass(bot, message);
@@ -127,6 +147,7 @@ module.exports = function() {
 			catFacts = sf.loadStaticDataFromFile("catFacts.json");
 			rikerText = sf.loadStaticDataFromFile('riker.json');
 			rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
+			unicornText = sf.loadStaticDataFromFile('unicorn.json')
 		},
 		sass: function(bot, message) {
 
