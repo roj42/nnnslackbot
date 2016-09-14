@@ -50,16 +50,12 @@ module.exports = function() {
 				bot.reply(message, sf.randomOneOf(responses));
 			});
 
-			controller.hears([' arah ','^arah','arah$','^arah$'], 'direct_message,ambient', function(bot, message) {
+			controller.hears(['\\barah\\b'], 'direct_message,ambient', function(bot, message) {
 				//\b does not work, hence the above crap
+				console.log("Arah")
 				var responses = [
 					"ARAHENGE YOU GLAD TO... oh, nevermind.",
 					"AH-RAH, OOO LA-LA",
-					"",
-					"",
-					"",
-					"",
-					"",
 					"",
 					"",
 					"",
@@ -72,7 +68,7 @@ module.exports = function() {
 			var rikerText = sf.loadStaticDataFromFile('riker.json');
 			var rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
 			var lastRiker = [];
-			controller.hears(['pick me up', 'riker', 'pick up', 'suave', 'sexy'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['pick me up', '\\briker\\b', 'pick up', '\\bsuave\\b', '\\bsexy\\b'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replyker = sf.randomOneOf(rikerText);
 				while (lastRiker.indexOf(replyker) > -1) {
 					if (debug) bot.botkit.log('dropping recent riker: ' + replyker);
@@ -92,7 +88,7 @@ module.exports = function() {
 			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
 			var unicornPics = sf.loadStaticDataFromFile('unicornPics.json')
 			var lastunicorn = [];
-			controller.hears(['bitch', 'unicorn', 'so mean', 'awesome', 'great', 'so good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['\\bbitch\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replycorn = sf.randomOneOf(unicornText);
 				while (lastunicorn.indexOf(replycorn) > -1) {
 					if (debug) bot.botkit.log('dropping recent unicorn: ' + replycorn);
