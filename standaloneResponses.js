@@ -88,7 +88,7 @@ module.exports = function() {
 			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
 			var unicornPics = sf.loadStaticDataFromFile('unicornPics.json')
 			var lastunicorn = [];
-			controller.hears(['\\bbitch\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['\\bbi+tch\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so+ good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replycorn = sf.randomOneOf(unicornText);
 				while (lastunicorn.indexOf(replycorn) > -1) {
 					if (debug) bot.botkit.log('dropping recent unicorn: ' + replycorn);
