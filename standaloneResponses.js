@@ -3,11 +3,14 @@
 var helps = {};
 var sf = require('./sharedFunctions.js');
 var debug = false;
+
 module.exports = function() {
 	var sass = sf.loadStaticDataFromFile('sass.json');
 	var lastSass = [];
 
 	var ret = {
+		messagesReceived: 20,
+
 		addResponses: function(controller) {
 
 			//sentience
@@ -101,13 +104,14 @@ module.exports = function() {
 					icon_url: sf.randomOneOf(unicornPics),
 					text: replycorn
 				};
+				if(ret.messagesReceived < 20) ret.messagesReceived = 20;
 				bot.reply(message, reply);
 			});
 
-			//SASS
-			controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-				ret.sass(bot, message);
-			});
+			// //SASS
+			// controller.hears(['^sass'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			// 	ret.sass(bot, message);
+			// });
 
 			//CATFACTS
 			var catFacts = sf.loadStaticDataFromFile("catFacts.json");
@@ -146,19 +150,21 @@ module.exports = function() {
 			unicornText = sf.loadStaticDataFromFile('unicorn.json')
 		},
 		sass: function(bot, message) {
-
-			var replySass = sf.randomOneOf(sass);
-			while (lastSass.indexOf(replySass) > -1) {
-				if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
-				replySass = sf.randomOneOf(sass);
+			if (--ret.messagesReceived < 0) {
+				var replySass = sf.randomOneOf(sass);
+				while (lastSass.indexOf(replySass) > -1) {
+					if (debug) bot.botkit.log('dropping recent sass: ' + replySass);
+					replySass = sf.randomOneOf(sass);
+				}
+				lastSass.push(replySass);
+				if (lastSass.length > 5) lastSass.shift();
+				if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
+					var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
+					replySass += sf.randomOneOf(suffix);
+				}
+				bot.reply(message, replySass);
+				ret.messagesReceived = 20+(Math.floor(Math.random() * 20));
 			}
-			lastSass.push(replySass);
-			if (lastSass.length > 5) lastSass.shift();
-			if (replySass[replySass.length - 1] !== '.') { //sass ending with a period is pre-sassy. Add sass if not.
-				var suffix = [", you idiot.", ", dumbass. GAWD.", ", as everyone but you knows.", ", you bookah.", ", grawlface.", ", siamoth-teeth."];
-				replySass += sf.randomOneOf(suffix);
-			}
-			bot.reply(message, replySass);
 		}
 	};
 	return ret;

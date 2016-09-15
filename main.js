@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.7"; //unicorn
+var version = "2.17.8"; //sass timer re-arrangment.
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,7 +100,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "unicorn");
+  bot.reply(message, "unicorn and sass timer adjustments. Joan now more excited about deals on crustaceans.");
 });
 
 helpFile.todo = "Display the backlog";
@@ -279,7 +279,7 @@ controller.hears(['^quaggan (.*)', '^quaggans (.*)'], 'direct_message,direct_men
 
 helpFile.hello = "Lessdremoth will say hi back.";
 helpFile.hi = "Lessdremoth will say hi back.";
-controller.hears(['hello', 'hi'], 'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['\\bhello\\b', '\\bhi\\b'], 'direct_message,direct_mention,mention', function(bot, message) {
   if (message.user && message.user == 'U1AGDSX3K') {
     bot.reply(message, "Hi, roj. You're the best");
     sf.addReaction(message, 'gir');
@@ -434,19 +434,19 @@ controller.hears(['my love for you is like a truck', 'my love for you is like a 
 
 
 controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
-  var replyMessage = 'no debugs right now';
-  var pm = '';
-  if (message.user && message.user == 'U1AGDSX3K') {
-    pm = ' '+messagesReceived;
-    bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
-    replyMessage = "testy:" + (sf.getTest ? sf.getTest() : '');
+  // var replyMessage = 'no debugs right now';
+  // var pm = '';
+  // if (message.user && message.user == 'U1AGDSX3K') {
+  //   pm = ' '+standalone.messagesReceived;
+  //   bot.reply(message, "ᕙ(⇀‸↼‶)ᕗ");
+  //   replyMessage = "testy:" + (sf.getTest ? sf.getTest() : '');
 
-  } else replyMessage += "...   for YOU";
+  // } else replyMessage += "...   for YOU";
 
-  bot.reply(message, replyMessage);
+  // bot.reply(message, replyMessage);
  
   bot.startPrivateConversation(message, function(err, dm) {
-    dm.say('Private reply!'+ pm);
+    dm.say('Messages until sass: '+ standalone.messagesReceived);
   });
 
 });
@@ -464,14 +464,8 @@ controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', fu
   reloadAllData(true);
 });
 
-var messagesReceived = 0;
 controller.on('ambient', function(bot, message) {
-  if (++messagesReceived > 50) {
     standalone.sass(bot, message);
-    messagesReceived = 0;
-  } else {
-    if (debug) bot.reply(message, 'message # ' + messagesReceived);
-  }
 });
 
 

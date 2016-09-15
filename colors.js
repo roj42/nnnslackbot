@@ -120,7 +120,7 @@ module.exports = function() {
 								var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual','king crab leg'];
 								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'fest', 'gala', 'costume party', 'fashion', 'vacation']
 								text = "What great colors for ";
-								if((Math.floor(Math.random() * 50) > 48))
+								if((Math.floor(Math.random() * 20) > 17))
 									text += " Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
 								else
 									text += sf.randomOneOf(fashionSpice) +" "+ sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
