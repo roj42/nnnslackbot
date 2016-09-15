@@ -75,7 +75,7 @@ module.exports = function() {
 					replyker = sf.randomOneOf(rikerText);
 				}
 				lastRiker.push(replyker);
-				if (lastRiker.length > 3) lastRiker.shift();
+				if (lastRiker.length > 5) lastRiker.shift();
 				var reply = {
 					"username": "Command her, Riker",
 					icon_url: sf.randomOneOf(rikerPics),
@@ -88,14 +88,14 @@ module.exports = function() {
 			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
 			var unicornPics = sf.loadStaticDataFromFile('unicornPics.json')
 			var lastunicorn = [];
-			controller.hears(['\\bbi+tch\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so+ good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['\\bbi+tchy?\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so+ good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replycorn = sf.randomOneOf(unicornText);
 				while (lastunicorn.indexOf(replycorn) > -1) {
 					if (debug) bot.botkit.log('dropping recent unicorn: ' + replycorn);
 					replycorn = sf.randomOneOf(unicornText);
 				}
 				lastunicorn.push(replycorn);
-				if (lastunicorn.length > 3) lastunicorn.shift();
+				if (lastunicorn.length > 10) lastunicorn.shift();
 				var reply = {
 					"username": "Backhand the Unicorn",
 					icon_url: sf.randomOneOf(unicornPics),
@@ -121,7 +121,7 @@ module.exports = function() {
 					replyCat = sf.randomOneOf(catFacts);
 				}
 				lastCat.push(replyCat);
-				if (lastCat.length > 3) lastCat.shift();
+				if (lastCat.length > 5) lastCat.shift();
 
 				var emotes = ["hello", "eyebulge", "facepalm", "gir", "coollink", "frasier", "butt", "gary_busey", "fu", "bustin"];
 				replyCat += '\n:cat: :cat: :' + sf.randomOneOf(emotes) + ':';
