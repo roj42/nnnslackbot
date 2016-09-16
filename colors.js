@@ -80,6 +80,10 @@ module.exports = function() {
 							if (item && item.icon)
 								colorIcons.push(item.icon);
 						}
+						var joanIcons = ["https://s-media-cache-ak0.pinimg.com/236x/82/1f/d9/821fd9a65577a20c537b382332cfc34b.jpg",
+							"http://4.bp.blogspot.com/-vOB_P2hdSQA/UaPaud87gOI/AAAAAAABAOg/iki0-KRmVZc/s1600/joan-rivers-memorial-day.jpg",
+							"https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg"
+						];
 
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
@@ -89,10 +93,9 @@ module.exports = function() {
 
 								if (colorIcons.length > 0)
 									icon = sf.randomOneOf(colorIcons);
-
 								sf.replyWith({
-									"username": "Joan Rivers' Head",
-									"icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
+									"username": "Joan Rivers' Ghost",
+									"icon_url": sf.randomOneOf(joanIcons),
 									attachments: {
 										attachment: {
 											fallback: 'Look, Melissa! ' + colorText.length + ' dyes.',
@@ -120,14 +123,15 @@ module.exports = function() {
 								var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual', 'black tie'];
 								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'gala', 'costume party', 'vacation', 'seance', 'afterlife'];
 								text = "What great colors for ";
-								if((Math.floor(Math.random() * 20) > 17))
+								if ((Math.floor(Math.random() * 20) > 17))
 									text += "Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
 								else
-									text += sf.randomOneOf(fashionSpice) +" "+ sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
-								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!",", people!",", fashion fans!",", bitches."]);
+									text += sf.randomOneOf(fashionSpice) + " " + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
+								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!", ", people!", ", fashion fans!", ", bitches."]);
 								var joanIcons = ["https://s-media-cache-ak0.pinimg.com/236x/82/1f/d9/821fd9a65577a20c537b382332cfc34b.jpg",
-								"http://4.bp.blogspot.com/-vOB_P2hdSQA/UaPaud87gOI/AAAAAAABAOg/iki0-KRmVZc/s1600/joan-rivers-memorial-day.jpg",
-								"https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg"];
+									"http://4.bp.blogspot.com/-vOB_P2hdSQA/UaPaud87gOI/AAAAAAABAOg/iki0-KRmVZc/s1600/joan-rivers-memorial-day.jpg",
+									"https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg"
+								];
 								sf.replyWith({
 									"username": "Joan Rivers' Ghost",
 									"icon_url": sf.randomOneOf(joanIcons),
