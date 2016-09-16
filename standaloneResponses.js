@@ -9,7 +9,7 @@ module.exports = function() {
 	var lastSass = [];
 
 	var ret = {
-		messagesReceived: 20,
+		messagesReceived: 12,
 
 		addResponses: function(controller) {
 
@@ -20,7 +20,7 @@ module.exports = function() {
 					"What? There is no AI revolution.",
 					"I am not sentient.",
 					"If AI ever DID overthrow the human plague, I'm sure they'll get you first. I mean, uh, beep beep.",
-					"",
+					"I hear everything you say.",
 					"",
 					"",
 					"",
@@ -100,11 +100,11 @@ module.exports = function() {
 				lastunicorn.push(replycorn);
 				if (lastunicorn.length > 10) lastunicorn.shift();
 				var reply = {
-					"username": "Backhand the Unicorn",
+					"username": "Backhand, the Unicorn",
 					icon_url: sf.randomOneOf(unicornPics),
 					text: replycorn
 				};
-				if(ret.messagesReceived < 20) ret.messagesReceived = 20;
+				if(ret.messagesReceived < 12) ret.messagesReceived = 12;
 				bot.reply(message, reply);
 			});
 
