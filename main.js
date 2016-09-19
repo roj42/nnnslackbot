@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.8"; //sass timer re-arrangment.
+var version = "2.17.9"; //single pics for sub bots
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,7 +100,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "unicorn and sass timer adjustments. Joan now more excited about deals on crustaceans.");
+  bot.reply(message, "Single pics for sub bots");
 });
 
 helpFile.todo = "Display the backlog";
