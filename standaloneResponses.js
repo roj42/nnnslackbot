@@ -69,7 +69,6 @@ module.exports = function() {
 
 			//RIKER
 			var rikerText = sf.loadStaticDataFromFile('riker.json');
-			var rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
 			var lastRiker = [];
 			controller.hears(['pick me up', '\\briker\\b', 'pick up', '\\bsuave\\b', '\\bsexy\\b'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replyker = sf.randomOneOf(rikerText);
@@ -81,7 +80,7 @@ module.exports = function() {
 				if (lastRiker.length > 5) lastRiker.shift();
 				var reply = {
 					"username": "Command her, Riker",
-					icon_url: sf.randomOneOf(rikerPics),
+					icon_url: "http://www.startrek.com/legacy_media/images/200307/riker01/320x240.jpg",
 					text: replyker
 				};
 				bot.reply(message, reply);
@@ -89,7 +88,6 @@ module.exports = function() {
 
 			//unicorn
 			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
-			var unicornPics = sf.loadStaticDataFromFile('unicornPics.json')
 			var lastunicorn = [];
 			controller.hears(['\\bbi+tchy?\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so+ good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replycorn = sf.randomOneOf(unicornText);
@@ -101,7 +99,7 @@ module.exports = function() {
 				if (lastunicorn.length > 10) lastunicorn.shift();
 				var reply = {
 					"username": "Backhand, the Unicorn",
-					icon_url: sf.randomOneOf(unicornPics),
+					icon_url: "http://avatarbox.net/avatars/img21/unicorn_white_avatar_picture_61357.jpg",
 					text: replycorn
 				};
 				if(ret.messagesReceived < 12) ret.messagesReceived = 12;
@@ -146,7 +144,6 @@ module.exports = function() {
 			sass = sf.loadStaticDataFromFile('sass.json');
 			catFacts = sf.loadStaticDataFromFile("catFacts.json");
 			rikerText = sf.loadStaticDataFromFile('riker.json');
-			rikerPics = sf.loadStaticDataFromFile('rikerPics.json');
 			unicornText = sf.loadStaticDataFromFile('unicorn.json')
 		},
 		sass: function(bot, message) {

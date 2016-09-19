@@ -80,11 +80,6 @@ module.exports = function() {
 							if (item && item.icon)
 								colorIcons.push(item.icon);
 						}
-						var joanIcons = ["https://s-media-cache-ak0.pinimg.com/236x/82/1f/d9/821fd9a65577a20c537b382332cfc34b.jpg",
-							"http://4.bp.blogspot.com/-vOB_P2hdSQA/UaPaud87gOI/AAAAAAABAOg/iki0-KRmVZc/s1600/joan-rivers-memorial-day.jpg",
-							"https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg"
-						];
-
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
 								title = singleUser ? "Your " + sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter']) + " palette of " + colorText.length + " colors!" : "All of the beautiful people are wearing:";
@@ -95,7 +90,7 @@ module.exports = function() {
 									icon = sf.randomOneOf(colorIcons);
 								sf.replyWith({
 									"username": "Joan Rivers' Ghost",
-									"icon_url": sf.randomOneOf(joanIcons),
+									"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
 									attachments: {
 										attachment: {
 											fallback: 'Look, Melissa! ' + colorText.length + ' dyes.',
@@ -114,9 +109,6 @@ module.exports = function() {
 								index = Math.floor(Math.random() * colorText.length);
 								text += rgbToHex(colorRGB[index]) + " " + colorText[index];
 								sf.replyWith({
-									//This doesn't work. Slack doesn't render these as colors if there's an icon
-									//"username": "Joan Rivers' Head",
-									// "icon_url": "https://theinfosphere.org/images/thumb/7/72/Academy_Awards_2.png/225px-Academy_Awards_2.png",
 									"text": "*" + title + "*\n" + text
 								}, true);
 								var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up an old', 'spicing up that', 'giving some oomph to my', 'your', 'that', 'my', 'our'];
@@ -128,13 +120,10 @@ module.exports = function() {
 								else
 									text += sf.randomOneOf(fashionSpice) + " " + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
 								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!", ", people!", ", fashion fans!", ", bitches."]);
-								var joanIcons = ["https://s-media-cache-ak0.pinimg.com/236x/82/1f/d9/821fd9a65577a20c537b382332cfc34b.jpg",
-									"http://4.bp.blogspot.com/-vOB_P2hdSQA/UaPaud87gOI/AAAAAAABAOg/iki0-KRmVZc/s1600/joan-rivers-memorial-day.jpg",
-									"https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg"
-								];
+								
 								sf.replyWith({
 									"username": "Joan Rivers' Ghost",
-									"icon_url": sf.randomOneOf(joanIcons),
+									"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
 									"text": text
 								});
 							}
