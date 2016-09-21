@@ -3,7 +3,7 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = true;
+var debug = false;
 var allInventory = [];
 var weightAliases = {
   Weapon: ["weapon"],
@@ -306,8 +306,12 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
   else
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
-  if (typeof foundRecipe !== 'undefined')
+  if (typeof foundRecipe !== 'undefined'){
+    // for(var i in foundRecipe.ingredients){
+    //   foundRecipe.ingredients[i].count = i.count * 5;
+    // }
     ingredients = getBaseIngredients(foundRecipe.ingredients, allInventory, (isBaseCraft || itemToDisplay.forged), usedIngredients);
+  }
   else //Recipe not found.
     return [];
   //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
