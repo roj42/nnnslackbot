@@ -67,6 +67,26 @@ module.exports = function() {
 				bot.reply(message, sf.randomOneOf(responses));
 			});
 
+			//Peewee
+			var peeweeText = sf.loadStaticDataFromFile('peewee.json');
+			var lastpeewee = [];
+			controller.hears(['I know you are', '\\bpeewee\\b'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+				var replywee = sf.randomOneOf(peeweeText);
+				while (lastpeewee.indexOf(replywee) > -1) {
+					if (debug) bot.botkit.log('dropping recent peewee: ' + replywee);
+					replywee = sf.randomOneOf(peeweeText);
+				}
+				lastpeewee.push(replywee);
+				if (lastpeewee.length > 5) lastpeewee.shift();
+				var reply = {
+					"username": "Peewee Herman",
+					icon_url: "https://comicsgrinder.files.wordpress.com/2015/01/pee-wee-herman.jpg",
+					text: replywee
+				};
+				bot.reply(message, reply);
+			});
+
+
 			//RIKER
 			var rikerText = sf.loadStaticDataFromFile('riker.json');
 			var lastRiker = [];
@@ -89,7 +109,7 @@ module.exports = function() {
 			//unicorn
 			var unicornText = sf.loadStaticDataFromFile('unicorn.json');
 			var lastunicorn = [];
-			controller.hears(['\\bbi+tchy?\\b', '\\bunicorn\\b', 'so mean', '\\bawesome\\b', '\\bgreat\\b', 'so+ good'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['\\bbi+tchy?\\b', '\\bunicorn\\b', '\\bso\\bmewan\\b', '\\bawesome\\b', '\\bgreat\\b', '\\bso+ good\\b'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				var replycorn = sf.randomOneOf(unicornText);
 				while (lastunicorn.indexOf(replycorn) > -1) {
 					if (debug) bot.botkit.log('dropping recent unicorn: ' + replycorn);

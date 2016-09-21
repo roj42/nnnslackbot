@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.9"; //single pics for sub bots
+var version = "2.17.10"; //access now a help alias, peewee
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,13 +100,15 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-  bot.reply(message, "Single pics for sub bots");
+  bot.reply(message, "Let's talk about your big but...");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
   var todoList = [
     "dyes: capture subsets of users, like dungeon frequenter",
+    "craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft becoems an alias for craft",
+    "asscraft: re-arrange prefix lookup to be an alias lookup like the other two parts, then map to the nomenclature name. Insult from lessy when search string wasn't the name directly.",
     "Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
     "dyes: a color lookup that will display the (very inaccurate) swatch",
     "add sass from slack",
@@ -118,6 +120,12 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
 
 ////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
+
+controller.hears(['^access'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
+  //alias for access help
+      bot.reply(message, helpFile.access);
+});
+
 controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
   bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>.\'");
   controller.storage.users.get(message.user, function(err, user) {
