@@ -79,7 +79,7 @@ module.exports = function() {
 				lastpeewee.push(replywee);
 				if (lastpeewee.length > 5) lastpeewee.shift();
 				var reply = {
-					"username": "Peewee Herman",
+					"username": "Pee Wee Herman",
 					icon_url: "https://comicsgrinder.files.wordpress.com/2015/01/pee-wee-herman.jpg",
 					text: replywee
 				};
