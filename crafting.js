@@ -306,13 +306,12 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'forged');
   else
     foundRecipe = gw2api.findInData('output_item_id', itemToDisplay.id, 'recipes');
-  if (typeof foundRecipe !== 'undefined'){
+  if (typeof foundRecipe !== 'undefined') {
     // for(var i in foundRecipe.ingredients){
     //   foundRecipe.ingredients[i].count = i.count * 5;
     // }
     ingredients = getBaseIngredients(foundRecipe.ingredients, allInventory, (isBaseCraft || itemToDisplay.forged), usedIngredients);
-  }
-  else //Recipe not found.
+  } else //Recipe not found.
     return [];
   //chat limitations in game means that pasted chatlinks AFTER EXPANSION are limited to 155 charachters
   //[&AgEOTQAA] is not 10 characters long, but rather 13 (Soft Wood Log)
@@ -353,7 +352,7 @@ function assembleRecipeAttachment(itemToDisplay, isBaseCraft) {
         fields.push(field);
       }
     }
-    if(debug) sf.log('fields: '+JSON.stringify(fields));
+    if (debug) sf.log('fields: ' + JSON.stringify(fields));
     return fields;
   };
 
@@ -452,8 +451,7 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse, use
       //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
       if (extraIngredients[x].item_id == ingredientNeededId) { //we've already made some
         if (numberNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
-          if (debug)
-            addIngredient(usedIngredients, extraIngredients[x]);
+          addIngredient(usedIngredients, extraIngredients[x]);
           numberNeeded -= extraIngredients[x].count;
           extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
           if (debug) sf.log("Used " + numberNeeded + " extra " + listItem);
