@@ -654,7 +654,7 @@ module.exports = function() {
       });
     },
     addHelp: function(helpFile) {
-      helpFile.cheevo = "Display a report of several types of achievements. Example \'cheevo dungeonfrequenter\'.\nI know about " + Object.keys(cheevoList).length + " achievements and categories.";
+      helpFile.cheevo = "Display a report of several types of achievements. Achievements will show yellow and categories in purple.\nExample \'cheevo dungeon frequenter\'.";
       helpFile.cheevor = "Display a random achievement from a category, or random part of an achievement. Use as a suggestion for what to do next.";
       helpFile.cheevof = "Display a 'full' achievement. If you choose an achievement (not a category), displays tiers, and rewards.";
       helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
