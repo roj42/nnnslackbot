@@ -432,15 +432,6 @@ controller.hears(['^toggle'], 'direct_message,direct_mention,mention,ambient', f
   bot.reply(message, "So toggled.\n" + replyString);
 });
 
-
-controller.hears(['my love for you is like a truck', 'my love for you is like a rock', 'my love for you is ticking clock'], 'direct_message,ambient', function(bot, message) {
-  var prefixes = prefixSearch('berserker');
-  // if (prefixes)
-  bot.reply(message, printPrefixes(prefixes));
-});
-
-
-
 controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, message) {
   // var replyMessage = 'no debugs right now';
   // var pm = '';

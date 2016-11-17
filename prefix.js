@@ -28,6 +28,11 @@ module.exports = function() {
 					}
 				}
 			});
+			controller.hears(['my love for you is like a truck', 'my love for you is like a rock', 'my love for you is ticking clock'], 'direct_message,ambient', function(bot, message) {
+				var prefixes = prefixSearch('berserker');
+				// if (prefixes)
+				bot.reply(message, printPrefixes(prefixes));
+			});
 		},
 		addHelp: function(helpFile) {
 			helpFile.prefix = "Takes three arguments.\nOne: Returns a list of all item prefixes and their stats that contain that string.\nTwo (Optional):The character level at which the suffix is available. Note that level 60 prefixes start to show up on weapons (only) at level 52.\nThree (Optional): Filter results by that type. Valid types are: standard, gem, ascended, all. Defaults to standard. You can use abbreviations, but 'a' will be all.\nExamples: 'prefix berzerker' 'prefix pow gem' 'prefix pow 22 asc'";
