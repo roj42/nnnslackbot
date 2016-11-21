@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.10"; //access now a help alias, peewee
+var version = "2.17.11"; //user chooser for colorscheme
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,18 +100,17 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "Let's talk about your big but...");
+	bot.reply(message, 		"dyes: capture subsets of users, like dungeon frequenter");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"dyes: capture subsets of users, like dungeon frequenter",
 		"craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft becoems an alias for craft",
 		"asscraft: re-arrange prefix lookup to be an alias lookup like the other two parts, then map to the nomenclature name. Insult from lessy when search string wasn't the name directly.",
 		"Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
 		"dyes: a color lookup that will display the (very inaccurate) swatch",
-		"add sass from slack",
+		"add user defined dictionary 1: dbadd mole For the Moletariat! 2:db mole <responds For the Moletariat>",
 		"logging"
 	];
 	bot.reply(message, todoList.join("\n"));
@@ -145,7 +144,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
 
 		var matches = message.text.match(/access token (\w{8}-\w{4}-\w{4}-\w{4}-\w{20}-\w{4}-\w{4}-\w{4}-\w{12})$/i);
 		if (message.text.length > 12 && !matches) { // they put SOMETHING in, but it was mangled
-			bot.reply(message, "Incorrect token format. Check the spelling and try again. I Expected something like:\nEIGHTABC-ABCD-1234-A1B2-TWENTYCHARACTERSHERE-7777-6543-BBBB-THERESTWELVE");
+			bot.reply(message, "Incorrect token format. Check the spelling and try again. I Expected something like:\nEIGHTAND-FOUR-4444-ABCD-TWENTYCHARACTERSHERE-FOUR-1234-1A1A-THERESTWELVE");
 			return;
 		}
 		if (err && err != 'Error: could not load data') //missing file error.

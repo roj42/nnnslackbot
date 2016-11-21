@@ -34,7 +34,33 @@ module.exports = function() {
 						return sf.userHasPermissionsAndReply(users, "unlocks");
 					})
 					.then(function(validUsers) {
-						//possible future code, capture subsets.
+						//if there's a list of user codes, filter out matching users
+						if (matches[3]) {
+							var requesterName = '';
+							var selectedUsers = [];
+							for (var c in validUsers) {
+								if (validUsers[c].id == message.user)
+								requesterName = "Hey, " + validUsers[c].dfid + sf.randomHonoriffic(validUsers[c].dfid, validUsers[c].id) + ". ";
+								if (matches[3] && matches[3].indexOf(validUsers[c].dfid) > -1)
+									selectedUsers.push(validUsers[c]);
+							}
+
+							selectedUsers = sf.arrayUnique(selectedUsers);
+							//If no user id argument or only invalid arguments, print list and return
+							if (selectedUsers.length < 1) {
+								var replyString = '';
+								for (var k in validUsers) {
+									replyString += '\n' + validUsers[k].dfid + ': ' + validUsers[k].name;
+								}
+								bot.reply(message, requesterName + "Here's a list of eligible players of color. You can see a report by string together their codes like 'colors rsja'." + replyString + '\nTry colors <string> again.');
+								return Promise.resolve(null);
+							} else
+								bot.reply(message, "(Using colors for " + selectedUsers.length + " players.)");
+
+							//remove doubles
+							validUsers = selectedUsers;
+						}
+
 						var userColorPromises = [];
 						for (var usr in validUsers)
 							if (validUsers[usr] !== null) {
@@ -48,6 +74,7 @@ module.exports = function() {
 							return Promise.all(userColorPromises);
 					})
 					.then(function(colorLists) {
+						if(colorLists==null) return Promise.resolve();
 						if (debug) sf.log("colorLists pre: " + JSON.stringify(colorLists));
 						var singleUser = (colorLists.length < 2);
 						var title = "No Dyes Whatsoever";
@@ -120,7 +147,7 @@ module.exports = function() {
 								else
 									text += sf.randomOneOf(fashionSpice) + " " + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
 								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!", ", people!", ", fashion fans!", ", bitches!"]);
-								
+
 								sf.replyWith({
 									"username": "Joan Rivers' Ghost",
 									"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
