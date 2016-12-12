@@ -3,7 +3,7 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = false;
+var debug = true;
 var allInventory = [];
 var weightAliases = {
   Weapon: ["weapon"],
@@ -54,7 +54,7 @@ module.exports = function() {
       controller.hears(['^craft (.*)', '^bcraft (.*)', '^bc (.*)', '^asscraft (.*)', '^basscraft (.*)', '^bac (.*)', '^shop (.*)', '^bshop (.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.recipes || !gw2api.loaded.items) { //still loading
           bot.reply(message, "I'm still loading recipe data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
-          sf.setGlobalMessage(message);
+          sf.setGlobalMessage(message); //start spitting out reload updates in response to this message via global message
           return;
         }
 
@@ -107,13 +107,15 @@ module.exports = function() {
                 allInventory = allInventory.filter(Boolean);
                 if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
                 //find item as normal.
-                resolve(findCraftableItemByName(args));
+                //resolve(findCraftableItemByName(args));
               });
-          } else if (sf.removePunctuationAndToLower(command) === 'craft' || sf.removePunctuationAndToLower(command) === 'c') { //straighforward craft
+          } else {
             bot.reply(message, "Let's get crafty.");
-            resolve(findCraftableItemByName(args));
-          } else if (sf.removePunctuationAndToLower(command) === 'asscraft' || sf.removePunctuationAndToLower(command) === 'ac') {
-            bot.reply(message, "Let's get asscrafty.");
+          }
+          resolve(findCraftableItemByName(args));
+        }).then(function(itemSearchResults) {
+          if (itemSearchResults.length === 0) {
+            if (debug) sf.log("No craftables found. Trying asscraft.");
             //Build and filter the list of search results
             var termsArray = args.split(" ");
             //Prefix. Translate to an ascended prefix
@@ -150,11 +152,9 @@ module.exports = function() {
               });
             }
             bot.reply(message, "Your final search was for: " + termsArray.join(" "));
-            resolve(itemSearchResults);
-          } else {
-            bot.reply(message, "I didn't quite get that. Maybe ask \'help " + command + "\'?");
-            resolve(['error']);
+            if (debug) sf.log(itemSearchResults.length + " matches found for asscraft");
           }
+          return itemSearchResults;
         }).then(function(itemSearchResults) {
           if (debug) sf.log(itemSearchResults.length + " matches found for search string");
           if (itemSearchResults.length === 0) { //no match

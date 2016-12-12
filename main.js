@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.17.11"; //user chooser for colorscheme
+var version = "2.18"; //single craft
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,13 +100,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, 		"dyes: capture subsets of users, like dungeon frequenter");
+	bot.reply(message, 		"craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft is an alias for craft");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft becoems an alias for craft",
 		"asscraft: re-arrange prefix lookup to be an alias lookup like the other two parts, then map to the nomenclature name. Insult from lessy when search string wasn't the name directly.",
 		"Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
 		"dyes: a color lookup that will display the (very inaccurate) swatch",
