@@ -107,12 +107,13 @@ module.exports = function() {
                 allInventory = allInventory.filter(Boolean);
                 if (debug) sf.log('Allinv is size: ' + allInventory.length + ". Sample: " + JSON.stringify(allInventory[0]));
                 //find item as normal.
-                //resolve(findCraftableItemByName(args));
+                resolve(findCraftableItemByName(args));
               });
-          } else {
+          } else {//not shop[]
             bot.reply(message, "Let's get crafty.");
+            resolve(findCraftableItemByName(args));
           }
-          resolve(findCraftableItemByName(args));
+          return;
         }).then(function(itemSearchResults) {
           if (itemSearchResults.length === 0) {
             if (debug) sf.log("No craftables found. Trying asscraft.");
@@ -121,7 +122,7 @@ module.exports = function() {
             //Prefix. Translate to an ascended prefix
             var prefixSearchTerms = getAscendedItemsByPrefix(sf.removePunctuationAndToLower(termsArray[0]));
             if (!termsArray[0] || sf.removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
-              bot.reply(message, "I need an actual prefix to search, buddy. Ask 'help asscraft' if you're having trouble.");
+              bot.reply(message, "No craftable item found. Ask 'help craft' or 'help asscraft' if you're having trouble.");
               return;
             }
             termsArray[0] = prefixSearchTerms.join("|");
@@ -217,13 +218,13 @@ module.exports = function() {
       });
     },
     addHelp: function(helpFile) {
-      helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.";
+      helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.\nAlso available is special arguments for ascended items. See 'help asscraft'";
       helpFile.bcraft = "'base' craft. Same output as craft, but will not recursively fetch sub-recipes for the recipe's ingredients.";
       helpFile.bc = "Alias for bcraft: " + JSON.stringify(helpFile.bcraft);
-      helpFile.asscraft = "Craft variant for ascended items. takes three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:asscraft zojja's medium pants\nasscraft wupwup weapon staff";
-      helpFile.basscraft = "'base' ascended craft. Same output as asscraft, but will not recursively fetch sub-recipes for the recipe's ingredients.";
-      helpFile.ac = "Alias for asscraft: " + JSON.stringify(helpFile.asscraft);
-      helpFile.bac = "Alias for basscraft: " + JSON.stringify(helpFile.basscraft);
+      helpFile.asscraft = "Craft can also take three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:craft zojja's medium pants\ncraft wupwup weapon staff";
+      helpFile.basscraft = "Alias for bcraft: " + JSON.stringify(helpFile.asscraft);
+      helpFile.ac = "Alias for craft: " + JSON.stringify(helpFile.asscraft);
+      helpFile.bac = "Alias for bcraft: " + JSON.stringify(helpFile.asscraft);
       helpFile.shop = "Same as craft, but Lessy looks up your inventory and removes items you already own from the list.";
       helpFile.bshop = "'base' shop. Same output as shop, but will not recursively fetch sub-recipes for the recipe's ingredients.";
     }
@@ -502,22 +503,6 @@ function getBaseIngredients(ingredients, inventoryIngredients, doNotRecurse, use
       //Check if we have any in extra ingredients
       if (debug) sf.log('see if we already have any of the ' + ingredientsNeeded + ' ' + listItem + '(s) we need');
       ingredientsNeeded = useExtra(ingredientsNeeded, makeableIngredient.output_item_id);
-      // for (var x in extraIngredients) {
-      //   //if (debug) sf.log("we have " + extraIngredients[x].count + " " + (gw2api.findInData('id', extraIngredients[x].item_id, 'items')?gw2api.findInData('id', extraIngredients[x].item_id, 'items').name:"id: "+extraIngredients[x].item_id));
-      //   if (extraIngredients[x].item_id == makeableIngredient.output_item_id) { //we've already made some
-      //     if (ingredientsNeeded >= extraIngredients[x].count) { //we don't have enough, add what we have to the 'made' pile
-      //       usedIngredients.push(extraIngredients[x]);
-      //       ingredientsNeeded -= extraIngredients[x].count;
-      //       extraIngredients.splice(x, 1); //remove the 'used' extra ingredients
-      //       if (debug) sf.log("that was it for extra " + listItem);
-      //     } else {
-      //       extraIngredients[x].count -= ingredientsNeeded; //we have more than enough, subtract what we used.
-      //       usedIngredients.push(extraIngredients[x]);
-      //       ingredientsNeeded = 0; // we need make no more
-      //       if (debug) sf.log("had enough spare " + listItem);
-      //     }
-      //   }
-      // }
       if (ingredientsNeeded > 0) { //Do we still need to make some after our extra ingredients pass?
         var numToMake = Math.ceil(ingredientsNeeded / makeableIngredient.output_item_count); //Ex 1: need 3, makes 5 so produce once.
         if (debug) sf.log("still need " + ingredientsNeeded + " " + listItem + ". making " + numToMake);

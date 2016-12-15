@@ -100,7 +100,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, 		"craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft is an alias for craft");
+	bot.reply(message, "craft/asscraft/shop: run searches through craft THEN asscraft if no matches. Asscraft is an alias for craft");
 });
 
 helpFile.todo = "Display the backlog";
