@@ -3,47 +3,9 @@
 var gw2api = require('./api.js');
 var sf = require('./sharedFunctions.js');
 var inventories = require('./inventories.js');
-var debug = true;
+var debug = false;
 var allInventory = [];
-var weightAliases = {
-  Weapon: ["weapon"],
-  Light: ["light", "lite", "cloth", "scholar"],
-  Medium: ["medium", "leather", "adventurer"],
-  Heavy: ["heavy", "hev", "plate", "soldier"]
-};
-
-var slotAliases = {
-  Boots: ["boots", "feet", "shoes", "foot"],
-  Coat: ["coats", "chest", "torso", "robe", "doublet", "breastplate"],
-  Gloves: ["gloves", "hands"],
-  Helm: ["helms", "head", "hat"],
-  HelmAquatic: ["helmaquatic", "headaquatic", "hataquatic"],
-  Leggings: ["leggings", "legs", "pants"],
-  Shoulders: ["shoulders"],
-  Axe: ["axes"],
-  Dagger: ["daggers"],
-  Mace: ["maces"],
-  Pistol: ["pistols"],
-  Scepter: ["scepters"],
-  Sword: ["swords"],
-  Focus: ["focus", "foci"],
-  Shield: ["shields"],
-  Torch: ["torches"],
-  Warhorn: ["warhorns"],
-  Greatsword: ["greatswords"],
-  Hammer: ["hammers"],
-  LongBow: ["longbows"],
-  Rifle: ["rifles"],
-  ShortBow: ["shortbows"],
-  Staff: ["staffs", "staves"],
-  Harpoon: ["harpoons"],
-  Speargun: ["spearguns"],
-  Trident: ["tridents"],
-  LargeBundle: ["largebundle"],
-  SmallBundle: ["smallbundle"],
-  Toy: ["toys", "1htoy"],
-  TwoHandedToy: ["twohandedtoys", "2htoys"]
-};
+var aliasLists = {};
 
 module.exports = function() {
 
@@ -109,23 +71,38 @@ module.exports = function() {
                 //find item as normal.
                 resolve(findCraftableItemByName(args));
               });
-          } else {//not shop[]
+          } else { //not shop[]
             bot.reply(message, "Let's get crafty.");
             resolve(findCraftableItemByName(args));
           }
-          return;
         }).then(function(itemSearchResults) {
           if (itemSearchResults.length === 0) {
             if (debug) sf.log("No craftables found. Trying asscraft.");
+            if (!aliasLists || !aliasLists.ascendedPrefixes) {
+              aliasLists = sf.loadStaticDataFromFile("itemAliases.json");
+            }
             //Build and filter the list of search results
             var termsArray = args.split(" ");
+            //Not an ascended search
+            if (termsArray.length < 3) return [];
+
             //Prefix. Translate to an ascended prefix
-            var prefixSearchTerms = getAscendedItemsByPrefix(sf.removePunctuationAndToLower(termsArray[0]));
-            if (!termsArray[0] || sf.removePunctuationAndToLower(termsArray[0]) == 'any' || prefixSearchTerms.length < 1) {
-              bot.reply(message, "No craftable item found. Ask 'help craft' or 'help asscraft' if you're having trouble.");
+            var prefixSearchTerms = getValidTermFromAlias(sf.removePunctuationAndToLower(termsArray[0]), aliasLists.ascendedPrefixes, true);
+            if (debug) sf.log("Prefix search terms: " + JSON.stringify(prefixSearchTerms));
+            if (!termsArray[0] || !prefixSearchTerms || prefixSearchTerms.length === 0) {
+              bot.reply(message, "Were you trying to find an ascended item? See 'help asscraft'.");
               return;
             }
-            termsArray[0] = prefixSearchTerms.join("|");
+            //Sass people who don't know the hero's name directly
+            var sassOff = true;
+            for (var prefix in prefixSearchTerms) {
+              if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0])))
+                sassOff = false;
+            }
+            if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
+
+
+            //Build list of possible items based on given prefixes
             for (var i in prefixSearchTerms) {
               itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
             }
@@ -134,25 +111,47 @@ module.exports = function() {
               return value.rarity == 'Ascended';
             });
             //weight or is a weapon
+            var weight;
             if (termsArray[1] && sf.removePunctuationAndToLower(termsArray[1]) != 'any') {
-              var weight = getValidTermFromAlias(termsArray[1], 'weight');
-              termsArray[1] = weight;
-              itemSearchResults = itemSearchResults.filter(function(value) {
-                if (weight == 'Weapon')
-                  return value.type == weight;
-                else
-                  return (value.details && value.details.weight_class == weight);
-              });
+              weight = getValidTermFromAlias(sf.removePunctuationAndToLower(termsArray[1]), 'weight');
+              if (weight)
+                itemSearchResults = itemSearchResults.filter(function(value) {
+                  if (weight == 'Weapon')
+                    return value.type == weight;
+                  else
+                    return (value.details && value.details.weight_class == weight);
+                });
             }
+
             //slot or weapon type
+            var slot;
             if (termsArray[2] && sf.removePunctuationAndToLower(termsArray[2]) != 'any') {
-              var slot = getValidTermFromAlias(termsArray[2], 'slot');
-              termsArray[2] = slot;
-              itemSearchResults = itemSearchResults.filter(function(value) {
+              slot = getValidTermFromAlias(sf.removePunctuationAndToLower(termsArray[2]), 'slot');
+              if (slot) itemSearchResults = itemSearchResults.filter(function(value) {
                 return (value.details && value.details.type == slot);
               });
             }
-            bot.reply(message, "Your final search was for: " + termsArray.join(" "));
+            //Add sass!
+            if (!slot || !weight || !itemSearchResults || itemSearchResults.length === 0) {
+              var names = [];
+              for (var t in prefixSearchTerms) {
+                names.push(prefixSearchTerms[t].split("'")[0]);
+              }
+              var exaspArray = ["By the gods", "Sheesh", "Gawd", "Cripes", "I mean, come ON", "Jeez", "For goodness sake", "For pete's sake"];
+              var mockArray = [
+                  "Oh, why doesn't this computer program know what I mean when I type random characters? Whine whine whine.",
+                  "Lessy will know what I mean. All bots really exist and are psychic!",
+                  "I can just type whatever! The world is my oyster!",
+                  "Close enough! <return>.",
+                  "This must be star trek. I'll shout my questions at the ceiling!",
+                  "Everything is exactly as intuative as my butler!"
+                ];
+              bot.reply(message, "I looked carefully, and it turns out " + (names.length > 1 ? "neither " + names.join(" nor ") + " has ever" : names[0] + " never") + " made \"" + (weight ? weight : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[1]])) + " " + (slot ? slot : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[2]])) + "\"\n"
+               + sf.randomOneOf(exaspArray) + ". " +
+              ((Math.floor(Math.random() * 10) > 8) ? "\"" + sf.randomOneOf(mockArray) + "\" That's you. That's what you sound like." : "This is you: \"" + sf.randomOneOf(mockArray) + "\"")
+                );
+              return;
+            } else bot.reply(message, "Your final search was for: " + prefixSearchTerms.join("|") + " " + weight + " " + slot);
             if (debug) sf.log(itemSearchResults.length + " matches found for asscraft");
           }
           return itemSearchResults;
@@ -181,6 +180,10 @@ module.exports = function() {
           } else { //10 items or less, allow user to choose
             bot.startConversation(message, function(err, convo) {
               var listofItems = '';
+              itemSearchResults.sort(function(a, b) {
+                if (!a.level || !b.level) return -1;
+                return a.level - b.level;
+              });
               for (var i in itemSearchResults) {
                 listofItems += '\n' + [i] + ": " + itemSearchResults[i].name + sf.levelAndRarityForItem(itemSearchResults[i]) + (itemSearchResults[i].forged ? " (Mystic Forge)" : "");
               }
@@ -221,7 +224,7 @@ module.exports = function() {
       helpFile.craft = "Lessdremoth will try to get you a list of base ingredients. Takes one argument that can contain spaces. Note mystic forge recipes will just give the 4 forge ingredients. Example:craft Light of Dwyna.\nAlso available is special arguments for ascended items. See 'help asscraft'";
       helpFile.bcraft = "'base' craft. Same output as craft, but will not recursively fetch sub-recipes for the recipe's ingredients.";
       helpFile.bc = "Alias for bcraft: " + JSON.stringify(helpFile.bcraft);
-      helpFile.asscraft = "Craft can also take three arguments: prefix, weight, slot. Each can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:craft zojja's medium pants\ncraft wupwup weapon staff";
+      helpFile.asscraft = "Craft can also take three arguments: prefix, weight, slot. Weight and slot can be 'any' or a partial name (beware of false positives). Prefix is an ascended prefix or equivalent, weight is armor weight or 'weapon', slot is armor slot or weapon type.\nEx:craft zojja's medium pants\ncraft wupwup weapon staff";
       helpFile.basscraft = "Alias for bcraft: " + JSON.stringify(helpFile.asscraft);
       helpFile.ac = "Alias for craft: " + JSON.stringify(helpFile.asscraft);
       helpFile.bac = "Alias for bcraft: " + JSON.stringify(helpFile.asscraft);
@@ -232,47 +235,32 @@ module.exports = function() {
   return ret;
 }();
 
-function getAscendedItemsByPrefix(prefixSearch) {
-  //Where prefix is an ascended name, its equivalent prefix name, a substring thereof, or 'any'
-
-  var possiblePrefixes = sf.loadStaticDataFromFile("ascendedPrefixMap.json");
-  //looks like:
-  //{
-  //"Maguuma Burl":["Tizlak's"],
-  //"Marauder":["Svaard's"],
-  //"Sapphire":["Tateos's","Theodosus'"]
-  //  }
-  for (var prefix in possiblePrefixes) {
-    if (sf.removePunctuationAndToLower(prefix).includes(prefixSearch)) {
-      return possiblePrefixes[prefix];
-    } else
-      for (var name in possiblePrefixes[prefix])
-        if (sf.removePunctuationAndToLower(possiblePrefixes[prefix][name]).includes(prefixSearch)) {
-          return [possiblePrefixes[prefix][name]];
-        }
-  }
-  return [];
-}
-
 //Generic function for mapping valid search terms to aliases
-function getValidTermFromAlias(searchTerm, source) {
+function getValidTermFromAlias(searchTerm, source, returnArray) {
+  if (debug) sf.log("getValidTermFromAlias with term: " + searchTerm);
   if (typeof source == 'string') {
+    if (debug) sf.log("source is " + source);
     if (source == 'weight')
-      source = weightAliases;
+      source = aliasLists.weightAliases;
     else if (source == 'slot')
-      source = slotAliases;
+      source = aliasLists.slotAliases;
     else {
       sf.log("Invalid source for getValidTermFromAlias: " + source);
       source = [];
     }
+  } else {
+    if (debug) sf.log("Search term is an object with " + Object.keys(source).length + " keys");
   }
-
-  for (var weightName in source) {
-    for (var j in source[weightName])
-      if (sf.removePunctuationAndToLower(source[weightName][j]).includes(searchTerm))
-        return weightName;
+  var searchTermsList = [];
+  for (var validName in source) {
+    for (var j in source[validName])
+      if (sf.removePunctuationAndToLower(source[validName][j]).includes(searchTerm)) {
+        if (debug) sf.log("Found vaild search term: " + validName);
+        searchTermsList.push(validName);
+      }
   }
-  return sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage"]);
+  if (returnArray || !searchTermsList) return searchTermsList;
+  else return searchTermsList[0];
 }
 
 function getMessageWithRecipeAttachment(itemToMake, isBaseCraft) {
