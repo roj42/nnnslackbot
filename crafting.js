@@ -93,14 +93,6 @@ module.exports = function() {
               bot.reply(message, "Were you trying to find an ascended item? See 'help asscraft'.");
               return;
             }
-            //Sass people who don't know the hero's name directly
-            var sassOff = true;
-            for (var prefix in prefixSearchTerms) {
-              if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0])))
-                sassOff = false;
-            }
-            if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
-
 
             //Build list of possible items based on given prefixes
             for (var i in prefixSearchTerms) {
@@ -132,6 +124,22 @@ module.exports = function() {
               });
             }
             //Add sass!
+            //Sass people who don't know the hero's name directly
+            var sassOff = true;
+            var saidHeroName;
+            var foundHeroName = itemSearchResults[0].name.split("'")[0];
+            for (var prefix in prefixSearchTerms) {
+              if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0]))) {
+                sassOff = false;
+                saidHeroName = prefixSearchTerms[prefix].split("'")[0];
+                break;
+              }
+            }
+            if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
+            else if (prefixSearchTerms.length > 1 && foundHeroName!=saidHeroName)
+                bot.reply(message,"You know "+foundHeroName+" made that, right? Not "+saidHeroName+"?");
+
+            //Extra sass for a nonsense search
             if (!slot || !weight || !itemSearchResults || itemSearchResults.length === 0) {
               var names = [];
               for (var t in prefixSearchTerms) {
@@ -139,19 +147,18 @@ module.exports = function() {
               }
               var exaspArray = ["By the gods", "Sheesh", "Gawd", "Cripes", "I mean, come ON", "Jeez", "For goodness sake", "For pete's sake"];
               var mockArray = [
-                  "Oh, why doesn't this computer program know what I mean when I type random characters? Whine whine whine.",
-                  "Lessy will know what I mean. All bots really exist and are psychic!",
-                  "I can just type whatever! The world is my oyster!",
-                  "Close enough! <return>.",
-                  "This must be star trek. I'll shout my questions at the ceiling!",
-                  "Everything is exactly as intuative as my butler!"
-                ];
-              bot.reply(message, "I looked carefully, and it turns out " + (names.length > 1 ? "neither " + names.join(" nor ") + " has ever" : names[0] + " never") + " made \"" + (weight ? weight : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[1]])) + " " + (slot ? slot : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[2]])) + "\"\n"
-               + sf.randomOneOf(exaspArray) + ". " +
-              ((Math.floor(Math.random() * 10) > 8) ? "\"" + sf.randomOneOf(mockArray) + "\" That's you. That's what you sound like." : "This is you: \"" + sf.randomOneOf(mockArray) + "\"")
-                );
+                "Oh, why doesn't this computer program know what I mean when I type random characters? Whine whine whine.",
+                "Lessy will know what I mean. All bots really exist and are psychic!",
+                "I can just type whatever! The world is my oyster!",
+                "Close enough! <return>.",
+                "This must be star trek. I'll shout my questions at the ceiling!",
+                "Everything is exactly as intuative as my butler!"
+              ];
+              bot.reply(message, "I looked carefully, and it turns out " + (names.length > 1 ? "neither " + names.join(" nor ") + " has ever" : names[0] + " never") + " made \"" + (weight ? weight : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[1]])) + " " + (slot ? slot : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[2]])) + "\"\n" + sf.randomOneOf(exaspArray) + ". " +
+                ((Math.floor(Math.random() * 10) > 8) ? "\"" + sf.randomOneOf(mockArray) + "\" That's you. That's what you sound like." : "This is you: \"" + sf.randomOneOf(mockArray) + "\"")
+              );
               return;
-            } else bot.reply(message, "Your final search was for: " + prefixSearchTerms.join("|") + " " + weight + " " + slot);
+            } else bot.reply(message, "Your final search was for: " + itemSearchResults[0].name.split("'")[0] + " " + weight + " " + slot);
             if (debug) sf.log(itemSearchResults.length + " matches found for asscraft");
           }
           return itemSearchResults;
