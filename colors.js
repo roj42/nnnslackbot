@@ -8,6 +8,99 @@ module.exports = function() {
 
 	var ret = {
 		addResponses: function(controller) {
+			controller.hears(['^colorpreview(.*)', '^cp(.*)', '^preview(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+
+				var color = message.text.substring(message.text.indexOf(' ') + 1);
+				if (debug) sf.log("preview matches: " + JSON.stringify(color));
+				// if (!color) {
+				// 	sf.replyWith("I didn't quite get that. Try 'help preview'.");
+				// 	return;
+				// }
+				var cleanSearch = sf.removePunctuationAndToLower(color).replace(/\s+/g, '');
+				if (!color || cleanSearch.length === 0) {
+					bot.reply(message, "I didn't quite get that. Try 'help preview'.");
+					return;
+				}
+				if (debug) sf.log("find color: " + cleanSearch);
+				var colorsFound = [];
+				var exactMatch = []
+				for (var i in gw2api.data.colors) {
+					var cleanColor = sf.removePunctuationAndToLower(gw2api.data.colors[i].name).replace(/\s+/g, '');
+					if (cleanColor.includes(cleanSearch)) {
+						colorsFound.push(gw2api.data.colors[i]);
+					}
+					if (cleanColor == cleanSearch) { //exact match cutout (for short names)
+						if (debug) sf.log('exact match color ' + cleanSearch);
+						exactMatch.push(gw2api.data.colors[i]);
+					}
+				}
+				if(exactMatch.length > 0) colorsFound = exactMatch;
+
+				var previewResponse = function(color) {
+					return rgbToHex(color.cloth.rgb) + " " + color.name;
+				};
+
+				if (debug) sf.log(colorsFound.length + " matches found for search string");
+				if (colorsFound.length === 0) { //no match
+					bot.reply(message, "No color by that name. Please check the spelling and try again.");
+				} else if (colorsFound.length == 1) { //exactly one. Ship it.
+					bot.reply(message, previewResponse(colorsFound[0]));
+				} else if (colorsFound.length > 10) { //too many matches in our 'contains' search, notify and give examples.
+					var itemNameList = [];
+					for (var n in colorsFound) {
+						itemNameList.push(colorsFound[n].name);
+					}
+					bot.reply(message, {
+						attachments: {
+							attachment: {
+								fallback: 'Too many items found in search.',
+								text: "Dude. I found " + colorsFound.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+							}
+						}
+					});
+				} else { //10 items or less, allow user to colorsFound
+					bot.startConversation(message, function(err, convo) {
+						var listofItems = '';
+						colorsFound.sort(function(a, b) {
+							if (a.name < b.name) return -1;
+							if (a.name > b.name) return 1;
+							return 0;
+						});
+						for (var i in colorsFound) {
+							listofItems += '\n' + [i] + ": " + colorsFound[i].name;
+						}
+						convo.ask('I found multiple colors with that name. Which number you mean? (say no to quit)' + listofItems, [{
+							//number, no, or repeat
+							pattern: new RegExp(/^(\d{1,2})/i),
+							callback: function(response, convo) {
+								//if it's a number, and that number is within our search results, print it
+								var matches = response.text.match(/^(\d{1,2})/i);
+								var selection = matches[0];
+								if (selection < colorsFound.length) {
+									convo.say(previewResponse(colorsFound[selection]));
+								} else convo.repeat(); //invalid number. repeat choices.
+								convo.next();
+							}
+						}, {
+							//negative response. Stop repeating the list.
+							pattern: bot.utterances.no,
+							callback: function(response, convo) {
+								convo.say('¯\\_(ツ)_/¯');
+								convo.next();
+							}
+						}, {
+							default: true,
+							callback: function(response, convo) {
+								// loop back, user needs to pick or say no.
+								convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
+								convo.next();
+							}
+						}]);
+					});
+				}
+			});
+
+
 			controller.hears(['^color(.*)', '^mycolor(.*)', '^dye(.*)', '^mydye(.*)', '^joan$', '^joanrivers$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				bot.reply(message, {
 					"text": "colors go!"
@@ -40,7 +133,7 @@ module.exports = function() {
 							var selectedUsers = [];
 							for (var c in validUsers) {
 								if (validUsers[c].id == message.user)
-								requesterName = "Hey, " + validUsers[c].dfid + sf.randomHonoriffic(validUsers[c].dfid, validUsers[c].id) + ". ";
+									requesterName = "Hey, " + validUsers[c].dfid + sf.randomHonoriffic(validUsers[c].dfid, validUsers[c].id) + ". ";
 								if (matches[3] && matches[3].indexOf(validUsers[c].dfid) > -1)
 									selectedUsers.push(validUsers[c]);
 							}
@@ -74,7 +167,7 @@ module.exports = function() {
 							return Promise.all(userColorPromises);
 					})
 					.then(function(colorLists) {
-						if(colorLists==null) return Promise.resolve();
+						if (colorLists === null) return Promise.resolve();
 						if (debug) sf.log("colorLists pre: " + JSON.stringify(colorLists));
 						var singleUser = (colorLists.length < 2);
 						var title = "No Dyes Whatsoever";
@@ -180,6 +273,9 @@ module.exports = function() {
 			helpFile.mycolorscheme = "Randomly picks 3 colors from the list of dyes you've discovered";
 			helpFile.colorscheme = "Randomly picks 3 colors from the list of dyes common to all known users.";
 			helpFile.dye = "Alias for color. Can be substituted in all color commands, like mydyes and dyescheme.";
+			helpFile.preview = "Preview a color with the very inaccurate swatch. Example: preview antique gold";
+			helpFile.colorpreview = "Alias for preview: " + JSON.stringify(helpFile.preview);
+			helpFile.cp = "Alias for preview: " + JSON.stringify(helpFile.preview);
 		}
 	};
 	return ret;

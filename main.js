@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.18.2"; //asc algo rework w/ extra sass
+var version = "2.18.3"; //Color preview
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -100,15 +100,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "asscraft: re-arrange prefix lookup to be an alias lookup like the other two parts, then map to the nomenclature name. Insult from lessy when search string wasn't the name directly."
-		+"\nascended craft sass refinement: have lessy call you out when you say a correct hero name, but it's wrong for your item");
+	bot.reply(message,	"a color lookup that will display the (very inaccurate) swatch");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"Sprinkle pre-req improvments to inventories to other parts of the project. Make a generic chooser function for multi-results",
-		"dyes: a color lookup that will display the (very inaccurate) swatch",
 		"add user defined dictionary 1: dbadd mole For the Moletariat! 2:db mole <responds For the Moletariat>",
 		"logging"
 	];

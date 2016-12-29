@@ -129,12 +129,14 @@ module.exports = function() {
 				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!", "There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
 				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!", "Fuck this jumping puzzle!", "Centaurs! Make a barricade!",
 				"I am VERY dissappointed!", "This table only has two legs!", "They're all gonna laugh at you!", "Suck eggs!","ARRRRRRRRRRRRRRAHHHHHHHHHHHHHHH!","We don't need these stinky tables!",
-				"I'm so mad right now. So mad.","Mom said I'm most special! Not you!","Aw, Nerds!","Death! First!","No sir, I don't like it!"
+				"I'm so mad right now. So mad.","Mom said I'm most special! Not you!","Aw, Nerds!","Death! First!","No sir, I don't like it!", "You Nerf Herder!",
+				"Someone get this walking carpet out of my way!", "The harder I squeeze, the more systems slip through my fingers!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},
 		//for string 'normalization before comparing in searches'
 		removePunctuationAndToLower: function(string) {
+			if(!string) return '';
 			var punctuationless = string.replace(/['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
 			var finalString = punctuationless.replace(/\s{2,}/g, " ");
 			return finalString.toLowerCase();
