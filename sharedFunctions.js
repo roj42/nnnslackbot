@@ -137,7 +137,8 @@ module.exports = function() {
 		//for string 'normalization before comparing in searches'
 		removePunctuationAndToLower: function(string) {
 			if(!string) return '';
-			var punctuationless = string.replace(/['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
+			//\&gt;|\&lt;|\&amp; are slack specific
+			var punctuationless = string.replace(/\&gt;|\&lt;|\&amp;|['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
 			var finalString = punctuationless.replace(/\s{2,}/g, " ");
 			return finalString.toLowerCase();
 		},
