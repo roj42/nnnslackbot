@@ -107,6 +107,7 @@ helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
 		"add user defined dictionary 1: dbadd mole For the Moletariat! 2:db mole <responds For the Moletariat>",
+		"Colorgroup: list all/your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories",
 		"logging"
 	];
 	bot.reply(message, todoList.join("\n"));

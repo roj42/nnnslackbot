@@ -54,7 +54,7 @@ module.exports = function() {
 						attachments: {
 							attachment: {
 								fallback: 'Too many items found in search.',
-								text: "Dude. I found " + colorsFound.length + ' items. Get more specific.\n' + itemNameList.join("\n")
+								text: "Criminey. I found " + colorsFound.length + ' items. Get more specific.\n' + itemNameList.join("\n")
 							}
 						}
 					});
@@ -92,7 +92,7 @@ module.exports = function() {
 							default: true,
 							callback: function(response, convo) {
 								// loop back, user needs to pick or say no.
-								convo.say("Hum, that doesn't look right. Next time choose a number of the recipe you'd like to see.");
+								convo.say("Hum, that doesn't look right. Next time choose a number of the color you'd like to see.");
 								convo.next();
 							}
 						}]);
