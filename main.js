@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.18.3"; //Color preview
+var version = "2.18.4"; //Added user sass
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -69,6 +69,10 @@ var standalone = require('./standaloneResponses.js');
 standalone.addResponses(controller);
 standalone.addHelp(helpFile);
 
+//Add userdb responses
+var userDB = require('./userDB.js');
+userDB.addResponses(controller);
+userDB.addHelp(helpFile);
 
 var gw2api = require('./api.js');
 gw2api.setCacheTime(86400, 'quaggans');
@@ -100,13 +104,12 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message,	"a color lookup that will display the (very inaccurate) swatch");
+	bot.reply(message,	"Added user defined sasstionary. See help sass.");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"add user defined dictionary 1: dbadd mole For the Moletariat! 2:db mole <responds For the Moletariat>",
 		"Colorgroup: list all/your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories",
 		"logging"
 	];

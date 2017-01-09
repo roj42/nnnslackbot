@@ -12,10 +12,6 @@ module.exports = function() {
 
 				var color = message.text.substring(message.text.indexOf(' ') + 1);
 				if (debug) sf.log("preview matches: " + JSON.stringify(color));
-				// if (!color) {
-				// 	sf.replyWith("I didn't quite get that. Try 'help preview'.");
-				// 	return;
-				// }
 				var cleanSearch = sf.removePunctuationAndToLower(color).replace(/\s+/g, '');
 				if (!color || cleanSearch.length === 0) {
 					bot.reply(message, "I didn't quite get that. Try 'help preview'.");
