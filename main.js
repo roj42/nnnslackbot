@@ -120,12 +120,12 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
 ////ACCESS TOKEN
 helpFile.access = "Set up your guild wars account to allow lessdremoth to read data. Say 'access token help' for more information.";
 
-controller.hears(['^access'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
+controller.hears(['^access$'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
 	//alias for access help
 	bot.reply(message, helpFile.access);
 });
 
-controller.hears(['^access token help', '^help access', '^help access token'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
+controller.hears(['^access token help$', '^help access$', '^help access token$'], 'direct_message,mention,direct_message,ambient', function(bot, message) {
 	bot.reply(message, "First you'll need to log in to arena net to create a token. Do so here:\nhttps://account.arena.net/applications\nRight now I only use the 'account', 'progression', 'inventories', 'wallet' and 'characters' sections.\nCopy the token, and then say \'access token <your token>.\'");
 	controller.storage.users.get(message.user, function(err, user) {
 		if (user) {
