@@ -65,7 +65,7 @@ module.exports = function() {
 								break;
 							case 'remove':
 								var term = sf.removePunctuationAndToLower(text);
-								if (entry) {
+								if (term) {
 									bot.reply(message, "Goodbye to you, " + term);
 								} else
 									bot.reply(message, "I, uh, don't see that, but sure. Gone.");
@@ -77,7 +77,7 @@ module.exports = function() {
 								break;
 							default:
 								if (entry) bot.reply(message, entry);
-								else bot.reply(message, 'Your input is sort of... muddied. See help db');
+								else bot.reply(message, 'Your input is sort of... muddied. See help sass');
 						}
 					}).catch(function(error) {
 						bot.reply(message, "I got an error that says: " + error);
@@ -86,10 +86,11 @@ module.exports = function() {
 			});
 		},
 		addHelp: function(helpFile) {
-			helpFile.sass = "User-made database of sassy definitions and responses. Saying just sass gives random sass. sass <term> will show you a pre-made definition.\nOther usages: sass add <term> <definition, sass remove <term>. See help add and help remove for those usages";
+			helpFile.sass = "User-made database of sassy definitions and responses. Saying just sass gives random sass. sass <term> will show you a pre-made definition.\nOther usages: sass add <term> <definition>, sass remove <term>. See help add and help remove for those usages. Also help list and help all.";
 			helpFile.add = "Add a term to the user sass. Usage: sass <term> <definition>. Example: sass add mole For the Moletariate!";
 			helpFile.remove = "Remove a term from the user sass. This is not reversible. Example: sass remove mole";
-			helpFile.list = "Show all terms from the user sass. This is not reversible. Example: sass remove mole";
+			helpFile.list = "Show all terms from the user sass.";
+			helpFile.all = "Show a list of terms and sass from the user sass.";
 
 		}
 	};

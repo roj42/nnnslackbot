@@ -69,10 +69,10 @@ var standalone = require('./standaloneResponses.js');
 standalone.addResponses(controller);
 standalone.addHelp(helpFile);
 
-//Add userdb responses
-var userDB = require('./userDB.js');
-userDB.addResponses(controller);
-userDB.addHelp(helpFile);
+//Add sass responses
+var sassDB = require('./sassDB.js');
+sassDB.addResponses(controller);
+sassDB.addHelp(helpFile);
 
 var gw2api = require('./api.js');
 gw2api.setCacheTime(86400, 'quaggans');
