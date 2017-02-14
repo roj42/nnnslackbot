@@ -76,7 +76,8 @@ Remember that this requires Docker, and it must be installed and started indepen
 git clone git@github.com/roj42/nnnslackbot.git
 mkdir data
 export SLACKTOKEN=<get the current active slack token from custom integrations>
-bash nnnslackbot/launch.sh
+export INSTALL_DIR=<absolute path to git clone location>
+bash $INSTALL_DIR/nnnslackbot/launch.sh
 ```
 
 Thanks for trying out nnnslackbot. Please email the author with questions or submit issues/feature requests/general insults as issues in git and they will be seen in short order. 
