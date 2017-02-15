@@ -54,16 +54,27 @@ module.exports = function() {
 									bot.reply(message, "User sass is empty.");
 								break;
 							case 'add':
+								sf.log("text:" + text.indexOf(' ') + "|term:" + term);
 								var term = sf.removePunctuationAndToLower(text.slice(0, text.indexOf(' ')));
-								var def = text.slice(text.indexOf(' ') + 1);
-								bot.reply(message, "I will forever remember that " + term + " means " + def);
-								userDB[term] = def;
-								controller.storage.teams.save({
-									id: message.team,
-									userDB: userDB
-								});
+								if (!text || text.trim().length === 0 || !term || term.trim().length === 0 || text.indexOf(' ') < 0) {
+									bot.reply(message, "Add what, exactly?");
+								} else if (term.match(/^add|remove|list|all/i)) {
+									bot.reply(message, "No sass terms in the sass!");
+								} else {
+									var def = text.slice(text.indexOf(' ') + 1);
+									bot.reply(message, "I will forever remember that " + term + " means " + def);
+									userDB[term] = def;
+									controller.storage.teams.save({
+										id: message.team,
+										userDB: userDB
+									});
+								}
 								break;
 							case 'remove':
+								if(!text || text.trim().length === 0){
+									bot.reply(message, "Remove what, exactly?");
+									break;
+								}
 								var term = sf.removePunctuationAndToLower(text);
 								if (term) {
 									bot.reply(message, "Goodbye to you, " + term);
