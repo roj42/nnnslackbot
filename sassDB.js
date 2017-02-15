@@ -54,7 +54,6 @@ module.exports = function() {
 									bot.reply(message, "User sass is empty.");
 								break;
 							case 'add':
-								sf.log("text:" + text.indexOf(' ') + "|term:" + term);
 								var term = sf.removePunctuationAndToLower(text.slice(0, text.indexOf(' ')));
 								if (!text || text.trim().length === 0 || !term || term.trim().length === 0 || text.indexOf(' ') < 0) {
 									bot.reply(message, "Add what, exactly?");
@@ -76,7 +75,7 @@ module.exports = function() {
 									break;
 								}
 								var term = sf.removePunctuationAndToLower(text);
-								if (term) {
+								if (term && userDB[term]) {
 									bot.reply(message, "Goodbye to you, " + term);
 								} else
 									bot.reply(message, "I, uh, don't see that, but sure. Gone.");
