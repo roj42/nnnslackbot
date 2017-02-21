@@ -298,7 +298,7 @@ controller.hears(['\\bhello\\b', '\\bhi\\b'], 'direct_message,direct_mention,men
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-	botShutdown(message, true);
+	botShutdown(message, true);//Set to false to enable shutdown
 });
 helpFile.restart = "Command Lessdremoth to restart.";
 controller.hears(['restart'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -333,6 +333,8 @@ function botShutdown(message, restart) {
 	});
 }
 
+helpFile.errors = "Is there no data? Check:\nhttps://forum-en.guildwars2.com/forum/community/api";
+helpFile.error = JSON.stringify(helpFile.errors);
 helpFile.uptime = "Lessdremoth will display some basic uptime information.";
 helpFile["who are you"] = "Lessdremoth will display some basic uptime information.";
 controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
