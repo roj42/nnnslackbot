@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.18.44"; //add errorcallback to all dbreloads
+var version = "2.18.45"; //added logic for case when you cheevor an achievment you've already completed
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -18,7 +18,7 @@ controller = Botkit.slackbot({
 
 //Check for bot token
 if (!process.env.token) {
-	bot.botkit.log('Error: Specify token in environment');
+	console.log('Error: Specify token in environment');
 	process.exit(1);
 }
 //fire up the bot
@@ -104,12 +104,13 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message,	"Added user defined sasstionary. See help sass.");
+	bot.reply(message, "Added user defined sasstionary. See help sass.");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
+		"Dungeonparty:slect users as dungeon frequenter, choose a random df dungeon, and give a colorscheme for them to wear a la joan",
 		"Colorgroup: list all/your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories",
 		"logging"
 	];
@@ -298,7 +299,7 @@ controller.hears(['\\bhello\\b', '\\bhi\\b'], 'direct_message,direct_mention,men
 
 helpFile.shutdown = "Command Lessdremoth to shut down.";
 controller.hears(['shutdown'], 'direct_message,direct_mention,mention', function(bot, message) {
-	botShutdown(message, true);//Set to false to enable shutdown
+	botShutdown(message, true); //Set to false to enable shutdown
 });
 helpFile.restart = "Command Lessdremoth to restart.";
 controller.hears(['restart'], 'direct_message,direct_mention,mention', function(bot, message) {

@@ -15,25 +15,34 @@ function findInAccount(id, accountAchievements) {
 
 //must be a category Just pick a cheevo at random from the category
 function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
-  if (debug) console.log("Display random cheevo: " + cheevoToDisplay.name);
+  if (debug) sf.log("Display random cheevo: " + cheevoToDisplay.name);
   var randomNum;
   var alreadyDone = true;
   var acctCheevo;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
+    if(debug) sf.log("number of cheevos:"+cheevoToDisplay.achievements.length)
     //keep picking until we find one the user has not done.
-    while (alreadyDone) {
+    while (alreadyDone && cheevoToDisplay.achievements.length > 0) {
       randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
       acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
       if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
         alreadyDone = false;
+      } else { //remove from list so we can't choose it again
+        cheevoToDisplay.achievements.splice(randomNum, 1);
+        if(debug) sf.log("Removed cheevo. New length:"+cheevoToDisplay.achievements.length);
       }
     }
-    var randomCheevo = gw2api.findInData('id', cheevoToDisplay.achievements[randomNum], 'achievements'); //find the achievement to get the name
-    //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
-    var desc = randomCheevo.description.replace(/(\.)$/, '');
-    desc += '!';
-    var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
-    sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
+    if (cheevoToDisplay.achievements.length < 1) {
+      sf.replyWith("You've done them all, "+sf.randomOneOf(["smartass","silly","stupid","you monster","tiger","princess","sport"])+".");
+    } else {
+      var randomCheevo = gw2api.findInData('id', cheevoToDisplay.achievements[randomNum], 'achievements'); //find the achievement to get the name
+
+      //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
+      var desc = randomCheevo.description.replace(/(\.)$/, '');
+      desc += '!';
+      var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
+      sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
+    }
   } else if (cheevoToDisplay.bits) { //choose random part of an achievement
     acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
     while (alreadyDone) {
@@ -354,7 +363,7 @@ function displayAchievementBit(bit, doneFlag, data) {
       var cheevoName = 'unknown achievement';
       var foundCheevo = gw2api.findInData('id', foundTitle.achievement, 'achievements');
       if (foundCheevo) cheevoName = foundCheevo.name;
-      return foundTitle.name;// + " (Title from " + cheevoName + ")";
+      return foundTitle.name; // + " (Title from " + cheevoName + ")";
     } else {
       return "Unknown title: " + bit.id + (doneFlag ? " - DONE" : '');
     }
