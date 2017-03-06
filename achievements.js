@@ -19,46 +19,54 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   var randomNum;
   var alreadyDone = true;
   var acctCheevo;
+  var subcheevoList;
+  var isBits = false;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
-    if(debug) sf.log("number of cheevos:"+cheevoToDisplay.achievements.length)
-    //keep picking until we find one the user has not done.
-    while (alreadyDone && cheevoToDisplay.achievements.length > 0) {
-      randomNum = Math.floor(Math.random() * cheevoToDisplay.achievements.length);
-      acctCheevo = findInAccount(cheevoToDisplay.achievements[randomNum], accountAchievements);
-      if (!acctCheevo || !acctCheevo.done || acctCheevo.current < acctCheevo.max) {
-        alreadyDone = false;
-      } else { //remove from list so we can't choose it again
-        cheevoToDisplay.achievements.splice(randomNum, 1);
-        if(debug) sf.log("Removed cheevo. New length:"+cheevoToDisplay.achievements.length);
-      }
-    }
-    if (cheevoToDisplay.achievements.length < 1) {
-      sf.replyWith("You've done them all, "+sf.randomOneOf(["smartass","silly","stupid","you monster","tiger","princess","sport"])+".");
-    } else {
-      var randomCheevo = gw2api.findInData('id', cheevoToDisplay.achievements[randomNum], 'achievements'); //find the achievement to get the name
+    subcheevoList = cheevoToDisplay.achievements.slice();
+  } else if (cheevoToDisplay.bits) { //choose random part of an achievement
+    subcheevoList = cheevoToDisplay.bits.slice();
+    isBits = true;
+    acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+    if (debug) sf.log("bits cheevo:" + JSON.stringify(acctCheevo));
+  } else {
+    sf.replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
+    return;
+  }
 
+  if (debug) sf.log("number of subparts:" + subcheevoList.length + ". isBits is " + isBits);
+  while (alreadyDone && subcheevoList.length > 0) {
+    randomNum = Math.floor(Math.random() * subcheevoList.length);
+    if (!isBits) acctCheevo = findInAccount(subcheevoList[randomNum], accountAchievements); //categories are a new cheevo each loop
+    if (!isBits && debug) sf.log("nonbits cheevo:" + (typeof JSON.stringify(acctCheevo) == 'undefined' ? "undone cheevo " + subcheevoList[randomNum] : JSON.stringify(acctCheevo)));
+    //keep picking until we find one the user has not done.
+    if (typeof acctCheevo != 'undefined' && cheevoIsDone(acctCheevo, randomNum)) { //remove from list so we can't choose it again
+      subcheevoList.splice(randomNum, 1);
+      if (debug) sf.log("Removed cheevo. New length:" + subcheevoList.length);
+    } else {
+      alreadyDone = false;
+    }
+  }
+  if (subcheevoList.length < 1) {
+    sf.replyWith("You've done them all, " + sf.randomOneOf(["genius", "smartass", "silly", "stupid", "you monster", "tiger", "princess", "sport"]) + ".");
+  } else {
+    if (isBits) {
+      sf.replyWith("Go forth and get...\n" + displayAchievementBit(subcheevoList[randomNum]));
+    } else {
+      var randomCheevo = gw2api.findInData('id', subcheevoList[randomNum], 'achievements'); //find the achievement to get the name
       //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
       var desc = randomCheevo.description.replace(/(\.)$/, '');
       desc += '!';
       var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
       sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
     }
-  } else if (cheevoToDisplay.bits) { //choose random part of an achievement
-    acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
-    while (alreadyDone) {
-      randomNum = Math.floor(Math.random() * cheevoToDisplay.bits.length);
-      if (!acctCheevo || !acctCheevo.bits) {
-        alreadyDone = false;
-      } else {
-
-        if (acctCheevo.bits.indexOf(randomNum) < 0)
-          alreadyDone = false;
-      }
-    }
-    sf.replyWith("Go forth and get...\n" + displayAchievementBit(cheevoToDisplay.bits[randomNum]));
-  } else {
-    sf.replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
   }
+}
+
+function cheevoIsDone(cheevo, bitNum) { //this exists because the data is not flippin' consistant
+  if (typeof cheevo.done != 'undefined' && cheevo.done == true) return true;
+  if (typeof cheevo.current == 'number' && typeof cheevo.max == 'number' && cheevo.current >= cheevo.max) return true;
+  if (typeof cheevo.bits != 'undefined' && typeof bitNum != 'undefined' && cheevo.bits.indexOf(bitNum) >= 0) return true;
+  return false;
 }
 
 function displayCategoryCallback(accountAchievements, categoryToDisplay) {

@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.18.45"; //added logic for case when you cheevor an achievment you've already completed
+var version = "2.18.46"; //fixed bug in new cheevo logic that destroyed saved data
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -104,13 +104,13 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "Added user defined sasstionary. See help sass.");
+	bot.reply(message, "Fixed some bugs with cheevor when you had done all the parts");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"Dungeonparty:slect users as dungeon frequenter, choose a random df dungeon, and give a colorscheme for them to wear a la joan",
+		"Dungeonparty: select users as dungeon frequenter: choose a random df dungeon, and give a colorscheme for them to wear",
 		"Colorgroup: list all/your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories",
 		"logging"
 	];
