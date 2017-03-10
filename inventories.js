@@ -32,6 +32,7 @@ module.exports = function() {
           if (searchTerm) bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", rifling through your wallet for " + searchTerm + ".");
           else bot.reply(message, "Okay, " + user.dfid + sf.randomHonoriffic(user.dfid, user.id) + ", what's in YOUR wallet?");
           gw2api.accountWallet(function(walletList, headers) {
+            var defaultIcon = 'https://render.guildwars2.com/file/0E011CD3AA34BB0C327D290830C7F10F0946307B/866837.png';
             if (isDungeonOnly) {
               //['Ascalonian Tear', 'Seal of Beetletun', 'Deadly Bloom', 'Manifesto of the Moletariate', 'Flame Legion Charr Carving', 'Symbol of Koda', 'Knowledge Crystal', 'Shard of Zhaitan', 'Fractal Relic', 'Pristine Fractal Relic'];
               //Hard coded ID instead of title, since both are subject to change, but id is probably more stable
@@ -39,13 +40,13 @@ module.exports = function() {
               walletList = walletList.filter(function(value) {
                 return (dungeonCurrencyList.indexOf(value.id) >= 0);
               });
+              defaultIcon = 'https://render.guildwars2.com/file/943538394A94A491C8632FBEF6203C2013443555/102478.png';
             }
             walletList.sort(function(a, b) {
               return (gw2api.findInData('id', a.id, 'currencies').order - gw2api.findInData('id', b.id, 'currencies').order);
             });
 
             var text = [];
-            var goldIcon = 'https://render.guildwars2.com/file/98457F504BA2FAC8457F532C4B30EDC23929ACF9/619316.png';
             var lastIcon;
             for (var i in walletList) {
               var currency = gw2api.findInData('id', walletList[i].id, 'currencies');
@@ -66,7 +67,7 @@ module.exports = function() {
                     fallback: 'Too many items found in search.',
                     pretext: (searchTerm ? 'Looking for: ' + searchTerm : ''),
                     text: text.join("\n"),
-                    thumb_url: ((lastIcon && text.length > 1) ? goldIcon : lastIcon)
+                    thumb_url: ((lastIcon && text.length > 1) ? defaultIcon : lastIcon)
                   }
                 }
               });
