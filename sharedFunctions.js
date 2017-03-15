@@ -46,19 +46,29 @@ module.exports = function() {
 		},
 		//reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalMessage
 		replyWith: function(messageToSend, keepGlobalMessage) {
-			if (debug) ret.log("Global message: " + JSON.stringify(messageToSend) + "\nkeep: " + keepGlobalMessage);
 			if (!globalMessage) return;
-			else if (!(typeof messageToSend == 'string' ||
+			if (debug) ret.log("Global message size: " + messageToSend.length + "\nkeep: " + keepGlobalMessage);
+			if(messageToSend.length > 4000) messageToSend = "replyWith says: message size too large! Overwritten to avert a crash.";
+			if (!(typeof messageToSend == 'string' ||
 					(typeof messageToSend == 'object' && ((Object.keys(messageToSend).indexOf("text") >= 0) || (Object.keys(messageToSend).indexOf("attachments") >= 0)))
 				)) {
 				ret.log("Attempted to reply with non-string or no-text message: " + JSON.stringify(messageToSend));
 
-			} else if (globalMessage.say) //convo
+			} else if (globalMessage.say) { //convo
+				if (debug) ret.log("replied to convo");
 				globalMessage.say(messageToSend);
-			else
-				bot.reply(globalMessage, messageToSend);
+			} else { //bot message
+				if (debug) ret.log("replied via bot message");
+				bot.reply(globalMessage, messageToSend, function(err, res) {
+					if (err) {
+						bot.reply(globalMessage, "I'm having sending your message: "+res);
+						ret.log('Replywith Failed', err, res);
+					}
+				});
+			}
 			if (!keepGlobalMessage)
 				ret.clearGlobalMessage();
+			if (debug) ret.log("Exiting replyWith");
 		},
 		setGlobalMessage: function(message) {
 			globalMessage = message;
@@ -128,15 +138,15 @@ module.exports = function() {
 				"Narfle the garthok!", "Arahenge you glad I threw this table!", "It's dangerous to go alone, take this TABLE TO THE FACE.", "Keep the change, you filthy animal!",
 				"You can't top the table top!", "You're the kind of shit who sells for one copper off current sale price!", "There's a Charr drinking from the Hairless-Only fountain!", "Fractals!",
 				"My Dragon's Stand run just took 21 minutes!", "This restaurant doesn't have Asura-height bathrooms!", "Fuck this jumping puzzle!", "Centaurs! Make a barricade!",
-				"I am VERY dissappointed!", "This table only has two legs!", "They're all gonna laugh at you!", "Suck eggs!","ARRRRRRRRRRRRRRAHHHHHHHHHHHHHHH!","We don't need these stinky tables!",
-				"I'm so mad right now. So mad.","Mom said I'm most special! Not you!","Aw, Nerds!","Death! First!","No sir, I don't like it!", "You Nerf Herder!",
+				"I am VERY dissappointed!", "This table only has two legs!", "They're all gonna laugh at you!", "Suck eggs!", "ARRRRRRRRRRRRRRAHHHHHHHHHHHHHHH!", "We don't need these stinky tables!",
+				"I'm so mad right now. So mad.", "Mom said I'm most special! Not you!", "Aw, Nerds!", "Death! First!", "No sir, I don't like it!", "You Nerf Herder!",
 				"Someone get this walking carpet out of my way!", "The harder I squeeze, the more systems slip through my fingers!"
 			];
 			return ret.randomOneOf(tantrums) + ((Math.floor(Math.random() * 10) > 8) ? "\nAnd in case you forgot, today WAS MY ​*BIRTHDAY*​!" : '');
 		},
 		//for string 'normalization before comparing in searches'
 		removePunctuationAndToLower: function(string) {
-			if(!string) return '';
+			if (!string) return '';
 			//\&gt;|\&lt;|\&amp; are slack specific
 			var punctuationless = string.replace(/\&gt;|\&lt;|\&amp;|['!"#$%&\\'()\*+,—\-\.\/:;<=>?@\[\\\]\^_`{|}~']/g, "");
 			var finalString = punctuationless.replace(/\s{2,}/g, " ");
