@@ -19,7 +19,7 @@ module.exports = function() {
 				}
 				if (debug) sf.log("find color: " + cleanSearch);
 				var colorsFound = [];
-				var exactMatch = []
+				var exactMatch = [];
 				for (var i in gw2api.data.colors) {
 					var cleanColor = sf.removePunctuationAndToLower(gw2api.data.colors[i].name).replace(/\s+/g, '');
 					if (cleanColor.includes(cleanSearch)) {
@@ -30,7 +30,7 @@ module.exports = function() {
 						exactMatch.push(gw2api.data.colors[i]);
 					}
 				}
-				if(exactMatch.length > 0) colorsFound = exactMatch;
+				if (exactMatch.length > 0) colorsFound = exactMatch;
 
 				var previewResponse = function(color) {
 					return rgbToHex(color.cloth.rgb) + " " + color.name;
@@ -117,23 +117,24 @@ module.exports = function() {
 				if (matches[1] && (matches[1].toLowerCase() == 'my' || isJoan)) usersToFetch = [message.user];
 				//if "cheme" i.e. colorscheme set isScheme to true
 				var isScheme = ((matches[2] && matches[2].toLowerCase() == 'cheme') || isJoan);
-
+				var userSelectString = matches[3] || null;
+				var singleUser = true;
 				sf.storageUsersGetSynch(usersToFetch)
 					.then(function(users) {
 						return sf.userHasPermissionsAndReply(users, "unlocks");
 					})
 					.then(function(validUsers) {
 						//if there's a list of user codes, filter out matching users
-						if (matches[3]) {
+						if (userSelectString) {
 							var requesterName = '';
 							var selectedUsers = [];
 							for (var c in validUsers) {
 								if (validUsers[c].id == message.user)
 									requesterName = "Hey, " + validUsers[c].dfid + sf.randomHonoriffic(validUsers[c].dfid, validUsers[c].id) + ". ";
-								if (matches[3] && matches[3].indexOf(validUsers[c].dfid) > -1)
+								if (userSelectString && userSelectString.indexOf(validUsers[c].dfid) > -1)
 									selectedUsers.push(validUsers[c]);
 							}
-
+							//remove doubles
 							selectedUsers = sf.arrayUnique(selectedUsers);
 							//If no user id argument or only invalid arguments, print list and return
 							if (selectedUsers.length < 1) {
@@ -141,69 +142,32 @@ module.exports = function() {
 								for (var k in validUsers) {
 									replyString += '\n' + validUsers[k].dfid + ': ' + validUsers[k].name;
 								}
-								bot.reply(message, requesterName + "Here's a list of eligible players of color. You can see a report by string together their codes like 'colors rsja'." + replyString + '\nTry colors <string> again.');
+								sf.replyWith(requesterName + "Here's a list of eligible players of color. You can see a report by string together their codes like 'colors rsja'." + replyString + '\nTry colors <string> again.');
 								return Promise.resolve(null);
 							} else
 								bot.reply(message, "(Using colors for " + selectedUsers.length + " players.)");
 
-							//remove doubles
 							validUsers = selectedUsers;
 						}
-
-						var userColorPromises = [];
-						for (var usr in validUsers)
-							if (validUsers[usr] !== null) {
-								if (debug) sf.log(validUsers[usr].name + " is a valid user");
-								userColorPromises.push(gw2api.promise.accountDyes(["all"], validUsers[usr].access_token));
-							}
-						if (debug) sf.log(userColorPromises.length + " account dye lists to fetch");
-						if (userColorPromises.length === 0)
-							return Promise.reject("there were no users with correct permissions.");
-						else
-							return Promise.all(userColorPromises);
+						singleUser = (validUsers.length < 2);
+						return validUsers;
 					})
-					.then(function(colorLists) {
-						if (colorLists === null) return Promise.resolve();
-						if (debug) sf.log("colorLists pre: " + JSON.stringify(colorLists));
-						var singleUser = (colorLists.length < 2);
+					.then(ret.getColorsForUsers)
+					.then(ret.getCommonColors)
+					.then(function(commonColors) {
 						var title = "No Dyes Whatsoever";
 						var icon = "http://a1.mzstatic.com/us/r30/Purple3/v4/a9/3b/d3/a93bd379-6be6-c487-894c-7046c4481b9b/icon175x175.png";
 						var text = "";
-						//sort lists. Reduce to only common elements
-						colorLists.sort(function(a, b) {
-							return a.length - b.length;
-						});
-						var commonColors = colorLists.shift().filter(function(v) {
-							return colorLists.every(function(a) {
-								return a.indexOf(v) !== -1;
-							});
-						});
 
 						var colorText = [];
-						var colorIcons = [];
 						var colorRGB = [];
-						for (var id in commonColors) {
-							var color = gw2api.findInData("id", commonColors[id], "colors");
-							if (color && color.name) {
-								colorText.push(color.name);
-								if (isScheme)
-									if (color.cloth && color.cloth.rgb)
-										colorRGB.push(color.cloth.rgb);
-									else
-										colorRGB.push([0, 0, 0]);
-							} else sf.log("Invalid color id: " + commonColors[id]);
-							var item = gw2api.findInData("id", color.item, "items");
-							if (item && item.icon)
-								colorIcons.push(item.icon);
-						}
+						ret.colorLookups(commonColors, colorText, colorRGB);
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
 								title = singleUser ? "Your " + sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter']) + " palette of " + colorText.length + " colors!" : "All of the beautiful people are wearing:";
 								icon = singleUser ? "https://render.guildwars2.com/file/109A6B04C4E577D9266EEDA21CC30E6B800DD452/66587.png" : "https://render.guildwars2.com/file/E3EAA9D80D4216D1E092915AFD90C069CEE8E470/222694.png";
 								text = colorText.sort().join(", ");
 
-								if (colorIcons.length > 0)
-									icon = sf.randomOneOf(colorIcons);
 								sf.replyWith({
 									"username": "Joan Rivers' Ghost",
 									"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
@@ -218,30 +182,11 @@ module.exports = function() {
 								});
 							} else {
 								title = (singleUser ? "Your" : "Our") + " new Color Scheme:";
-								var index = Math.floor(Math.random() * colorText.length);
-								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
-								index = Math.floor(Math.random() * colorText.length);
-								text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
-								index = Math.floor(Math.random() * colorText.length);
-								text += rgbToHex(colorRGB[index]) + " " + colorText[index];
+								text += ret.generateColorScheme(colorText, colorRGB);
 								sf.replyWith({
 									"text": "*" + title + "*\n" + text
 								}, true);
-								var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up an old', 'spicing up that', 'giving some oomph to my', 'your', 'that', 'my', 'our'];
-								var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual', 'black tie'];
-								var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'gala', 'costume party', 'vacation', 'seance', 'afterlife'];
-								text = "What great colors for ";
-								if ((Math.floor(Math.random() * 20) > 17))
-									text += "Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
-								else
-									text += sf.randomOneOf(fashionSpice) + " " + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
-								text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!", ", people!", ", fashion fans!", ", bitches!"]);
-
-								sf.replyWith({
-									"username": "Joan Rivers' Ghost",
-									"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
-									"text": text
-								});
+								ret.joanColorCommentary();
 							}
 						} else {
 							sf.replyWith({
@@ -272,7 +217,76 @@ module.exports = function() {
 			helpFile.preview = "Preview a color with the very inaccurate swatch. Example: preview antique gold";
 			helpFile.colorpreview = "Alias for preview: " + JSON.stringify(helpFile.preview);
 			helpFile.cp = "Alias for preview: " + JSON.stringify(helpFile.preview);
+		},
+		getColorsForUsers: function(validUsers) {
+
+			var userColorPromises = [];
+			for (var usr in validUsers)
+				if (validUsers[usr] !== null) {
+					if (debug) sf.log(validUsers[usr].name + " is a valid user");
+					userColorPromises.push(gw2api.promise.accountDyes(["all"], validUsers[usr].access_token));
+				}
+			if (debug) sf.log(userColorPromises.length + " account dye lists to fetch");
+			if (userColorPromises.length === 0)
+				return Promise.reject("there were no users with correct permissions.");
+			else
+				return Promise.all(userColorPromises);
+		},
+		getCommonColors: function(colorLists) {
+			if (colorLists === null) return Promise.resolve();
+			if (debug) sf.log("colorLists : " + colorLists.length);
+			//sort lists. Reduce to only common elements
+			colorLists.sort(function(a, b) {
+				return a.length - b.length;
+			});
+			var commonColors = colorLists.shift().filter(function(v) {
+				return colorLists.every(function(a) {
+					return a.indexOf(v) !== -1;
+				});
+			});
+			return commonColors;
+		},
+		colorLookups: function(commonColors, colorText, colorRGB) {
+			for (var id in commonColors) {
+				var color = gw2api.findInData("id", commonColors[id], "colors");
+				if (color && color.name) {
+					colorText.push(color.name);
+					if (color.cloth && color.cloth.rgb)
+						colorRGB.push(color.cloth.rgb);
+					else
+						colorRGB.push([0, 0, 0]);
+				} else sf.log("Invalid color id: " + commonColors[id]);
+				var item = gw2api.findInData("id", color.item, "items");
+			}
+		},
+		joanColorCommentary: function() {
+			var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up an old', 'spicing up that', 'giving some oomph to my', 'your', 'that', 'my', 'our'];
+			var fashionAdj = ['Oscar', 'spring', 'summer', 'fall', 'winter', 'lobster', 'fancy-ass', 'casual', 'black tie'];
+			var fashionNoun = ['season', 'pregnancy', 'outfit', 'night', 'evening', 'gala', 'costume party', 'vacation', 'seance', 'afterlife'];
+			text = "What great colors for ";
+			if ((Math.floor(Math.random() * 20) > 17))
+				text += "Red Lobster's Lobsterfest, now featuring Ceaseless Shrimp and Bottomless Margarita Blasters! Red Lobster: Come for the food, leave! Back to you";
+			else
+				text += sf.randomOneOf(fashionSpice) + " " + sf.randomOneOf(fashionAdj) + " " + sf.randomOneOf(fashionNoun);
+			text += sf.randomOneOf([", Mellis... Lessdremoth!", ", Lessdremoth.", ", Lessy!", ", people!", ", fashion fans!", ", bitches!"]);
+
+			sf.replyWith({
+				"username": "Joan Rivers' Ghost",
+				"icon_url": "https://dwonnaknowwhatithink.files.wordpress.com/2014/09/joan-rivers-4.jpg",
+				"text": text
+			});
+		},
+		generateColorScheme: function(colorText, colorRGB) {
+			var text = "";
+			var index = Math.floor(Math.random() * colorText.length);
+			text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
+			index = Math.floor(Math.random() * colorText.length);
+			text += rgbToHex(colorRGB.splice(index, 1)[0]) + " " + colorText.splice(index, 1) + '\n';
+			index = Math.floor(Math.random() * colorText.length);
+			text += rgbToHex(colorRGB[index]) + " " + colorText[index];
+			return text;
 		}
+
 	};
 	return ret;
 }();

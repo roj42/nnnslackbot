@@ -127,8 +127,8 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 		if (config.debug && options) console.log("options are " + decodeURIComponent(querystring.stringify(options)));
 		var url = config.baseUrl + config.api[apiKey].uri + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
 
-		if (config.debug) console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey + ' from URL: ' + url);
-		else console.log((bypassCache ? 'Fetching' : 'Updating cache for') + ' API Key: ' + cacheKey);
+		if (config.debug) console.log('Updating cache for API Key: ' + cacheKey + ' from URL: ' + url);
+		else console.log('Updating cache for API Key: ' + cacheKey);
 		var retry = config.retry;
 		var retryCallback = function(error, response, body) {
 			//we're okay with
@@ -179,6 +179,8 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 		return;
 	}
 	// Only runs if already found in cache
+	if (config.debug)
+		console.log('Fetching cached API Key: ' + cacheKey);
 	callback(cache.get(apiKey, cacheKey).json, cache.get(apiKey, cacheKey).headers);
 };
 
@@ -291,12 +293,12 @@ module.exports = function() {
 				else if (idsToFetch.length > 200) reject("Limit 200 ids per fetch");
 				else {
 					var listCallback = function(jsonRes, headers) {
-						if (config.debug)console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
+						if (config.debug) console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
 						if (jsonRes.text || jsonRes.err || jsonRes.error) {
-							if(config.debug) console.log(apiKey+" promise error: "+JSON.stringify(jsonRes));
+							if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
 							reject(JSON.stringify(jsonRes));
 						} else {
-							if(config.debug) console.log(apiKey+" promise results: "+jsonRes.length);
+							if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
 							resolve(jsonRes);
 						}
 					};

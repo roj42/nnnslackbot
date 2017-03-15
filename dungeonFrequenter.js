@@ -9,7 +9,7 @@ module.exports = function() {
 
 		addResponses: function(controller) {
 
-			controller.hears(['^squadgoals(.*)','^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+			controller.hears(['^dungeonfriends(.*)', '^df(.*)', '^dungeonfriendsverbose(.*)', '^dfv(.*)'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 				//precheck: account achievements loaded 
 				if (!gw2api.loaded.achievements || !gw2api.loaded.achievementsCategories) {
 					bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
@@ -29,7 +29,7 @@ module.exports = function() {
 				var goodUsers = [];
 				var individualBitsArrays = {};
 
-				var matches = message.text.match(/(squadgoals|dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
+				var matches = message.text.match(/(dungeonfriends(?:verbose)?|dfv?)(?: (\w+)$)?/i);
 
 				var verbose = false;
 				if (matches && (matches[1].toLowerCase() == 'dfv' || matches[1].toLowerCase() == 'dungeonfriendsverbose'))
@@ -103,10 +103,10 @@ module.exports = function() {
 
 						for (var r in textList) {
 							if (verbose)
-								text += dungeonNames[textList[r].text] + textList[r].textPost;
+								text += ret.dungeonNames[textList[r].text] + textList[r].textPost;
 							else
 								text += textList[r].text + textList[r].textPost;
-							if (textList[r].text[0] == "H")
+							if (textList[r].text[0] == "H") //Add killer whale as a posiblity if HoTW is an option
 								acceptableQuaggans.push("https://static.staticwars.com/quaggans/killerwhale.jpg");
 						}
 
@@ -128,12 +128,12 @@ module.exports = function() {
 						var half = Math.ceil(textList.length / 2);
 						for (var s = 0; s < half; s++) {
 							fieldsFormatted.push({
-								"value": dungeonNames[textList[s].text] + textList[s].textPost,
+								"value": ret.dungeonNames[textList[s].text] + textList[s].textPost,
 								"short": true
 							});
 							if ((s + half) < textList.length)
 								fieldsFormatted.push({
-									"value": dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
+									"value": ret.dungeonNames[textList[(s + half)].text] + textList[(s + half)].textPost,
 									"short": true
 								});
 						}
@@ -210,42 +210,55 @@ module.exports = function() {
 			helpFile.dungeonfriendsverbose = "Show all Dungeon Freqenter dungeons, and explicitly mark the given users already-done dungeons. Example \'dfv ahrj\'";
 			helpFile.df = "alias for dungeonfriends. " + JSON.stringify(helpFile.dungeonfriends);
 			helpFile.dfv = "alias for dungeonfriendsverbose. " + JSON.stringify(helpFile.dungeonfriendsverbose);
+		},
+		getCheevosForUsers: function(validUsers) {
+			var userAchievements = [];
+			for (var usr in validUsers)
+				if (validUsers[usr] !== null) {
+					if (debug) sf.log(validUsers[usr].name + " is a valid user");
+					userAchievements.push(gw2api.promise.accountAchievements(["all"], validUsers[usr].access_token));
+				}
+			if (debug) sf.log(userAchievements.length + " account cheevo lists to fetch");
+			if (userAchievements.length === 0)
+				return Promise.reject("there were no users with correct permissions.");
+			else
+				return Promise.all(userAchievements);
+		},
+		dungeonNames : {
+			"Ascalonian Catacombs Story": "ACS",
+			"Catacombs Explorable—Hodgins's Path": "AC1 Hodgins",
+			"Catacombs Explorable—Detha's Path": "AC2 Detha",
+			"Catacombs Explorable—Tzark's Path": "AC3 Tzark",
+			"Caudecus's Manor Story": "CMS",
+			"Manor Explorable—Asura Path": "CM1 Asura",
+			"Manor Explorable—Seraph Path": "CM2 Seraph",
+			"Manor Explorable—Butler's Path": "CM3 Butler",
+			"Twilight Arbor Story": "TAS",
+			"Twilight Explorable—Leurent's Path": "TAU Leurent",
+			"Twilight Explorable—Vevina's Path": "TAF Vevina",
+			"Twilight Explorable—Aetherpath": "TAAE Aether",
+			"Sorrow's Embrace Story": "SES",
+			"Sorrow's Explorable—Fergg's Path": "SE1 Fergg",
+			"Sorrow's Explorable—Rasolov's Path": "SE2 Rasolov",
+			"Sorrow's Explorable—Koptev's Path": "SE3 Koptev",
+			"Citadel of Flame Story": "CoFS",
+			"Citadel Explorable—Ferrah's Path": "CoF1 Ferrah",
+			"Citadel Explorable—Magg's Path": "CoF2 Magg",
+			"Citadel Explorable—Rhiannon's Path": "CoF3 Rhiannon",
+			"Honor of the Waves Story": "HotWS",
+			"Honor Explorable—Butcher's Path": "HotW1 Butcher",
+			"Honor Explorable-Plunderer's Path": "HotW2 Plunderer",
+			"Honor Explorable—Zealot's Path": "HotW3 Zealot",
+			"Crucible of Eternity Story": "CoES",
+			"Crucible Explorable—Submarine Path": "CoE1 Submarine",
+			"Crucible Explorable—Teleporter Path": "CoE2 Teleporter",
+			"Crucible Explorable—Front Door Path": "CoE3 Front Door",
+			"Arah Explorable—Jotun Path": "Arah1 Jotun",
+			"Arah Explorable—Mursaat Path": "Arah2 Mursaat",
+			"Arah Explorable—Forgotten Path": "Arah3 Forgotten",
+			"Arah Explorable—Seer Path": "Arah4 Seer"
 		}
 	};
 	return ret;
 }();
 var dungeonFriendsOrder = ["Ascalonian Catacombs Story", "Catacombs Explorable—Hodgins's Path", "Catacombs Explorable—Detha's Path", "Catacombs Explorable—Tzark's Path", "Caudecus's Manor Story", "Manor Explorable—Asura Path", "Manor Explorable—Seraph Path", "Manor Explorable—Butler's Path", "Twilight Arbor Story", "Twilight Explorable—Leurent's Path", "Twilight Explorable—Vevina's Path", "Twilight Explorable—Aetherpath", "Sorrow's Embrace Story", "Sorrow's Explorable—Fergg's Path", "Sorrow's Explorable—Rasolov's Path", "Sorrow's Explorable—Koptev's Path", "Citadel of Flame Story", "Citadel Explorable—Ferrah's Path", "Citadel Explorable—Magg's Path", "Citadel Explorable—Rhiannon's Path", "Honor of the Waves Story", "Honor Explorable—Butcher's Path", "Honor Explorable-Plunderer's Path", "Honor Explorable—Zealot's Path", "Crucible of Eternity Story", "Crucible Explorable—Submarine Path", "Crucible Explorable—Teleporter Path", "Crucible Explorable—Front Door Path", "Arah Explorable—Jotun Path", "Arah Explorable—Mursaat Path", "Arah Explorable—Forgotten Path", "Arah Explorable—Seer Path"];
-var dungeonNames = {
-	"Ascalonian Catacombs Story": "ACS",
-	"Catacombs Explorable—Hodgins's Path": "AC1 Hodgins",
-	"Catacombs Explorable—Detha's Path": "AC2 Detha",
-	"Catacombs Explorable—Tzark's Path": "AC3 Tzark",
-	"Caudecus's Manor Story": "CMS",
-	"Manor Explorable—Asura Path": "CM1 Asura",
-	"Manor Explorable—Seraph Path": "CM2 Seraph",
-	"Manor Explorable—Butler's Path": "CM3 Butler",
-	"Twilight Arbor Story": "TAS",
-	"Twilight Explorable—Leurent's Path": "TAU Leurent",
-	"Twilight Explorable—Vevina's Path": "TAF Vevina",
-	"Twilight Explorable—Aetherpath": "TAAE Aether",
-	"Sorrow's Embrace Story": "SES",
-	"Sorrow's Explorable—Fergg's Path": "SE1 Fergg",
-	"Sorrow's Explorable—Rasolov's Path": "SE2 Rasolov",
-	"Sorrow's Explorable—Koptev's Path": "SE3 Koptev",
-	"Citadel of Flame Story": "CoFS",
-	"Citadel Explorable—Ferrah's Path": "CoF1 Ferrah",
-	"Citadel Explorable—Magg's Path": "CoF2 Magg",
-	"Citadel Explorable—Rhiannon's Path": "CoF3 Rhiannon",
-	"Honor of the Waves Story": "HotWS",
-	"Honor Explorable—Butcher's Path": "HotW1 Butcher",
-	"Honor Explorable-Plunderer's Path": "HotW2 Plunderer",
-	"Honor Explorable—Zealot's Path": "HotW3 Zealot",
-	"Crucible of Eternity Story": "CoES",
-	"Crucible Explorable—Submarine Path": "CoE1 Submarine",
-	"Crucible Explorable—Teleporter Path": "CoE2 Teleporter",
-	"Crucible Explorable—Front Door Path": "CoE3 Front Door",
-	"Arah Explorable—Jotun Path": "Arah1 Jotun",
-	"Arah Explorable—Mursaat Path": "Arah2 Mursaat",
-	"Arah Explorable—Forgotten Path": "Arah3 Forgotten",
-	"Arah Explorable—Seer Path": "Arah4 Seer"
-};
