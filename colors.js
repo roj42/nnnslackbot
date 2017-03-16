@@ -122,7 +122,7 @@ module.exports = function() {
 				var singleUser = true;
 
 				if (isFilter) {
-					userSelectString = sf.removePunctuationAndToLower(userSelectString);
+					userSelectString = sf.removePunctuationAndToLower(userSelectString).replace(/\s+/g, '');
 					ret.reloadColorCategories();
 					if (ret.colorCategories.indexOf(userSelectString) < 0) {
 						sf.replyWith("Looking for an exact match on color category, guy. Here's a list.\n" + ret.colorCategories.join(", "));
