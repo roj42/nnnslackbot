@@ -46,7 +46,7 @@ module.exports = function() {
 					//get selected/valid users
 					.then(function(validUsers) {
 						if (userSelectString) {
-							var requesterName = '';
+							var requesterName = 'Friend';
 							var selectedUsers = [];
 							for (var c in validUsers) {
 								if (validUsers[c].id == message.user)
@@ -65,7 +65,7 @@ module.exports = function() {
 								sf.replyWith(requesterName + "Here's a list of eligible squadgoalers. You can see a report by string together their codes like 'colors rsja'." + replyString + '\nTry colors <string> again.');
 								return Promise.resolve(null);
 							} else
-								bot.reply(message, "(" + selectedUsers.length + " players selected with correct permissions.)");
+								bot.reply(message, requesterName + ", There are " + selectedUsers.length + " players with correct permissions.");
 
 							//remove doubles
 							validUsers = selectedUsers;
