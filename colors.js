@@ -3,7 +3,7 @@
 
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = true;
+var debug = false;
 module.exports = function() {
 
 	var ret = {
