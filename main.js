@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.19.01"; //Added appelation to squadgoals
+var version = "2.20"; //Added colorfilter
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -108,13 +108,13 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message,"Dungeonparty: select users as dungeon frequenter: choose a random df dungeon, and give a colorscheme for them to wear (see help dp)");
+	bot.reply(message, "Colorfilter: list your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories (see help colorfilter)");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"Colorgroup: list all/your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories",
+		"Improve colorfilter?",
 		"logging"
 	];
 	bot.reply(message, todoList.join("\n"));
@@ -369,7 +369,10 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
 	var dataString = '';
 	for (var type in gw2api.data)
 		if (gw2api.data[type].length > 0)
-			dataString += '\n' + type + ': ' + gw2api.data[type].length;
+			if (type == 'colors')
+				dataString += '\n' + type + ': ' + gw2api.data[type].length + " (" + colors.colorCategories.length + " categories)";
+			else
+				dataString += '\n' + type + ': ' + gw2api.data[type].length;
 	if (dataString)
 		bot.reply(message, "Data:" + dataString);
 });
@@ -524,6 +527,11 @@ function doneAllOtherCallback(apiKey) {
 	if (apiKey == 'achievementsCategories') apiKeyString = 'achievement categories';
 	sf.replyWith("Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2api.data[apiKey]).length + ".", true);
 	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + ": " + time + "ms");
+	if (apiKey == 'colors') {
+		colors.colorCategories = [];
+		colors.reloadColorCategories();
+		sf.replyWith("Collated " + colors.colorCategories.length + " color categories.", true);
+	}
 	if (apiKey == 'achievementsCategories') {
 		//to make this work, you need a global cheevoList
 		for (var t in gw2api.data.achievementsCategories) {
