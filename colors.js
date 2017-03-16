@@ -104,7 +104,7 @@ module.exports = function() {
 				sf.setGlobalMessage(message);
 
 				//establish everyone or just current user.
-				var matches = message.text.match(/(my|joan)?(?:colors?|dyes?)?(cheme|filter)?(?: (\w+)$)?/i);
+				var matches = message.text.match(/(my|joan)?(?:colors?|dyes?)?(cheme|filter)?(?: (.+)$)?/i);
 				if (debug) sf.log("Color matches: " + JSON.stringify(matches));
 				if (!matches) {
 					sf.replyWith("I didn't quite get that. Try 'help color'.");
@@ -123,6 +123,7 @@ module.exports = function() {
 
 				if (isFilter) {
 					userSelectString = sf.removePunctuationAndToLower(userSelectString).replace(/\s+/g, '');
+					if(debug) sf.log("input category: "+userSelectString);
 					ret.reloadColorCategories();
 					if (ret.colorCategories.indexOf(userSelectString) < 0) {
 						sf.replyWith("Looking for an exact match on color category, guy. Here's a list.\n" + ret.colorCategories.join(", "));
