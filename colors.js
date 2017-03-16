@@ -3,7 +3,7 @@
 
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = false;
+var debug = true;
 module.exports = function() {
 
 	var ret = {
@@ -104,7 +104,7 @@ module.exports = function() {
 				sf.setGlobalMessage(message);
 
 				//establish everyone or just current user.
-				var matches = message.text.match(/(my|joan)?(?:colors?|dyes?)?(cheme)?(?: (\w+)$)?/i);
+				var matches = message.text.match(/(my|joan)?(?:colors?|dyes?)?(cheme|filter)?(?: (\w+)$)?/i);
 				if (debug) sf.log("Color matches: " + JSON.stringify(matches));
 				if (!matches) {
 					sf.replyWith("I didn't quite get that. Try 'help color'.");
@@ -112,20 +112,33 @@ module.exports = function() {
 				}
 
 				var usersToFetch;
-				//If single user, make usersToFetch a list of that user, otherwise leave blank to fetch all users
 				var isJoan = (matches[1] && matches[1].toLowerCase() == 'joan');
-				if (matches[1] && (matches[1].toLowerCase() == 'my' || isJoan)) usersToFetch = [message.user];
 				//if "cheme" i.e. colorscheme set isScheme to true
 				var isScheme = ((matches[2] && matches[2].toLowerCase() == 'cheme') || isJoan);
+				var isFilter = ((matches[2] && matches[2].toLowerCase() == 'filter'));
 				var userSelectString = matches[3] || null;
+				//If single user, make usersToFetch a list of that user, otherwise leave blank to fetch all users
+				if ((matches[1] && (matches[1].toLowerCase() == 'my') || isJoan || isFilter)) usersToFetch = [message.user];
 				var singleUser = true;
+
+				if (isFilter) {
+					ret.reloadColorCategories();
+					if (ret.colorCategories.indexOf(userSelectString) < 0) {
+						sf.replyWith("Looking for an exact match on color category, guy. Here's a list.\n" + ret.colorCategories.join(", "));
+						return;
+					} else {
+						if (debug) sf.log("Valid color category: " + userSelectString);
+
+					}
+				}
+
 				sf.storageUsersGetSynch(usersToFetch)
 					.then(function(users) {
 						return sf.userHasPermissionsAndReply(users, "unlocks");
 					})
 					.then(function(validUsers) {
 						//if there's a list of user codes, filter out matching users
-						if (userSelectString) {
+						if (userSelectString && !isFilter) {
 							var requesterName = '';
 							var selectedUsers = [];
 							for (var c in validUsers) {
@@ -161,10 +174,10 @@ module.exports = function() {
 
 						var colorText = [];
 						var colorRGB = [];
-						ret.colorLookups(commonColors, colorText, colorRGB);
+						ret.colorLookups(commonColors, colorText, colorRGB, isFilter, userSelectString);
 						if (colorText.length > 0) {
 							if (!isScheme) { //show list of dyes					
-								title = singleUser ? "Your " + sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter']) + " palette of " + colorText.length + " colors!" : "All of the beautiful people are wearing:";
+								title = singleUser ? "Your " + (isFilter?userSelectString:sf.randomOneOf(['Oscar Season', 'spring', 'summer', 'fall', 'winter'])) + " palette of " + colorText.length + " colors!" : "All of the beautiful people are wearing:";
 								icon = singleUser ? "https://render.guildwars2.com/file/109A6B04C4E577D9266EEDA21CC30E6B800DD452/66587.png" : "https://render.guildwars2.com/file/E3EAA9D80D4216D1E092915AFD90C069CEE8E470/222694.png";
 								text = colorText.sort().join(", ");
 
@@ -214,6 +227,7 @@ module.exports = function() {
 			helpFile.mycolorscheme = "Randomly picks 3 colors from the list of dyes you've discovered";
 			helpFile.colorscheme = "Randomly picks 3 colors from the list of dyes common to all known users.";
 			helpFile.dye = "Alias for color. Can be substituted in all color commands, like mydyes and dyescheme.";
+			helpFile.colorFilter = "Show your colors by category. entering a nonexistant category will output a list. Usage: colorfilter metal";
 			helpFile.preview = "Preview a color with the very inaccurate swatch. Example: preview antique gold";
 			helpFile.colorpreview = "Alias for preview: " + JSON.stringify(helpFile.preview);
 			helpFile.cp = "Alias for preview: " + JSON.stringify(helpFile.preview);
@@ -246,18 +260,27 @@ module.exports = function() {
 			});
 			return commonColors;
 		},
-		colorLookups: function(commonColors, colorText, colorRGB) {
+		colorLookups: function(commonColors, colorText, colorRGB, isFilter, userSelectString) {
+			if (isFilter && debug) sf.log("filtering colors for category " + userSelectString);
+			if (isFilter && debug) sf.log("list before: " + commonColors.length);
 			for (var id in commonColors) {
 				var color = gw2api.findInData("id", commonColors[id], "colors");
 				if (color && color.name) {
-					colorText.push(color.name);
-					if (color.cloth && color.cloth.rgb)
-						colorRGB.push(color.cloth.rgb);
-					else
-						colorRGB.push([0, 0, 0]);
+					var temp = [];
+					if (isFilter && color.categories) {
+						for (var cat in color.categories)
+							temp.push(sf.removePunctuationAndToLower(color.categories[cat]));
+					}
+					if (!isFilter || temp.indexOf(userSelectString) > -1) {
+						colorText.push(color.name);
+						if (color.cloth && color.cloth.rgb)
+							colorRGB.push(color.cloth.rgb);
+						else
+							colorRGB.push([0, 0, 0]);
+					}
 				} else sf.log("Invalid color id: " + commonColors[id]);
-				var item = gw2api.findInData("id", color.item, "items");
 			}
+			if (isFilter && debug) sf.log("list after: " + colorText.length);
 		},
 		joanColorCommentary: function() {
 			var fashionSpice = ["crashing Elton John's", 'sneaking into a hit', 'perking up your', 'sprucing up an old', 'spicing up that', 'giving some oomph to my', 'your', 'that', 'my', 'our'];
@@ -285,8 +308,22 @@ module.exports = function() {
 			index = Math.floor(Math.random() * colorText.length);
 			text += rgbToHex(colorRGB[index]) + " " + colorText[index];
 			return text;
-		}
-
+		},
+		reloadColorCategories: function() {
+			if (ret.colorCategories.length > 0) {
+				if (debug) sf.log("Already Collated. (" + ret.colorCategories.length + " color categories)");
+				return;
+			}
+			debugger;
+			for (var colorIndex in gw2api.data.colors) {
+				for (var catIndex in gw2api.data.colors[colorIndex].categories) {
+					ret.colorCategories.push(sf.removePunctuationAndToLower(gw2api.data.colors[colorIndex].categories[catIndex]));
+				}
+			}
+			ret.colorCategories = sf.arrayUnique(ret.colorCategories);
+			sf.log("Collated " + ret.colorCategories.length + " color categories.");
+		},
+		colorCategories: []
 	};
 	return ret;
 }();
