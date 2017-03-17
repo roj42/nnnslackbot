@@ -73,8 +73,9 @@ module.exports = function() {
 						return validUsers;
 					})
 					.then(function(validUsers) {
-						//get colors
-						colors.getColorsForUsers(validUsers)
+						return Promise.all([
+							//get colors
+							colors.getColorsForUsers(validUsers)
 							.then(colors.getCommonColors)
 							.then(function(commonColors) {
 								var colorText = [];
@@ -82,13 +83,10 @@ module.exports = function() {
 								colors.colorLookups(commonColors, colorText, colorRGB);
 								var text = colors.generateColorScheme(colorText, colorRGB);
 								bot.reply(message, "*Wear:*\n" + text);
-								setTimeout(function() {
-									colors.joanColorCommentary();
-								}, 1000);
-							});
+							}),
 
-						//get dungeon
-						dungeonFreqenter.getCheevosForUsers(validUsers)
+							//get dungeon
+							dungeonFreqenter.getCheevosForUsers(validUsers)
 							.then(function(jsonData) {
 								if (debug) sf.log("userCheevos size:" + jsonData.length);
 								var bitsArrays = [];
@@ -111,7 +109,11 @@ module.exports = function() {
 								}
 								//pick a random dungeon, and spit it out
 								bot.reply(message, "*Where:*\n" + dungeonFreqenter.dungeonNames[sf.randomOneOf(candidates).text]);
-							});
+							})
+						]);
+					})
+					.then(function() {
+						colors.joanColorCommentary();
 					})
 					.catch(function(error) {
 						sf.replyWith("I got an error that says " + error);
