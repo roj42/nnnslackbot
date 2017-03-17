@@ -91,7 +91,7 @@ module.exports = function() {
 								if (debug) sf.log("userCheevos size:" + jsonData.length);
 								var bitsArrays = [];
 								for (var u in jsonData) {
-									for (var c in jsonData[u]) {
+									for (var c in jsonData[u]) { //since an APi update, jsonData will always be only one long. Leaving this in in case of reversion.
 										if (jsonData[u][c].id && jsonData[u][c].id == dungeonFrequenterCheevo.id && jsonData[u][c].bits && jsonData[u][c].bits.length > 0) {
 											if (debug) sf.log("user " + u + "'s bits array:" + JSON.stringify(jsonData[u][c].bits));
 											bitsArrays = bitsArrays.concat(jsonData[u][c].bits);
