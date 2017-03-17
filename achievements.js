@@ -2,8 +2,9 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = false;
+var debug = true;
 var toggle = true;
+var currentUserAccessToken;
 //find an achievement in the freshly fetched account achievements by id
 function findInAccount(id, accountAchievements) {
   for (var t in accountAchievements) {
@@ -14,7 +15,7 @@ function findInAccount(id, accountAchievements) {
 }
 
 //must be a category Just pick a cheevo at random from the category
-function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
+function displayRandomCheevoCallback(cheevoToDisplay) {
   if (debug) sf.log("Display random cheevo: " + cheevoToDisplay.name);
   var randomNum;
   var alreadyDone = true;
@@ -26,50 +27,57 @@ function displayRandomCheevoCallback(accountAchievements, cheevoToDisplay) {
   } else if (cheevoToDisplay.bits) { //choose random part of an achievement
     subcheevoList = cheevoToDisplay.bits.slice();
     isBits = true;
-    acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
     if (debug) sf.log("bits cheevo:" + JSON.stringify(acctCheevo));
   } else {
     sf.replyWith("Sorry, that particular achievement has no parts to randomly choose from.\n...from which to randomly choose. Whatever.");
     return;
   }
+  var lookuplist = isBits ? [cheevoToDisplay.id] : subcheevoList;
 
   if (debug) sf.log("number of subparts:" + subcheevoList.length + ". isBits is " + isBits);
-  while (alreadyDone && subcheevoList.length > 0) {
-    randomNum = Math.floor(Math.random() * subcheevoList.length);
-    if (!isBits) acctCheevo = findInAccount(subcheevoList[randomNum], accountAchievements); //categories are a new cheevo each loop
-    if (!isBits && debug) sf.log("nonbits cheevo:" + (typeof JSON.stringify(acctCheevo) == 'undefined' ? "undone cheevo " + subcheevoList[randomNum] : JSON.stringify(acctCheevo)));
-    //keep picking until we find one the user has not done.
-    if (typeof acctCheevo != 'undefined' && cheevoIsDone(acctCheevo, randomNum)) { //remove from list so we can't choose it again
-      subcheevoList.splice(randomNum, 1);
-      if (debug) sf.log("Removed cheevo. New length:" + subcheevoList.length);
-    } else {
-      alreadyDone = false;
-    }
-  }
-  if (subcheevoList.length < 1) {
-    sf.replyWith("You've done them all, " + sf.randomOneOf(["genius", "smartass", "silly", "stupid", "you monster", "tiger", "princess", "sport"]) + ".");
-  } else {
-    if (isBits) {
-      sf.replyWith("Go forth and get...\n" + displayAchievementBit(subcheevoList[randomNum]));
-    } else {
-      var randomCheevo = gw2api.findInData('id', subcheevoList[randomNum], 'achievements'); //find the achievement to get the name
-      //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
-      var desc = randomCheevo.description.replace(/(\.)$/, '');
-      desc += '!';
-      var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
-      sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
-    }
-  }
+  gw2api.promise.accountAchievements(lookuplist, currentUserAccessToken)
+    .then(function(res) {
+      var accountAchievements = res;
+      if (debug) sf.log("random cheevo lookup result length: " + accountAchievements.length);
+      if (isBits) acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
+
+      while (alreadyDone && subcheevoList.length > 0) {
+        randomNum = Math.floor(Math.random() * subcheevoList.length);
+        if (!isBits) acctCheevo = findInAccount(subcheevoList[randomNum], accountAchievements); //categories are a new cheevo each loop
+        if (!isBits && debug) sf.log("nonbits cheevo:" + (typeof JSON.stringify(acctCheevo) == 'undefined' ? "undone cheevo " + subcheevoList[randomNum] : JSON.stringify(acctCheevo)));
+        //keep picking until we find one the user has not done.
+        if (typeof acctCheevo != 'undefined' && cheevoIsDone(acctCheevo, randomNum)) { //remove from list so we can't choose it again
+          subcheevoList.splice(randomNum, 1);
+          if (debug) sf.log("Removed cheevo. New length:" + subcheevoList.length);
+        } else {
+          alreadyDone = false;
+        }
+      }
+      if (subcheevoList.length < 1) {
+        sf.replyWith("You've done them all, " + sf.randomOneOf(["genius", "smartass", "silly", "stupid", "you monster", "tiger", "princess", "sport"]) + ".");
+      } else {
+        if (isBits) {
+          sf.replyWith("Go forth and get...\n" + displayAchievementBit(subcheevoList[randomNum]));
+        } else {
+          var randomCheevo = gw2api.findInData('id', subcheevoList[randomNum], 'achievements'); //find the achievement to get the name
+          //replace descriptions ending in periods with exclamation points for MORE ENTHSIASM
+          var desc = randomCheevo.description.replace(/(\.)$/, '');
+          desc += '!';
+          var url = "http://wiki.guildwars2.com/wiki/" + randomCheevo.name.replace(/\s/g, "_");
+          sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
+        }
+      }
+    });
 }
 
 function cheevoIsDone(cheevo, bitNum) { //this exists because the data is not flippin' consistant
-  if (typeof cheevo.done != 'undefined' && cheevo.done == true) return true;
+  if (typeof cheevo.done != 'undefined' && cheevo.done === true) return true;
   if (typeof cheevo.current == 'number' && typeof cheevo.max == 'number' && cheevo.current >= cheevo.max) return true;
   if (typeof cheevo.bits != 'undefined' && typeof bitNum != 'undefined' && cheevo.bits.indexOf(bitNum) >= 0) return true;
   return false;
 }
 
-function displayCategoryCallback(accountAchievements, categoryToDisplay) {
+function displayCategoryCallback(categoryToDisplay) {
   if (debug) console.log("Display category cheevo: " + categoryToDisplay.name);
 
   //go through each achievement in the category, get name, if done by user: sum progress
@@ -78,73 +86,79 @@ function displayCategoryCallback(accountAchievements, categoryToDisplay) {
   var partsCurrentSum = 0;
   var partsMaxSum = 0;
   var achievementTextList = [];
-  for (var a in categoryToDisplay.achievements) {
-    var gameAchievement = gw2api.findInData('id', categoryToDisplay.achievements[a], 'achievements');
-    if (!gameAchievement) { //if we don't have the game data, skip it
-      achievementTextList.push("No Achievement found in data - id  " + categoryToDisplay.achievements[a]);
-      continue;
-    }
-    var name = 'Nameless Achievement';
-    var doneProgress = '';
-    var repeat = '';
-    if (gameAchievement.name) name = gameAchievement.name;
-    var acctCheevo = findInAccount(categoryToDisplay.achievements[a], accountAchievements);
-    if (acctCheevo && typeof acctCheevo.current == 'number' && typeof acctCheevo.max == 'number') {
-      if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) {
-        repeat = " (repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once') + ")";
-        //on a repeat, add to the total as if we've done it once, despite current progress
-        partsCurrentSum += acctCheevo.max;
-      } else {
-        //otehrwise, add our current progress to it.
-        partsCurrentSum += acctCheevo.current;
-      }
-      partsMaxSum += acctCheevo.max;
-      doneProgress = " - " + acctCheevo.current + "/" + acctCheevo.max;
-      if (acctCheevo.done || repeat.length > 0) {
-        numDone++;
-        if (typeof acctCheevo.repeated != 'number' || acctCheevo.repeated <= 0) //append 'done' if we're not mid-repeat.
-          doneProgress += ' (Done)';
-      }
-    } else //not done/progressed, add highest tier count as a 'max' and show 0 of that amount
-    if (gameAchievement.tiers) {
-      var tierMax = gameAchievement.tiers[gameAchievement.tiers.length - 1].count;
-      doneProgress = " - 0/" + tierMax;
-      partsMaxSum += tierMax;
-    }
+  gw2api.promise.accountAchievements(categoryToDisplay.achievements, currentUserAccessToken)
+    .then(function(res) {
+      var accountAchievements = res;
+      if (debug) sf.log("category cheevo lookup result: " + JSON.stringify(accountAchievements));
 
-    achievementTextList.push(name + doneProgress + repeat);
-  }
-  var pretext = '';
-  var fields = [];
+      for (var a in categoryToDisplay.achievements) {
+        var gameAchievement = gw2api.findInData('id', categoryToDisplay.achievements[a], 'achievements');
+        if (!gameAchievement) { //if we don't have the game data, skip it
+          achievementTextList.push("No Achievement found in data - id  " + categoryToDisplay.achievements[a]);
+          continue;
+        }
+        var name = 'Nameless Achievement';
+        var doneProgress = '';
+        var repeat = '';
+        if (gameAchievement.name) name = gameAchievement.name;
+        var acctCheevo = findInAccount(categoryToDisplay.achievements[a], accountAchievements);
+        if (acctCheevo && typeof acctCheevo.current == 'number' && typeof acctCheevo.max == 'number') {
+          if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) {
+            repeat = " (repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once') + ")";
+            //on a repeat, add to the total as if we've done it once, despite current progress
+            partsCurrentSum += acctCheevo.max;
+          } else {
+            //otehrwise, add our current progress to it.
+            partsCurrentSum += acctCheevo.current;
+          }
+          partsMaxSum += acctCheevo.max;
+          doneProgress = " - " + acctCheevo.current + "/" + acctCheevo.max;
+          if (acctCheevo.done || repeat.length > 0) {
+            numDone++;
+            if (typeof acctCheevo.repeated != 'number' || acctCheevo.repeated <= 0) //append 'done' if we're not mid-repeat.
+              doneProgress += ' (Done)';
+          }
+        } else //not done/progressed, add highest tier count as a 'max' and show 0 of that amount
+        if (gameAchievement.tiers) {
+          var tierMax = gameAchievement.tiers[gameAchievement.tiers.length - 1].count;
+          doneProgress = " - 0/" + tierMax;
+          partsMaxSum += tierMax;
+        }
 
-  title = categoryToDisplay.name + " Report";
-  if (partsCurrentSum > 0)
-    fields.push({
-      title: "Total" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : ''),
-      value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).\nRepeats count as their max value."
+        achievementTextList.push(name + doneProgress + repeat);
+      }
+      var pretext = '';
+      var fields = [];
+
+      title = categoryToDisplay.name + " Report";
+      if (partsCurrentSum > 0)
+        fields.push({
+          title: "Total" + (numDone + totalAchievements > 0 ? ': ' + numDone + ' of ' + totalAchievements : ''),
+          value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).\nRepeats count as their max value."
+        });
+
+
+      attachment = {};
+      attachment = { //assemble attachment
+        fallback: title,
+        pretext: pretext,
+        //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+        title: title,
+        color: '#AA129F',
+        thumb_url: (categoryToDisplay.icon ? categoryToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
+        fields: fields,
+        text: achievementTextList.join('\n')
+      };
+      sf.replyWith({
+        text: '',
+        attachments: {
+          attachment: attachment
+        }
+      });
     });
-
-
-  attachment = {};
-  attachment = { //assemble attachment
-    fallback: title,
-    pretext: pretext,
-    //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
-    title: title,
-    color: '#AA129F',
-    thumb_url: (categoryToDisplay.icon ? categoryToDisplay.icon : "https://wiki.guildwars2.com/images/d/d9/Hero.png"),
-    fields: fields,
-    text: achievementTextList.join('\n')
-  };
-  sf.replyWith({
-    text: '',
-    attachments: {
-      attachment: attachment
-    }
-  });
 }
 
-function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callback) {
+function lookupCheevoParts(cheevoToDisplay, isFull, callback) {
   if (debug) console.log("Lookup cheevo parts");
   var skinsToFetch = [];
   var titlesToFetch = [];
@@ -154,7 +168,7 @@ function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callbac
   var searchList = [];
   if (typeof cheevoToDisplay.bits != 'undefined')
     searchList = searchList.concat(cheevoToDisplay.bits);
-  if (typeof cheevoToDisplay.rewards != 'undefined')
+  if (typeof cheevoToDisplay.rewards != 'undefined' && isFull)
     searchList = searchList.concat(cheevoToDisplay.rewards);
   //collate list of things to fetch
   for (var b in searchList) {
@@ -179,116 +193,123 @@ function lookupCheevoParts(accountAchievements, cheevoToDisplay, isFull, callbac
     titlesToFetch.length + " titles to fetch\n" +
     minisToFetch.length + " minis to fetch\n" +
     itemsToFetch.length + " items to fetch");
-  Promise.all([gw2api.promise.skins(skinsToFetch), gw2api.promise.titles(titlesToFetch), gw2api.promise.minis(minisToFetch), gw2api.promise.items(itemsToFetch)]).then(function(results) {
-    fetchFreshData = results;
-    callback(accountAchievements, cheevoToDisplay, isFull);
-  }).catch(function(error) {
-    sf.replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
-  });
+  Promise.all([gw2api.promise.skins(skinsToFetch), gw2api.promise.titles(titlesToFetch), gw2api.promise.minis(minisToFetch), gw2api.promise.items(itemsToFetch)])
+    .then(function(results) {
+      fetchFreshData = results;
+      callback(cheevoToDisplay, isFull);
+    }).catch(function(error) {
+      sf.replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
+    });
 }
 
-function displayCheevoCallback(accountAchievements, cheevoToDisplay, isFull) {
-  if (debug) console.log("Display cheevo " + cheevoToDisplay.name + ", isfull: " + isFull);
+function displayCheevoCallback(cheevoToDisplay, isFull) {
+  if (debug) sf.log("Display cheevo " + cheevoToDisplay.name + ", isfull: " + isFull);
   //setup all but the bits
   var pretext = '';
-  var acctCheevo = findInAccount(cheevoToDisplay.id, accountAchievements);
-  var currentPartsDone = 0;
+  gw2api.promise.accountAchievements([cheevoToDisplay.id], currentUserAccessToken)
+    .then(function(res) {
+      var acctCheevo = res[0];
+      if (debug) sf.log("user cheevo lookup result: " + JSON.stringify(acctCheevo));
+      var currentPartsDone = 0;
 
-  //max is the count of the highest tier, not just the sum ob the bits.
-  var maxParts = (cheevoToDisplay.tiers && cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count > 1 ? cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count : 0);
-  var repeat = '';
-  if (acctCheevo) {
-    if (typeof acctCheevo.current == 'number') currentPartsDone = acctCheevo.current;
-    if (typeof acctCheevo.max == 'number') maxParts = acctCheevo.max;
-    if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = ", repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once');
-  }
-  var title = cheevoToDisplay.name + " Report";
-  var text = '';
-
-  //Load bits to desplay into data first.
-  var cheevoBits = [];
-  for (var b in cheevoToDisplay.bits) {
-    var doneFlag = false;
-    if (acctCheevo && acctCheevo.bits) {
-      if (acctCheevo.bits.indexOf(Number(b)) >= 0) {
-        doneFlag = true;
+      //max is the count of the highest tier, not just the sum ob the bits.
+      var maxParts = (cheevoToDisplay.tiers && cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count > 1 ? cheevoToDisplay.tiers[cheevoToDisplay.tiers.length - 1].count : 0);
+      var repeat = '';
+      if (acctCheevo) {
+        if (typeof acctCheevo.current == 'number') currentPartsDone = acctCheevo.current;
+        if (typeof acctCheevo.max == 'number') maxParts = acctCheevo.max;
+        if (typeof acctCheevo.repeated == 'number' && acctCheevo.repeated > 0) repeat = ", repeated " + (acctCheevo.repeated > 1 ? acctCheevo.repeated + " times" : 'once');
       }
-    }
-    cheevoBits.push(displayAchievementBit(cheevoToDisplay.bits[b], doneFlag));
-  }
-  var fields = [];
+      var title = cheevoToDisplay.name + " Report";
+      var text = '';
 
-  var totalString = '';
-  if (maxParts > 1)
-    totalString = "Total: " + currentPartsDone + ' of ' + maxParts + " (" + (Math.floor(currentPartsDone / maxParts * 100) > 100 ? '100' : Math.floor(currentPartsDone / maxParts * 100)) + "%)" + repeat;
-  else
-    totalString = (acctCheevo && acctCheevo.done ? "" : "Not ") + "Complete" + repeat;
-  var summaryField = {
-    title: totalString,
-    value: ''
-  };
+      //Load bits to desplay into data first.
+      var cheevoBits = [];
+      for (var b in cheevoToDisplay.bits) {
+        var doneFlag = false;
+        if (acctCheevo && acctCheevo.bits) {
+          if (acctCheevo.bits.indexOf(Number(b)) >= 0) {
+            doneFlag = true;
+          }
+        }
+        cheevoBits.push(displayAchievementBit(cheevoToDisplay.bits[b], doneFlag));
+      }
+      var fields = [];
 
-  if (cheevoToDisplay.description.length > 0)
-    summaryField.value += "\nDescription: " + sf.replaceGWFlavorTextTags(cheevoToDisplay.description);
-  if (cheevoToDisplay.requirement.length > 0)
-    summaryField.value += "\nRequirement: " + sf.replaceGWFlavorTextTags(cheevoToDisplay.requirement);
+      var totalString = '';
+      if (maxParts > 1)
+        totalString = "Total: " + currentPartsDone + ' of ' + maxParts + " (" + (Math.floor(currentPartsDone / maxParts * 100) > 100 ? '100' : Math.floor(currentPartsDone / maxParts * 100)) + "%)" + repeat;
+      else
+        totalString = (acctCheevo && acctCheevo.done ? "" : "Not ") + "Complete" + repeat;
+      var summaryField = {
+        title: totalString,
+        value: ''
+      };
 
-  fields.push(summaryField);
+      if (cheevoToDisplay.description.length > 0)
+        summaryField.value += "\nDescription: " + sf.replaceGWFlavorTextTags(cheevoToDisplay.description);
+      if (cheevoToDisplay.requirement.length > 0)
+        summaryField.value += "\nRequirement: " + sf.replaceGWFlavorTextTags(cheevoToDisplay.requirement);
 
-  if (cheevoToDisplay.tiers && isFull) { //there's aways a tiers, but whatever.
-    var tierField = {
-      title: 'Tiers',
-      value: '#\tPoints'
-    };
-    for (var tier in cheevoToDisplay.tiers) {
-      tierField.value += '\n' + cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
-    }
+      fields.push(summaryField);
 
-    fields.push(tierField);
-  }
+      if (cheevoToDisplay.tiers && isFull) { //there's aways a tiers, but whatever.
+        var tierField = {
+          title: 'Tiers',
+          value: '#\tPoints'
+        };
+        for (var tier in cheevoToDisplay.tiers) {
+          tierField.value += '\n' + cheevoToDisplay.tiers[tier].count + "\t" + cheevoToDisplay.tiers[tier].points;
+        }
 
-  if (cheevoToDisplay.rewards && isFull) {
-    var rewardField = {
-      title: "Rewards",
-      value: ""
-    };
-    for (var reward in cheevoToDisplay.rewards) {
-      rewardField.value += '\n' + displayAchievementBit(cheevoToDisplay.rewards[reward]);
-    }
-    fields.push(rewardField);
-  }
+        fields.push(tierField);
+      }
 
-  if (!toggle) {
-    //raw data for debug
-    fields.push({
-      title: "Raw Cheevo",
-      value: JSON.stringify(cheevoToDisplay)
+      if (cheevoToDisplay.rewards && isFull) {
+        var rewardField = {
+          title: "Rewards",
+          value: ""
+        };
+        for (var reward in cheevoToDisplay.rewards) {
+          rewardField.value += '\n' + displayAchievementBit(cheevoToDisplay.rewards[reward]);
+        }
+        fields.push(rewardField);
+      }
+
+      if (!toggle) {
+        //raw data for debug
+        fields.push({
+          title: "Raw Cheevo",
+          value: JSON.stringify(cheevoToDisplay)
+        });
+        //raw data for debug
+        fields.push({
+          title: "Raw Progress",
+          value: (acctCheevo ? JSON.stringify(acctCheevo) : "Not done")
+        });
+      }
+
+      attachment = {};
+      attachment = { //assemble attachment
+        fallback: title,
+        pretext: pretext,
+        //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
+        title: title,
+        color: '#F0AC1B',
+        thumb_url: getIconForParentCategory(cheevoToDisplay),
+        fields: fields,
+        text: text + "\n" + cheevoBits.join('\n')
+      };
+      sf.log("Cheevo title: " + title);
+      sf.replyWith({
+        text: '',
+        attachments: {
+          attachment: attachment
+        }
+      });
+    }).catch(function(error) {
+      sf.replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
     });
-    //raw data for debug
-    fields.push({
-      title: "Raw Progress",
-      value: (acctCheevo ? JSON.stringify(acctCheevo) : "Not done")
-    });
-  }
-
-  attachment = {};
-  attachment = { //assemble attachment
-    fallback: title,
-    pretext: pretext,
-    //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
-    title: title,
-    color: '#F0AC1B',
-    thumb_url: getIconForParentCategory(cheevoToDisplay),
-    fields: fields,
-    text: text + "\n" + cheevoBits.join('\n')
-  };
-  console.log("Cheevo title: " + title);
-  sf.replyWith({
-    text: '',
-    attachments: {
-      attachment: attachment
-    }
-  });
 
 }
 
@@ -435,131 +456,128 @@ module.exports = function() {
             bot.reply(message, "Sorry, I don't have your access token " + (user && user.access_token && !sf.userHasPermission(user, 'progression') ? "with correct 'progression' permissions " : "") + "on file. Direct message me the phrase \'access token help\' for help.");
             return;
           }
+          currentUserAccessToken = user.access_token;
           //precheck: account acievements
-          gw2api.accountAchievements(function(accountAchievements) {
-            if (accountAchievements.text || accountAchievements.error) {
-              bot.reply(message, "Oops. I got an error when asking for your achievements.\nTry again later, it'll probably be fine.");
-              bot.botkit.log("Account fetch error for user " + message.user + "." + (accountAchievements.text ? " Text:" + accountAchievements.text : '') + (accountAchievements.error ? "\nError:" + accountAchievements.error : ''));
-              return;
+          // gw2api.accountAchievements(function(accountAchievements) {
+          //   if (accountAchievements.text || accountAchievements.error) {
+          //     bot.reply(message, "Oops. I got an error when asking for your achievements.\nTry again later, it'll probably be fine.");
+          //     bot.botkit.log("Account fetch error for user " + message.user + "." + (accountAchievements.text ? " Text:" + accountAchievements.text : '') + (accountAchievements.error ? "\nError:" + accountAchievements.error : ''));
+          //     return;
+          //   }
+          var accountAchievements = 'dummy';
+          cheevoSearchString = matches[2].replace(/\s+/g, '');
+          if (debug) console.log("Cheevo searching: " + cheevoSearchString);
+          //Look up the string.
+          var cheevoToDisplay; //try a loop with contains
+          var possibleMatches = [];
+          var exactMatches = [];
+          for (var c in gw2api.data.achievementsCategories) {
+            var cheeCat = gw2api.data.achievementsCategories[c];
+            if (cheeCat.name) {
+              var cleanCat = sf.removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
+              if (cleanCat == cheevoSearchString) {
+                exactMatches.push(cheeCat);
+                break;
+              } else if (cleanCat.includes(cheevoSearchString))
+                possibleMatches.push(cheeCat);
             }
-            cheevoSearchString = matches[2].replace(/\s+/g, '');
-            if (debug) console.log("Cheevo searching: " + cheevoSearchString);
-            //Look up the string.
-            var cheevoToDisplay; //try a loop with contains
-            var possibleMatches = [];
-            var exactMatches = [];
-            for (var c in gw2api.data.achievementsCategories) {
-              var cheeCat = gw2api.data.achievementsCategories[c];
-              if (cheeCat.name) {
-                var cleanCat = sf.removePunctuationAndToLower(cheeCat.name).replace(/\s+/g, '');
-                if (cleanCat == cheevoSearchString) {
-                  exactMatches.push(cheeCat);
-                  break;
-                } else if (cleanCat.includes(cheevoSearchString))
-                  possibleMatches.push(cheeCat);
-              }
+          }
+          for (var ch in gw2api.data.achievements) {
+            var chee = gw2api.data.achievements[ch];
+            if (chee.name) {
+              var cleanChee = sf.removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
+              if (cleanChee == cheevoSearchString) {
+                exactMatches.push(chee);
+                break;
+              } else if (cleanChee.includes(cheevoSearchString))
+                possibleMatches.push(chee);
             }
-            for (var ch in gw2api.data.achievements) {
-              var chee = gw2api.data.achievements[ch];
-              if (chee.name) {
-                var cleanChee = sf.removePunctuationAndToLower(chee.name).replace(/\s+/g, '');
-                if (cleanChee == cheevoSearchString) {
-                  exactMatches.push(chee);
-                  break;
-                } else if (cleanChee.includes(cheevoSearchString))
-                  possibleMatches.push(chee);
-              }
-            }
-            if (debug) console.log("Found " + possibleMatches.length + " possible matches and " + exactMatches.length + " exact matches");
-            if (exactMatches.length > 0) //cutout for categories or achievements with exact names.
-              possibleMatches = exactMatches;
-            if (possibleMatches.length < 1) {
-              bot.reply(message, "No Achievements or Achievement Categories contain that phrase.  ¯\\_(ツ)_/¯");
-              return;
-            } else if (possibleMatches.length == 1) {
-              sf.setGlobalMessage(message);
-              if (possibleMatches[0].achievements)
-                if (isRandom) displayRandomCheevoCallback(accountAchievements, possibleMatches[0]);
-                else displayCategoryCallback(accountAchievements, possibleMatches[0]);
-              else
-                lookupCheevoParts(accountAchievements, possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
-            } else if (possibleMatches.length > 10) {
-              var itemNameList = [];
-              for (var n in possibleMatches)
-                itemNameList.push(possibleMatches[n].name);
-              bot.reply(message, {
-                attachments: {
-                  attachment: {
-                    fallback: 'Too many achievements found in search.',
-                    text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
-                  }
-                }
-              });
-            } else {
-              bot.startConversation(message, function(err, convo) {
-                var askNum = 2;
-                var listofItems = '';
-                for (var i in possibleMatches) {
-                  var descString = '';
-                  if (possibleMatches[i].requirement) {
-                    descString = possibleMatches[i].requirement;
-                  } else if (possibleMatches[i].description) {
-                    descString = possibleMatches[i].description;
-                  } else if (possibleMatches[i].achievements) {
-                    descString = 'Category with ' + possibleMatches[i].achievements.length + ' achievements.';
-                  }
-                  if (descString.length > 32) {
-                    descString = descString.slice(0, 32);
-                    descString += '...';
-                  }
+          }
+          if (debug) console.log("Found " + possibleMatches.length + " possible matches and " + exactMatches.length + " exact matches");
+          if (exactMatches.length > 0) //cutout for categories or achievements with exact names.
+            possibleMatches = exactMatches;
+          if (possibleMatches.length < 1) {
+            bot.reply(message, "No Achievements or Achievement Categories contain that phrase.  ¯\\_(ツ)_/¯");
+            return;
+          } else if (possibleMatches.length == 1) {
+            sf.setGlobalMessage(message);
 
-                  listofItems += '\n' + [i] + ": " + possibleMatches[i].name + (descString ? " - " + descString : '');
+            if (possibleMatches[0].achievements && !isRandom) displayCategoryCallback(possibleMatches[0]);
+            lookupCheevoParts(possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
+          } else if (possibleMatches.length > 10) {
+            var itemNameList = [];
+            for (var n in possibleMatches)
+              itemNameList.push(possibleMatches[n].name);
+            bot.reply(message, {
+              attachments: {
+                attachment: {
+                  fallback: 'Too many achievements found in search.',
+                  text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
                 }
-                convo.ask('I found multiple achievements with that name. Which number you mean? (say no to quit)' + listofItems, [{
-                  //number, no, or repeat
-                  pattern: new RegExp(/^(\d{1,2})/i),
-                  callback: function(response, convo) {
-                    //if it's a number, and that number is within our search results, print it
-                    var matches = response.text.match(/^(\d{1,})/i);
-                    var selection = matches[0];
-                    if (selection < possibleMatches.length) {
-                      sf.setGlobalMessage(convo);
-                      if (possibleMatches[selection].achievements)
-                        if (isRandom) displayRandomCheevoCallback(accountAchievements, possibleMatches[selection]);
-                        else displayCategoryCallback(accountAchievements, possibleMatches[selection]);
-                      else
-                        lookupCheevoParts(accountAchievements, possibleMatches[selection], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
-                    } else if (askNum-- > 0) {
-                      convo.say("Choose a valid number.");
-                      convo.repeat();
-                    } else
-                      convo.say("Oh well.");
-                    convo.next();
-                  }
-                }, {
-                  //negative response. Stop repeating the list.
-                  pattern: bot.utterances.no,
-                  callback: function(response, convo) {
-                    convo.say('¯\\_(ツ)_/¯');
-                    convo.next();
-                  }
-                }, {
-                  default: true,
-                  callback: function(response, convo) {
-                    // loop back, user needs to pick or say no.
-                    if (askNum-- > 0) {
-                      convo.say("Choose a number of the achievement you'd like to see.");
-                      convo.repeat();
-                    } else
-                      convo.say("Be serious.");
-                    convo.next();
-                  }
-                }]);
-              });
-            }
-          }, {
-            access_token: user.access_token
-          }, true);
+              }
+            });
+          } else {
+            bot.startConversation(message, function(err, convo) {
+              var askNum = 2;
+              var listofItems = '';
+              for (var i in possibleMatches) {
+                var descString = '';
+                if (possibleMatches[i].requirement) {
+                  descString = possibleMatches[i].requirement;
+                } else if (possibleMatches[i].description) {
+                  descString = possibleMatches[i].description;
+                } else if (possibleMatches[i].achievements) {
+                  descString = 'Category with ' + possibleMatches[i].achievements.length + ' achievements.';
+                }
+                if (descString.length > 32) {
+                  descString = descString.slice(0, 32);
+                  descString += '...';
+                }
+
+                listofItems += '\n' + [i] + ": " + possibleMatches[i].name + (descString ? " - " + descString : '');
+              }
+              convo.ask('I found multiple achievements with that name. Which number you mean? (say no to quit)' + listofItems, [{
+                //number, no, or repeat
+                pattern: new RegExp(/^(\d{1,2})/i),
+                callback: function(response, convo) {
+                  //if it's a number, and that number is within our search results, print it
+                  var matches = response.text.match(/^(\d{1,})/i);
+                  var selection = matches[0];
+                  if (selection < possibleMatches.length) {
+                    sf.setGlobalMessage(convo);
+                    if (isRandom) displayRandomCheevoCallback(possibleMatches[selection]);
+                    lookupCheevoParts(possibleMatches[selection], isFull, ((possibleMatches[selection].achievements) ? displayCategoryCallback : displayCheevoCallback));
+                  } else if (askNum-- > 0) {
+                    convo.say("Choose a valid number.");
+                    convo.repeat();
+                  } else
+                    convo.say("Oh well.");
+                  convo.next();
+                }
+              }, {
+                //negative response. Stop repeating the list.
+                pattern: bot.utterances.no,
+                callback: function(response, convo) {
+                  convo.say('¯\\_(ツ)_/¯');
+                  convo.next();
+                }
+              }, {
+                default: true,
+                callback: function(response, convo) {
+                  // loop back, user needs to pick or say no.
+                  if (askNum-- > 0) {
+                    convo.say("Choose a number of the achievement you'd like to see.");
+                    convo.repeat();
+                  } else
+                    convo.say("Be serious.");
+                  convo.next();
+                }
+              }]);
+            });
+          }
+          // }, {
+          //   access_token: user.access_token
+          // }, true);
         });
       });
 

@@ -7,7 +7,7 @@ var config = {
 	cacheTime: 360,
 	cacheFile: null,
 	cachePath: '',
-	debug: false,
+	debug: true,
 	retry: 2,
 	dataLoadRetry: 3,
 	dataLoadPageSize: 200,

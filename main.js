@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.20.03"; //Added colorfilter, minor bug fixes
+var version = "2.20.10"; //update for new api changes
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -108,13 +108,15 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "Colorfilter: list your colors in a specific group. (metal, rare, grey). Command searches a compiled list of possible groups/catgories (see help colorfilter)");
+	bot.reply(message, "update for new api changes. Squadgoals and dungeonfrequenter should be noticably faster\ncheevo is faster when used infrequently and looking up categories\ngreatly sped up recipe and item dataload (startup and db reload)");
 });
 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
-		"Improve colorfilter?",
+		"standardize the userstrings used in df and dp?",
+		"move every api call to promise version for 'readability'?",
+		"Story progress (hold for when the api updates) show a user, group of user's progress on the story points",
 		"logging"
 	];
 	bot.reply(message, todoList.join("\n"));
