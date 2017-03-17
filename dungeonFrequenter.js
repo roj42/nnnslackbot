@@ -53,7 +53,7 @@ module.exports = function() {
 					}
 
 					//each fetched user: peel out frequenter achievement, add the bits to our common bits array
-					for (var c in jsonData) {
+					for (var c in jsonData) { //since an APi update, jsonData will always be only one long. Leaving this in in case of reversion.
 						if (jsonData[c].id && jsonData[c].id == dungeonFrequenterCheevo.id && jsonData[c].bits && jsonData[c].bits.length > 0) {
 							if (name) individualBitsArrays[name] = jsonData[c].bits;
 							break;
@@ -197,7 +197,8 @@ module.exports = function() {
 					sf.setGlobalMessage(message);
 					for (var g in goodUsers) {
 						gw2api.accountAchievements(dungeonfriendsCallback, {
-							access_token: goodUsers[g].access_token
+							access_token: goodUsers[g].access_token,
+							ids : dungeonFrequenterCheevo.id
 						}, true);
 					}
 
@@ -213,10 +214,12 @@ module.exports = function() {
 		},
 		getCheevosForUsers: function(validUsers) {
 			var userAchievements = [];
+			var dungeonFrequenterCheevo = gw2api.findInData('name', 'Dungeon Frequenter', 'achievements');
+
 			for (var usr in validUsers)
 				if (validUsers[usr] !== null) {
 					if (debug) sf.log(validUsers[usr].name + " is a valid user");
-					userAchievements.push(gw2api.promise.accountAchievements(["all"], validUsers[usr].access_token));
+					userAchievements.push(gw2api.promise.accountAchievements([dungeonFrequenterCheevo.id], validUsers[usr].access_token));
 				}
 			if (debug) sf.log(userAchievements.length + " account cheevo lists to fetch");
 			if (userAchievements.length === 0)
