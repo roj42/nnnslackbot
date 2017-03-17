@@ -114,6 +114,7 @@ controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', 
 helpFile.todo = "Display the backlog";
 controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
 	var todoList = [
+		"fractal dailies",
 		"standardize the userstrings used in df and dp?",
 		"move every api call to promise version for 'readability'?",
 		"Story progress (hold for when the api updates) show a user, group of user's progress on the story points",
