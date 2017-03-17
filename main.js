@@ -582,21 +582,20 @@ function removeInvalidIngredients(value, index, array) {
 
 //Scour through recipes and forge recipes for output item/ingredient item ids. Return a no-duplicate list of these.
 function compileIngredientIds() {
-	itemsCompile = [];
+	itemsCompile = {};
 	for (var t in gw2api.data.recipes) {
-		itemsCompile.push(gw2api.data.recipes[t].output_item_id);
+		itemsCompile[gw2api.data.recipes[t].output_item_id] = 1;
 		for (var i in gw2api.data.recipes[t].ingredients) {
-			itemsCompile.push(gw2api.data.recipes[t].ingredients[i].item_id);
+			itemsCompile[gw2api.data.recipes[t].ingredients[i].item_id] = 1;
 		}
 	}
 	for (var f in gw2api.data.forged) {
-		itemsCompile.push(gw2api.data.forged[f].output_item_id);
+		itemsCompile[gw2api.data.forged[f].output_item_id] = 1;
 		for (var g in gw2api.data.forged[f].ingredients) {
-			itemsCompile.push(gw2api.data.forged[f].ingredients[g].item_id);
+			itemsCompile[gw2api.data.forged[f].ingredients[g].item_id] = 1;
 		}
 	}
-
-	return sf.arrayUnique(itemsCompile);
+	return Object.keys(itemsCompile);
 }
 
 
