@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.20.11"; //added check for API status
+var version = "2.20.12"; //added checks for API status
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -613,27 +613,38 @@ function compileIngredientIds() {
 
 
 function reloadAllData(bypass) {
-	start = new Date().getTime();
-	numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
+	gw2api.APIServerStatus(function(response) {
+		if (response != "Up!"){
+			sf.log("API servers not up. Status: "+response);
+			return;
+		}
+		else {
+			start = new Date().getTime();
+			numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
 
-	gw2api.load("colors", {
-		ids: 'all'
-	}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-	sf.replyWith("Starting to load colors.", true);
+			gw2api.load("colors", {
+				ids: 'all'
+			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			sf.replyWith("Starting to load colors.", true);
 
-	gw2api.load("currencies", {
-		ids: 'all'
-	}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-	sf.replyWith("Starting to load currencies.", true);
+			gw2api.load("currencies", {
+				ids: 'all'
+			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			sf.replyWith("Starting to load currencies.", true);
 
-	sf.replyWith("Starting to load recipes.", true);
-	gw2api.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
+			sf.replyWith("Starting to load recipes.", true);
+			gw2api.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
 
-	sf.replyWith("Starting to load achievements.", true);
-	gw2api.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			sf.replyWith("Starting to load achievements.", true);
+			gw2api.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
 
-	sf.replyWith("Starting to load achievement categories.", true);
-	gw2api.load("achievementsCategories", {
-		ids: 'all'
-	}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			sf.replyWith("Starting to load achievement categories.", true);
+			gw2api.load("achievementsCategories", {
+				ids: 'all'
+			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+		}
+
+	});
+
+
 }
