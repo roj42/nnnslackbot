@@ -335,6 +335,29 @@ module.exports = function() {
 			});
 		} else callback(cache.get('recipes', 'forgeRecipes').json);
 	};
+	var statusOptions = {
+		method: 'GET',
+		url: 'https://api.guildwars2.com'
+	};
+	ret.APIServerStatus = function(callback) {
+		request(statusOptions, function(error, response, body) {
+			if (error) return new Error(error);
+			var res = JSON.parse(body);
+			if(debug) console.log('status check response body: ' + JSON.stringify(res));
+			switch (res.length) {
+				case 0:
+					callback('Down!');
+					break;
+				case 2:
+					callback('Up!');
+					break;
+				default:
+					sf.log("Odd server status: " + JSON.stringify(res));
+					callback("Up, but weird!\n" + JSON.stringify(res));
+			}
+		});
+	};
+
 	//roj42 - methods to load ALL of a specific endpoint
 	ret.daoLoad = daoLoad;
 	ret.data = [];

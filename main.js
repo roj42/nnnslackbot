@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.20.10"; //update for new api changes
+var version = "2.20.11"; //added check for API status
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -378,6 +378,9 @@ controller.hears(['^uptime', '^who are you'], 'direct_message,direct_mention,men
 				dataString += '\n' + type + ': ' + gw2api.data[type].length;
 	if (dataString)
 		bot.reply(message, "Data:" + dataString);
+	gw2api.APIServerStatus(function(response) {
+		bot.reply(message, 'Guildwars 2 API server status: ' + response);
+	});
 });
 
 ////EASTER EGGS AND DEBUGS
@@ -467,11 +470,18 @@ controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', funct
 });
 
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
-	bot.reply(message, 'You asked for it. Starting reload.');
-	sf.setGlobalMessage(message);
-	prefixData = sf.loadStaticDataFromFile('prefix.json');
-	standalone.reloadAllData();
-	reloadAllData(true);
+	gw2api.APIServerStatus(function(response) {
+		if (response != "Up!") {
+			bot.reply(message, 'API servers are not up. Status: ' + response);
+		} else {
+			bot.reply(message, 'You asked for it. Starting reload.');
+			sf.setGlobalMessage(message);
+			prefixData = sf.loadStaticDataFromFile('prefix.json');
+			standalone.reloadAllData();
+			reloadAllData(true);
+		}
+	});
+
 });
 
 controller.on('ambient', function(bot, message) {
