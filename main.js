@@ -29,7 +29,9 @@ var bot = controller.spawn({
 	if (err) {
 		throw new Error('Could not connect to Slack');
 	}
+
 });
+
 
 //load shared code to the global scope
 var sf = require('./sharedFunctions.js');
@@ -173,7 +175,7 @@ controller.hears(['^access token(.*)'], 'direct_mention,mention,direct_message,a
 			};
 		}
 		gw2api.tokeninfo(function(tokenInfo) {
-			bot.botkit.log("access token tokenInfo fetch: " + JSON.stringify(tokenInfo));
+			bot.botkit.log("access token token Info fetch: " + JSON.stringify(tokenInfo));
 			if (tokenInfo.error || tokenInfo.text) {
 				bot.reply(message, "I got an error looking up your token and did not save it. Check the spelling and try again. You can also say 'access token' with no argument to refresh the token I have on file.");
 				return;
@@ -466,7 +468,7 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
 
 ////DATA
 controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
-	bot.reply(message, 'Are you sure? It can take a long time. Say \'db reload go\' to launch for real');
+	bot.reply(message, 'Are you sure? It can take a long time. Say \'<@' + bot.identity.name + '> db reload go\' to me directly to launch for real');
 });
 
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
@@ -614,11 +616,10 @@ function compileIngredientIds() {
 
 function reloadAllData(bypass) {
 	gw2api.APIServerStatus(function(response) {
-		if (response != "Up!"){
-			sf.log("API servers not up. Status: "+response);
+		if (response != "Up!") {
+			sf.log("API servers not up. Status: " + response);
 			return;
-		}
-		else {
+		} else {
 			start = new Date().getTime();
 			numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
 
