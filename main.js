@@ -467,8 +467,8 @@ controller.hears(['^debugger'], 'direct_message,direct_mention', function(bot, m
 });
 
 ////DATA
-controller.hears(['^db reload$'], 'direct_message,direct_mention,mention', function(bot, message) {
-	bot.reply(message, 'Are you sure? It can take a long time. Say \'<@' + bot.identity.name + '> db reload go\' to me directly to launch for real');
+controller.hears(['^db reload$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+	bot.reply(message, 'Are you sure? It can take a long time. Say \'<@' + bot.identity.name + '> db reload go\' (or DM me) to launch for real');
 });
 
 controller.hears(['^db reload go$'], 'direct_message,direct_mention,mention', function(bot, message) {
