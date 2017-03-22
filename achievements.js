@@ -607,8 +607,8 @@ module.exports = function() {
           return arrayItem.level.max == 80;
         };
 
-        var todayPvEs;
-        var tomorrowPvEs;
+        var todayList;
+        var tomorrowList;
 
         var dailyPromises = [];
         if (printToday) dailyPromises.push(gw2api.promise.dailies(["all"]));
@@ -619,60 +619,94 @@ module.exports = function() {
           .then(function(dailyList) {
             if (debug) sf.log("promises returned: " + dailyList.length);
             if (printToday)
-              todayPvEs = dailyList[0][sublist].filter(levelEightiesOnly);
+              todayList = dailyList[0][sublist].filter(levelEightiesOnly);
             if (printTomorrow)
-              tomorrowPvEs = dailyList[(printToday ? 1 : 0)][sublist].filter(levelEightiesOnly);
+              tomorrowList = dailyList[(printToday ? 1 : 0)][sublist].filter(levelEightiesOnly);
 
             var fieldsFormatted = [];
+            var fractalSort = function(a, b) {
+              if (a.value < b.value) return -1;
+              if (a.value > b.value) return 1;
+              return 0;
+            };
             if (printToday) {
               fieldsFormatted.push({
-                "title": "Today's Daily Achievements",
-                //"value": day.name,
+                "title": "Today's " + (sublist == 'fractals' ? "Fractal" : "Daily") + " Achievements",
                 "short": false
               });
-              for (var d in todayPvEs) {
-                var day = gw2api.findInData('id', todayPvEs[d].id, 'achievements');
+              var fractalTiersSeen = {};
+              var dayfields = [];
+              for (var d in todayList) {
+                var day = gw2api.findInData('id', todayList[d].id, 'achievements');
                 var dayLabel;
                 if (day && day.name) {
+                  if (sublist == 'fractals' && day.name.indexOf('Tier') == 6) { //daily tiers need only be printed once i.e. Daily Tier 1 Thaumanova Reactor
+                    var fractalName = day.name.substring(13);
+                    if (fractalTiersSeen[fractalName]) { //repeat, don't add
+                      continue;
+                    } else {
+                      day.name = "Daily Tier 1-4 " + fractalName;
+                      fractalTiersSeen[fractalName] = 1;
+                    }
+
+                  }
                   dayLabel = day.name;
-                  if (todayPvEs[d].required_access.length == 1)
-                    dayLabel += (todayPvEs[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-                } else dayLabel = "Nameless Achievement - id  " + todayPvEs[d].id;
-                fieldsFormatted.push({
+                  if (todayList[d].required_access.length == 1)
+                    dayLabel += (todayList[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+                } else dayLabel = "Nameless Achievement - id  " + todayList[d].id;
+                dayfields.push({
                   //            "title": ,
                   "value": dayLabel,
                   "short": false
                 });
               }
+              dayfields.sort(fractalSort);
+              fieldsFormatted = fieldsFormatted.concat(dayfields);
+
             }
             if (printTomorrow) {
               fieldsFormatted.push({
-                "title": "Tomorow's Daily Achievements",
+                "title": "Tomorow's " + (sublist == 'fractals' ? "Fractal" : "Daily") + " Achievements",
                 //"value": day.name,
                 "short": false
               });
 
-              for (var t in tomorrowPvEs) {
-                var morrow = gw2api.findInData('id', tomorrowPvEs[t].id, 'achievements');
+              var morrowfields = [];
+
+              var fractalmorrowTiersSeen = {};
+              for (var t in tomorrowList) {
+                var morrow = gw2api.findInData('id', tomorrowList[t].id, 'achievements');
                 var morrowLabel;
                 if (morrow && morrow.name) {
+                  if (sublist == 'fractals' && morrow.name.indexOf('Tier') == 6) { //daily tiers need only be printed once i.e. Daily Tier 1 Thaumanova Reactor
+                    var fractalmorrowName = morrow.name.substring(13);
+                    if (fractalmorrowTiersSeen[fractalmorrowName]) { //repeat, don't add
+                      continue;
+                    } else {
+                      morrow.name = "Daily Tier 1-4 " + fractalmorrowName;
+                      fractalmorrowTiersSeen[fractalmorrowName] = 1;
+                    }
+                  }
                   morrowLabel = morrow.name;
-                  if (tomorrowPvEs[t].required_access.length == 1)
-                    morrowLabel += (tomorrowPvEs[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-                } else morrowLabel = "Nameless Achievement - id " + tomorrowPvEs[t].id;
-                fieldsFormatted.push({
+                  if (tomorrowList[t].required_access.length == 1)
+                    morrowLabel += (tomorrowList[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+                } else morrowLabel = "Nameless Achievement - id " + tomorrowList[t].id;
+                morrowfields.push({
                   "value": morrowLabel,
                   "short": false
                 });
 
               }
+              morrowfields.sort(fractalSort);
+              fieldsFormatted = fieldsFormatted.concat(morrowfields);
+
             }
 
             var attachments = [];
             var attachment = { //assemble attachment
               fallback: 'Daily Achievements',
               color: '#000000',
-              thumb_url: "https://wiki.guildwars2.com/images/1/14/Daily_Achievement.png",
+              thumb_url: (sublist == 'fractals') ? "https://wiki.guildwars2.com/images/3/38/Daily_Fractals.png" : "https://wiki.guildwars2.com/images/1/14/Daily_Achievement.png",
               fields: fieldsFormatted,
             };
             attachments.push(attachment);
@@ -695,6 +729,9 @@ module.exports = function() {
       helpFile.daily = "Prints a report of the daily achievements for today and tomorrow.";
       helpFile.today = "Prints a report of the daily achievements for today.";
       helpFile.tomorrow = "Prints a report of the daily achievements for tomorrow.";
+      helpFile.fractals = "Prints a report of the daily fractals achievements for today and tomorrow.";
+      helpFile.fractalstoday = "Prints a report of the daily fractals achievements for today.";
+      helpFile.fractalstomorrow = "Prints a report of the daily fractals achievements for tomorrow.";
     },
     flipToggle: function() {
       if (toggle) toggle = false;
