@@ -2,7 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = false;
+var debug = true;
 var toggle = true;
 var currentUserAccessToken;
 //find an achievement in the freshly fetched account achievements by id
@@ -581,7 +581,7 @@ module.exports = function() {
         });
       });
 
-      controller.hears(['^daily$', '^today$', '^tomorrow$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
+      controller.hears(['^daily$', '^today$', '^tomorrow$', '^fractals$', '^fractalstoday$', '^fractalstomorrow$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
         if (!gw2api.loaded.achievements) { //still loading
           bot.reply(message, "I'm still loading achievement data. Please check back in a couple of minutes. If this keeps happening, try 'db reload'.");
           sf.setGlobalMessage(message);
@@ -590,32 +590,39 @@ module.exports = function() {
 
         var printToday = true;
         var printTomorrow = true;
-        var doneToday = false;
-        var doneTomorrow = false;
-        if (message.text.toLowerCase() == 'today') {
+        var sublist = 'pve';
+        if (debug) sf.log("input:" + message.text.toLowerCase());
+        if (message.text.toLowerCase().indexOf('today') >= 0) {
           printTomorrow = false;
-          doneTomorrow = true;
         }
-        if (message.text.toLowerCase() == 'tomorrow') {
+        if (message.text.toLowerCase().indexOf('tomorrow') >= 0) {
           printToday = false;
-          doneToday = true;
         }
+        if (message.text.toLowerCase().indexOf('fractals') >= 0) {
+          sublist = 'fractals';
+        }
+        if (debug) sf.log("switches: sublist=" + sublist + " printtoday:" + printToday + " printTomorrow: " + printTomorrow);
+
         var levelEightiesOnly = function(arrayItem) {
           return arrayItem.level.max == 80;
         };
 
         var todayPvEs;
         var tomorrowPvEs;
-        var dailiesCallback = function(dailyList, header) {
-          if (header.options.day == 'today') {
-            todayPvEs = dailyList.pve.filter(levelEightiesOnly);
-            doneToday = true;
-          } else if (header.options.day == 'tomorrow') {
-            tomorrowPvEs = dailyList.pve.filter(levelEightiesOnly);
-            doneTomorrow = true;
-          }
 
-          if (doneTomorrow && doneToday) {
+        var dailyPromises = [];
+        if (printToday) dailyPromises.push(gw2api.promise.dailies(["all"]));
+        if (printTomorrow) dailyPromises.push(gw2api.promise.dailiesTomorrow(["all"]));
+
+
+        Promise.all(dailyPromises)
+          .then(function(dailyList) {
+            if (debug) sf.log("promises returned: " + dailyList.length);
+            if (printToday)
+              todayPvEs = dailyList[0][sublist].filter(levelEightiesOnly);
+            if (printTomorrow)
+              tomorrowPvEs = dailyList[(printToday ? 1 : 0)][sublist].filter(levelEightiesOnly);
+
             var fieldsFormatted = [];
             if (printToday) {
               fieldsFormatted.push({
@@ -674,18 +681,11 @@ module.exports = function() {
             }, function(err, resp) {
               if (err || debug) bot.botkit.log(err, resp);
             });
-          }
-        };
 
-        if (printToday)
-          gw2api.dailies(dailiesCallback, {
-            day: 'today'
-          }, true);
-        if (printTomorrow)
-          gw2api.dailiesTomorrow(dailiesCallback, {
-            day: 'tomorrow'
-          }, true);
-
+          })
+          .catch(function(error) {
+            bot.reply(message, "I got an error that says " + error);
+          });
       });
     },
     addHelp: function(helpFile) {
