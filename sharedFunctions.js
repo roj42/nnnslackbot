@@ -6,7 +6,7 @@ var fs = require('fs');
 var globalMessage = null;
 var bot = null;
 var controller = null;
-var debug = false;
+var debug = true;
 module.exports = function() {
 
 	var ret = {
@@ -47,8 +47,8 @@ module.exports = function() {
 		//reply to a convo or a standard message, depending on what is saved in globalMessage, optionally clear out globalMessage
 		replyWith: function(messageToSend, keepGlobalMessage) {
 			if (!globalMessage) return;
-			if (debug) ret.log("Global message size: " + messageToSend.length + "\nkeep: " + keepGlobalMessage);
-			if(messageToSend.length > 4000) messageToSend = "replyWith says: message size too large! Overwritten to avert a crash.";
+			if (debug) ret.log("Global message size: " + (messageToSend.length ? messageToSend.length : (messageToSend.attachments ? messageToSend.attachments.length + " attachments" : ' no message')) + "; keep: " + keepGlobalMessage);
+			if (messageToSend.length && messageToSend.length > 4000) messageToSend = "replyWith says: message size too large! Overwritten to avert a crash.";
 			if (!(typeof messageToSend == 'string' ||
 					(typeof messageToSend == 'object' && ((Object.keys(messageToSend).indexOf("text") >= 0) || (Object.keys(messageToSend).indexOf("attachments") >= 0)))
 				)) {
@@ -61,7 +61,7 @@ module.exports = function() {
 				if (debug) ret.log("replied via bot message");
 				bot.reply(globalMessage, messageToSend, function(err, res) {
 					if (err) {
-						bot.reply(globalMessage, "I'm having sending your message: "+res);
+						bot.reply(globalMessage, "I'm having sending your message: " + res);
 						ret.log('Replywith Failed', err, res);
 					}
 				});

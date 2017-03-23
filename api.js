@@ -7,9 +7,8 @@ var config = {
 	cacheTime: 360,
 	cacheFile: null,
 	cachePath: '',
-	debug: false,
+	debug: true,
 	retry: 2,
-	dataLoadRetry: 3,
 	dataLoadPageSize: 200,
 	api: {
 		quaggans: 'quaggans',
@@ -287,27 +286,37 @@ module.exports = function() {
 	var promiseFunction = function(apiKey) {
 		return function(idsToFetch, access_token, bypassCache) {
 			// Return a new promise.
+			var retry = config.retry;
 			return new Promise(function(resolve, reject) {
 				if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
 				if (idsToFetch.length === 0) resolve([]);
 				else if (idsToFetch.length > 200) reject("Limit 200 ids per fetch");
 				else {
+					var optionsObj = {
+						type: apiKey,
+						ids: idsToFetch.join(',')
+					};
+
+					if (typeof access_token != 'undefined')
+						optionsObj.access_token = access_token;
+
 					var listCallback = function(jsonRes, headers) {
+
 						if (config.debug) console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
+
 						if (jsonRes.text || jsonRes.err || jsonRes.error) {
 							if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
-							reject(JSON.stringify(jsonRes));
+							if (retry-- <= 0) {
+								reject("too many retries fetching " + apiKey + ": " + JSON.stringify(jsonRes));
+							} else {
+								if (config.debug) console.log("Retrying: " + retry);
+								ret[apiKey](listCallback, optionsObj, bypassCache);
+							}
 						} else {
 							if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
 							resolve(jsonRes);
 						}
 					};
-					var optionsObj = {
-						type: apiKey,
-						ids: idsToFetch.join(',')
-					};
-					if (typeof access_token != 'undefined')
-						optionsObj.access_token = access_token;
 					ret[apiKey](listCallback, optionsObj, bypassCache);
 				}
 			});
@@ -343,7 +352,7 @@ module.exports = function() {
 		request(statusOptions, function(error, response, body) {
 			if (error) return new Error(error);
 			var res = JSON.parse(body);
-			if(debug) console.log('status check response body: ' + JSON.stringify(res));
+			if (debug) console.log('status check response body: ' + JSON.stringify(res));
 			switch (res.length) {
 				case 0:
 					callback('Down!');
@@ -378,6 +387,31 @@ module.exports = function() {
 			}
 		}
 	};
+	ret.loadx = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
+		if (!ret[apiKey]) {
+			if (errorCallback) errorCallback("no apiKey for " + apiKey);
+			else console.log("no apiKey for " + apiKey);
+			return;
+		} //check apiKey
+		ret.loaded[apiKey] = false;
+		ret.data[apiKey].length = 0;
+		var total = 0; //hold total page size
+		var retry = config.retry; //hold number of retries.
+		// fetch params for inital call. Max page size is 200
+		fetchParams.page = 0;
+		fetchParams.page_size = config.dataLoadPageSize;
+		var saveList = [];
+		if (fetchParams.ids && fetchParams.ids != 'all') { //Fetching a subset, unless 'all', which indicates paging
+			saveList = fetchParams.ids.slice(0);
+			fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
+		}
+		var loadPromises = [];
+
+
+		loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+
+	};
+
 	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
 	ret.load = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
 		if (!ret[apiKey]) {
@@ -389,7 +423,7 @@ module.exports = function() {
 		ret.data[apiKey].length = 0;
 		var total = 0; //hold total page size
 		var half_length = 0; //variable to identify half of max pages
-		var retry = config.dataLoadRetry; //hold number of retries.
+		var retry = config.retry; //hold number of retries.
 		// fetch params for inital call. Max page size is 200
 		fetchParams.page = 0;
 		fetchParams.page_size = config.dataLoadPageSize;
