@@ -5,6 +5,43 @@ var gw2api = require('./api.js');
 var debug = true;
 var toggle = true;
 var currentUserAccessToken;
+
+function compileDailyAchievements(todayList, isFractals) {
+  var dayfields = [];
+  var fractalTiersSeen = {};
+
+  for (var d in todayList) {
+    var day = gw2api.findInData('id', todayList[d].id, 'achievements');
+    var dayLabel;
+    if (day && day.name) {
+      if (isFractals && day.name.indexOf('Tier') >=0) { //daily tiers need only be printed once i.e. Daily Tier 1 Thaumanova Reactor
+        var matches = day.name.match(/\s*Daily\sTier\s(\d*)\s(.*)/i);
+        if (!matches) { //weird non-match, skip it
+          sf.log("Unrecognized fractal: " + day.name);
+          continue;
+        }
+        var fractalName = matches[2];
+        if (fractalTiersSeen[fractalName]) { //repeat, don't add
+          continue;
+        } else {
+          fractalTiersSeen[fractalName] = 1;
+          dayLabel = "Daily Tier 1-4 " + fractalName;
+        }
+      } else {
+        dayLabel = day.name;
+      }
+      if (todayList[d].required_access.length == 1)
+        dayLabel += (todayList[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
+    } else dayLabel = "Nameless Achievement - id  " + todayList[d].id;
+    dayfields.push({
+      //            "title": ,
+      "value": dayLabel,
+      "short": false
+    });
+  }
+  return dayfields;
+}
+
 //find an achievement in the freshly fetched account achievements by id
 function findInAccount(id, accountAchievements) {
   for (var t in accountAchievements) {
@@ -625,36 +662,12 @@ module.exports = function() {
                 "title": "Today's " + (sublist == 'fractals' ? "Fractal" : "Daily") + " Achievements",
                 "short": false
               });
-              var fractalTiersSeen = {};
-              var dayfields = [];
-              for (var d in todayList) {
-                var day = gw2api.findInData('id', todayList[d].id, 'achievements');
-                var dayLabel;
-                if (day && day.name) {
-                  if (sublist == 'fractals' && day.name.indexOf('Tier') == 6) { //daily tiers need only be printed once i.e. Daily Tier 1 Thaumanova Reactor
-                    var fractalName = day.name.substring(13);
-                    if (fractalTiersSeen[fractalName]) { //repeat, don't add
-                      continue;
-                    } else {
-                      day.name = "Daily Tier 1-4 " + fractalName;
-                      fractalTiersSeen[fractalName] = 1;
-                    }
-
-                  }
-                  dayLabel = day.name;
-                  if (todayList[d].required_access.length == 1)
-                    dayLabel += (todayList[d].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-                } else dayLabel = "Nameless Achievement - id  " + todayList[d].id;
-                dayfields.push({
-                  //            "title": ,
-                  "value": dayLabel,
-                  "short": false
-                });
-              }
+              var dayfields = compileDailyAchievements(todayList, (sublist == 'fractals'));
               dayfields.sort(fractalSort);
               fieldsFormatted = fieldsFormatted.concat(dayfields);
 
             }
+
             if (printTomorrow) {
               fieldsFormatted.push({
                 "title": "Tomorow's " + (sublist == 'fractals' ? "Fractal" : "Daily") + " Achievements",
@@ -662,34 +675,9 @@ module.exports = function() {
                 "short": false
               });
 
-              var morrowfields = [];
-
-              var fractalmorrowTiersSeen = {};
-              for (var t in tomorrowList) {
-                var morrow = gw2api.findInData('id', tomorrowList[t].id, 'achievements');
-                var morrowLabel;
-                if (morrow && morrow.name) {
-                  if (sublist == 'fractals' && morrow.name.indexOf('Tier') == 6) { //daily tiers need only be printed once i.e. Daily Tier 1 Thaumanova Reactor
-                    var fractalmorrowName = morrow.name.substring(13);
-                    if (fractalmorrowTiersSeen[fractalmorrowName]) { //repeat, don't add
-                      continue;
-                    } else {
-                      morrow.name = "Daily Tier 1-4 " + fractalmorrowName;
-                      fractalmorrowTiersSeen[fractalmorrowName] = 1;
-                    }
-                  }
-                  morrowLabel = morrow.name;
-                  if (tomorrowList[t].required_access.length == 1)
-                    morrowLabel += (tomorrowList[t].required_access[0] == 'GuildWars2' ? ' (Old World)' : ' (HoT)');
-                } else morrowLabel = "Nameless Achievement - id " + tomorrowList[t].id;
-                morrowfields.push({
-                  "value": morrowLabel,
-                  "short": false
-                });
-
-              }
-              morrowfields.sort(fractalSort);
-              fieldsFormatted = fieldsFormatted.concat(morrowfields);
+              var tomorrowfields = compileDailyAchievements(tomorrowList, (sublist == 'fractals'));
+              tomorrowfields.sort(fractalSort);
+              fieldsFormatted = fieldsFormatted.concat(tomorrowfields);
 
             }
 
