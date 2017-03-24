@@ -6,7 +6,7 @@ var fs = require('fs');
 var globalMessage = null;
 var bot = null;
 var controller = null;
-var debug = true;
+var debug = false;
 module.exports = function() {
 
 	var ret = {

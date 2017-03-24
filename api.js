@@ -406,9 +406,12 @@ module.exports = function() {
 			fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
 		}
 		var loadPromises = [];
+		//If fetching all, do a test ping to get the total size
 
-
+		//loop <total> times and push promises
 		loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+
+		//resolve all
 
 	};
 
