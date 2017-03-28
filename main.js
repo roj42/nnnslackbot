@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.22.02"; //major overhaul to load utilizing promises for performance, corected zintl/zintl's bug, zintl's sass
+var version = "2.22.03"; //major overhaul to load utilizing promises for performance, corected zintl/zintl's bug, zintl's sass, su-case for 'wei qi' prefixes (the space)
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -118,7 +118,8 @@ controller.hears(['^todo', '^backlog'], 'direct_message,direct_mention,mention,a
 		"standardize the userstrings used in df and dp?",
 		"move every api call to promise version for 'readability'?",
 		"Story progress (hold for when the api updates) show a user, group of user's progress on the story points",
-		"logging"
+		"logging",
+		"Ascended prefixes can have a space (just Wei Qi, at the moment). Rearrange asscraft to be slot/weight/name instead of name/weight/slot so you can freely have spaces"
 	];
 	bot.reply(message, todoList.join("\n"));
 });

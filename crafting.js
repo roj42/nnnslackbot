@@ -150,7 +150,7 @@ module.exports = function() {
               var saidHeroName;
               var foundHeroName = itemSearchResults[0].name.split("'")[0];
               for (var prefix in prefixSearchTerms) {
-                if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0]))) {
+                if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).replace(/\s+/g, '').includes(sf.removePunctuationAndToLower(termsArray[0]).replace(/\s+/g, ''))) {
                   sassOff = false;
                   saidHeroName = prefixSearchTerms[prefix].split("'")[0];
                   break;
@@ -272,7 +272,7 @@ function getValidTermFromAlias(searchTerm, source, returnArray) {
   var searchTermsList = [];
   for (var validName in source) {
     for (var j in source[validName])
-      if (sf.removePunctuationAndToLower(source[validName][j]).includes(searchTerm)) {
+      if (sf.removePunctuationAndToLower(source[validName][j]).replace(/\s+/g, '').includes(searchTerm)) {
         if (debug) sf.log("Found vaild search term: " + validName);
         searchTermsList.push(validName);
       }
