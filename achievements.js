@@ -2,7 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = true;
+var debug = false;
 var toggle = true;
 var currentUserAccessToken;
 

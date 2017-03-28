@@ -35,11 +35,12 @@ var config = {
 		minis: 'minis'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
-		items: [ "error", "id", "rarity", "text", "name","description", "level", "chat_link", "icon", "details", "type"],
-		recipes: ["error", "id", "output_item_id","text", "output_item_count","ingredients", "chat_link"],
+		items: ["error", "id", "rarity", "text", "name", "description", "level", "chat_link", "icon", "details", "type"],
+		recipes: ["error", "id", "output_item_id", "text", "output_item_count", "ingredients", "chat_link"],
 		achievements: ["error", "id", "text", "name", "description", "requirement", "icon", "bits", "tiers", "flags", "rewards"],
 		achievementsCategories: ["error", "id", "text", "name", "icon", "achievements"]
 	},
+	promisePoolMax: 100
 };
 
 // Fully load api into config; allows for per-uri cache times
@@ -63,6 +64,7 @@ var daoLoad = function(apiKey, rawJsonItem) {
 
 // Set up the cache to work with or without a file; defaults to without
 var fs = null;
+var promisePool = config.promisePoolMax;
 var cache = function() {
 	var container = {};
 
@@ -127,7 +129,7 @@ var apiRequest = function(apiKey, options, callback, bypassCache) {
 		var url = config.baseUrl + config.api[apiKey].uri + ((options !== undefined) ? '?' + decodeURIComponent(querystring.stringify(options)) : '');
 
 		if (config.debug) console.log('Updating cache for API Key: ' + cacheKey + ' from URL: ' + url);
-		else console.log('Updating cache for API Key: ' + cacheKey);
+		//else console.log('Updating cache for API Key: ' + cacheKey);
 		var retry = config.retry;
 		var retryCallback = function(error, response, body) {
 			//we're okay with
@@ -285,34 +287,47 @@ module.exports = function() {
 	//roj42 - promise form of individual apikeys
 	var promiseFunction = function(apiKey) {
 		return function(idsToFetch, access_token, bypassCache) {
+
 			// Return a new promise.
 			return new Promise(function(resolve, reject) {
-				if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
-				if (idsToFetch.length === 0) resolve([]);
-				else if (idsToFetch.length > config.dataLoadPageSize) reject("Limit " + config.dataLoadPageSize + " ids per fetch");
-				else {
-					var optionsObj = {
-						type: apiKey,
-						ids: idsToFetch.join(',')
-					};
+				var task = function() {
+					if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
+					if (idsToFetch.length === 0) resolve([]);
+					else if (idsToFetch.length > config.dataLoadPageSize) reject("Limit " + config.dataLoadPageSize + " ids per fetch");
+					else {
+						var optionsObj = {
+							ids: idsToFetch.join(',')
+						};
 
-					if (typeof access_token != 'undefined')
-						optionsObj.access_token = access_token;
+						if (access_token)
+							optionsObj.access_token = access_token;
 
-					var listCallback = function(jsonRes, headers) {
+						var listCallback = function(jsonRes, headers) {
+							promisePool++;
+							if (config.debug) console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
 
-						if (config.debug) console.log(apiKey + " promise for " + idsToFetch.length + " ids, fetching now");
-
-						if (jsonRes.text || jsonRes.err || jsonRes.error) {
-							if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
-							reject(jsonRes.text || jsonRes.err || jsonRes.error);
-						} else {
-							if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
-							resolve(jsonRes);
-						}
-					};
-					ret[apiKey](listCallback, optionsObj, bypassCache);
+							if (jsonRes.text || jsonRes.err || jsonRes.error) {
+								if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
+								reject(jsonRes.text || jsonRes.err || jsonRes.error);
+							} else {
+								if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
+								resolve(jsonRes);
+							}
+						};
+						promisePool--;
+						ret[apiKey](listCallback, optionsObj, bypassCache);
+					}
+				};
+				//wait on pool
+				if (promisePool < 1) {
+					if(config.debug) console.log("pool max, waiting: "+promisePool);
+					setTimeout(task, 1000);
+					return;
+				} else {
+					if(config.debug) console.log("pool at "+promisePool);
+					task();
 				}
+
 			});
 		};
 	};
@@ -381,7 +396,7 @@ module.exports = function() {
 			}
 		}
 	};
-	ret.loadx = function(apiKey, idsToFetch, bypass, doneCallback, errorCallback) {
+	ret.load = function(apiKey, idsToFetch, bypass, doneCallback, errorCallback) {
 		if (!ret[apiKey]) {
 			if (errorCallback) errorCallback("no apiKey for " + apiKey);
 			else console.log("no apiKey for " + apiKey);
@@ -391,12 +406,12 @@ module.exports = function() {
 		ret.data[apiKey].length = 0; //blank existing data
 
 		//If fetching all, do a test ping to get the total size
-		// if (config.debug) 
-		console.log("Launching fetch for " + apiKey + " size of ids is: " + (idsToFetch ? idsToFetch.length : '0'));
+		if (config.debug) 
+		console.log("Launching fetch for " + apiKey + (idsToFetch ? " size of ids is: " + idsToFetch.length : ", size fetch first"));
 		new Promise(function(resolve, reject) {
 			if (!idsToFetch || idsToFetch == 'all') { //this is an endpoint that gives a list of ids, fetch that list
 				var pageCountFromHeaders = function(res, headers) {
-					// if (config.debug) 
+					if (config.debug) 
 					console.log("result size fetch:" + headers.resultTotal);
 					if (res.error) reject(res);
 					else resolve(res);
@@ -407,7 +422,7 @@ module.exports = function() {
 				resolve(idsToFetch);
 			}
 		}).then(function(idList) {
-			// if (config.debug) 
+			if (config.debug) 
 			console.log("loading ids total: " + idList.length);
 			//loop <total> times and push promises
 			var loadPromises = [];
@@ -415,17 +430,9 @@ module.exports = function() {
 			while (page <= (idList.length)) {
 				var ids = idList.slice(page, page + config.dataLoadPageSize);
 				page += config.dataLoadPageSize;
-				loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+				loadPromises.push(ret.promise[apiKey](ids, page + "/" + idList.length, bypass));
 			}
 			return Promise.all(loadPromises);
-			// loadPromises.push(ret.promise[apiKey](ids, null, bypass));
-			// fetchParams.page = 0;
-			// fetchParams.page_size = config.dataLoadPageSize;
-
-			// 	saveList = fetchParams.ids.slice(0);
-			// 	fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
-			// //resolve all
-			// ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
 		}).then(function(allResults) {
 			var total = 0;
 			allResults.forEach(function(v) {
@@ -439,7 +446,7 @@ module.exports = function() {
 				}
 				total += v.length;
 			});
-			console.log("promises fufilled " + allResults.length + ", total items: " + total + ", data length:" + ret.data[apiKey].length);
+			if(config.debug) console.log("promises fufilled " + allResults.length + ", total items: " + total + ", data length:" + ret.data[apiKey].length);
 			ret.loaded[apiKey] = true;
 			doneCallback(apiKey);
 		}).catch(function(error) {
@@ -447,94 +454,5 @@ module.exports = function() {
 		});
 	};
 
-	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
-	ret.load = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
-		if (!ret[apiKey]) {
-			if (errorCallback) errorCallback("no apiKey for " + apiKey);
-			else console.log("no apiKey for " + apiKey);
-			return;
-		} //check apiKey
-		ret.loaded[apiKey] = false;
-		ret.data[apiKey].length = 0;
-		var total = 0; //hold total page size
-		var half_length = 0; //variable to identify half of max pages
-		var retry = config.retry; //hold number of retries.
-		// fetch params for inital call. Max page size is 200
-		fetchParams.page = 0;
-		fetchParams.page_size = config.dataLoadPageSize;
-		var saveList = [];
-		if (fetchParams.ids && fetchParams.ids != 'all') { //Fetching a subset, unless 'all', which indicates paging
-			saveList = fetchParams.ids.slice(0);
-			fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
-		}
-		var loopCallback = function(jsonList, headers) { //single fetch at a time up, iterate on self
-			if (jsonList.text || jsonList.error) { //hopefully this is a network hiccup, try again
-				console.log("error: " + JSON.stringify(jsonList));
-				if (retry-- <= 0) { //we're going to retry, do not increment page, increment retry
-					if (errorCallback) errorCallback("too many retries fetching " + apiKey + ": " + JSON.stringify(jsonList));
-					console.log("too many retries " + JSON.stringify(jsonList));
-					return;
-				} else if (config.debug) {
-					console.log("Retrying: " + retry);
-				}
-			} else { //fetched a page. Load it into data
-				if (apiKey in config.dao) {
-					for (var item in jsonList) {
-						if (config.debug && fetchParams.page === 0 && item == '0') console.log("sample dao:\n" + JSON.stringify(jsonList[item]) + "\nbecomes\n" + JSON.stringify(daoLoad(apiKey, jsonList[item])));
-						ret.data[apiKey] = ret.data[apiKey].concat(daoLoad(apiKey, jsonList[item]));
-					}
-				} else {
-					ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
-				} //append fetch results to data.apiKey
-				if (fetchParams.page === 0) {
-					//up by page chunk
-					if (fetchParams.ids && fetchParams.ids != 'all') {
-						var len = Object.keys(saveList).length;
-						total = Math.ceil(len / fetchParams.page_size) - 1;
-						half_length = Math.ceil(total / 2);
-
-					} // up by single pages 
-					else {
-						if (!headers.pageTotal) headers.pageTotal = 0;
-						total = headers.pageTotal - 1;
-						half_length = Math.ceil(total / 2);
-					}
-					console.log(apiKey + " half is " + half_length + ". Total is " + total);
-				}
-				retry = config.dataLoadRetry;
-				// track progress
-				if (fetchParams.ids && fetchParams.ids != 'all') {
-					fetchParams.page += fetchParams.page_size;
-					fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
-					if (!fetchParams.ids && fetchParams.ids != 'all') { //cover the hopefully-impossible case that the slice left this empty. Make sure by-ids path is still triggered
-						fetchParams.ids = '0';
-					}
-				} else {
-					fetchParams.page++;
-				}
-			}
-			var progress;
-			if (fetchParams.ids && fetchParams.ids != 'all') {
-				progress = fetchParams.page / fetchParams.page_size;
-			} else {
-				progress = fetchParams.page;
-			}
-			if (config.debug) console.log('Progress: ' + progress);
-
-			if (progress == half_length && retry == config.dataLoadRetry) { //call half callback at half
-				if (halfCallback)
-					halfCallback(apiKey);
-			}
-			if (progress > total && retry == config.dataLoadRetry) { //call done callback when done successfully
-				ret.loaded[apiKey] = true;
-				if (doneCallback)
-					doneCallback(apiKey);
-			} else {
-				ret[apiKey](loopCallback, fetchParams, bypass);
-			}
-
-		};
-		ret[apiKey](loopCallback, fetchParams, bypass);
-	};
 	return ret;
 }();

@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.21.23"; //fractal daily tier bug
+var version = "2.22"; //major overhaul to load utilizing promises for performance
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -109,7 +109,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "fractal dailies, added rollup timer to data reload");
+	bot.reply(message, "major overhaul to load (db reload, and load on startup utilizing promises for performance");
 });
 
 helpFile.todo = "Display the backlog";
@@ -517,13 +517,10 @@ function doneRecipesCallback(apiKey) {
 			sf.replyWith("Ingredient list from recipes loaded. I know about " + Object.keys(gw2api.data.items).length + " ingredients for the " + Object.keys(gw2api.data.recipes).length + " recipes and " + Object.keys(gw2api.data.forged).length + " forge recipes.", true);
 			var end = new Date().getTime();
 			var time = end - start;
-			bot.botkit.log("Item list from recipes loaded. Data has " + gw2api.data.items.length + " items: " + time + "ms");
+			bot.botkit.log("Item list from recipes loaded. Data has " + gw2api.data.items.length + " items in " + time + "ms");
 			decrementAndCheckDone(apiKey); //apiKey will be items
 		};
-		gw2api.loadx("items", itemsCompile, (sf.isGlobalMessageSet() ? true : false), doneIngredientsCallback, errorCallback);
-		// gw2api.load("items", {
-		// 	ids: itemsCompile
-		// }, (sf.isGlobalMessageSet() ? true : false), halfCallback, doneIngredientsCallback, errorCallback);
+		gw2api.load("items", itemsCompile, (sf.isGlobalMessageSet() ? true : false), doneIngredientsCallback, errorCallback);
 	});
 }
 
@@ -533,7 +530,7 @@ function doneAllOtherCallback(apiKey) {
 	var apiKeyString = apiKey;
 	if (apiKey == 'achievementsCategories') apiKeyString = 'achievement categories';
 	sf.replyWith("Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2api.data[apiKey]).length + ".", true);
-	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + ": " + time + "ms");
+	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + " in " + time + "ms");
 	if (apiKey == 'colors') {
 		colors.colorCategories = [];
 		colors.reloadColorCategories();
@@ -587,34 +584,21 @@ function reloadAllData(bypass) {
 			return;
 		} else {
 			start = new Date().getTime();
-			numToLoad = 3; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
-			gw2api.loadx("colors", null, bypass, doneAllOtherCallback, errorCallback);
+			numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
+			gw2api.load("colors", null, bypass, doneAllOtherCallback, errorCallback);
 			sf.replyWith("Starting to load colors.", true);
 
 			sf.replyWith("Starting to load recipes.", true);
-			gw2api.loadx("recipes", null, bypass, doneRecipesCallback, errorCallback);
+			gw2api.load("recipes", null, bypass, doneRecipesCallback, errorCallback);
 
-			// numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
-			// gw2api.load("colors", {
-			// 	ids: 'all'
-			// }, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-			// sf.replyWith("Starting to load colors.", true);
+			sf.replyWith("Starting to load currencies.", true);
+			gw2api.load("currencies", null, bypass, doneAllOtherCallback, errorCallback);
 
-			// gw2api.load("currencies", {
-			// 	ids: 'all'
-			// }, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-			// sf.replyWith("Starting to load currencies.", true);
+			sf.replyWith("Starting to load achievements.", true);
+			gw2api.load("achievements", null, bypass, doneAllOtherCallback, errorCallback);
 
-			// sf.replyWith("Starting to load recipes.", true);
-			// gw2api.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
-
-			// sf.replyWith("Starting to load achievements.", true);
-			// gw2api.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-
-			// sf.replyWith("Starting to load achievement categories.", true);
-			// gw2api.load("achievementsCategories", {
-			// 	ids: 'all'
-			// }, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			sf.replyWith("Starting to load achievement categories.", true);
+			gw2api.load("achievementsCategories", null, bypass, doneAllOtherCallback, errorCallback);
 		}
 
 	});
