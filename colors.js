@@ -316,7 +316,6 @@ module.exports = function() {
 				if (debug) sf.log("Already Collated. (" + ret.colorCategories.length + " color categories)");
 				return;
 			}
-			debugger;
 			for (var colorIndex in gw2api.data.colors) {
 				for (var catIndex in gw2api.data.colors[colorIndex].categories) {
 					ret.colorCategories.push(sf.removePunctuationAndToLower(gw2api.data.colors[colorIndex].categories[catIndex]));

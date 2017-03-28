@@ -7,7 +7,7 @@ var config = {
 	cacheTime: 360,
 	cacheFile: null,
 	cachePath: '',
-	debug: true,
+	debug: false,
 	retry: 2,
 	dataLoadPageSize: 200,
 	api: {
@@ -35,10 +35,10 @@ var config = {
 		minis: 'minis'
 	},
 	dao: { //roj42 - define useful parts of each return JSON item
-		items: ["rarity", "text", "error", "name", "id", "description", "level", "chat_link", "icon", "details", "type"],
-		recipes: ["text", "error", "output_item_id", "output_item_count", "id", "ingredients", "chat_link"],
-		achievements: ["text", "error", "id", "name", "description", "requirement", "icon", "bits", "tiers", "flags", "rewards"],
-		achievementsCategories: ["text", "error", "id", "name", "icon", "achievements"]
+		items: [ "error", "id", "rarity", "text", "name","description", "level", "chat_link", "icon", "details", "type"],
+		recipes: ["error", "id", "output_item_id","text", "output_item_count","ingredients", "chat_link"],
+		achievements: ["error", "id", "text", "name", "description", "requirement", "icon", "bits", "tiers", "flags", "rewards"],
+		achievementsCategories: ["error", "id", "text", "name", "icon", "achievements"]
 	},
 };
 
@@ -286,11 +286,10 @@ module.exports = function() {
 	var promiseFunction = function(apiKey) {
 		return function(idsToFetch, access_token, bypassCache) {
 			// Return a new promise.
-			var retry = config.retry;
 			return new Promise(function(resolve, reject) {
 				if (config.debug) console.log(apiKey + " promise fetching " + JSON.stringify(idsToFetch));
 				if (idsToFetch.length === 0) resolve([]);
-				else if (idsToFetch.length > 200) reject("Limit 200 ids per fetch");
+				else if (idsToFetch.length > config.dataLoadPageSize) reject("Limit " + config.dataLoadPageSize + " ids per fetch");
 				else {
 					var optionsObj = {
 						type: apiKey,
@@ -306,12 +305,7 @@ module.exports = function() {
 
 						if (jsonRes.text || jsonRes.err || jsonRes.error) {
 							if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
-							if (retry-- <= 0) {
-								reject("too many retries fetching " + apiKey + ": " + JSON.stringify(jsonRes));
-							} else {
-								if (config.debug) console.log("Retrying: " + retry);
-								ret[apiKey](listCallback, optionsObj, bypassCache);
-							}
+							reject(jsonRes.text || jsonRes.err || jsonRes.error);
 						} else {
 							if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
 							resolve(jsonRes);
@@ -387,32 +381,70 @@ module.exports = function() {
 			}
 		}
 	};
-	ret.loadx = function(apiKey, fetchParams, bypass, halfCallback, doneCallback, errorCallback) {
+	ret.loadx = function(apiKey, idsToFetch, bypass, doneCallback, errorCallback) {
 		if (!ret[apiKey]) {
 			if (errorCallback) errorCallback("no apiKey for " + apiKey);
 			else console.log("no apiKey for " + apiKey);
 			return;
 		} //check apiKey
-		ret.loaded[apiKey] = false;
-		ret.data[apiKey].length = 0;
-		var total = 0; //hold total page size
-		var retry = config.retry; //hold number of retries.
-		// fetch params for inital call. Max page size is 200
-		fetchParams.page = 0;
-		fetchParams.page_size = config.dataLoadPageSize;
-		var saveList = [];
-		if (fetchParams.ids && fetchParams.ids != 'all') { //Fetching a subset, unless 'all', which indicates paging
-			saveList = fetchParams.ids.slice(0);
-			fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
-		}
-		var loadPromises = [];
+		ret.loaded[apiKey] = false; //'finished' flag
+		ret.data[apiKey].length = 0; //blank existing data
+
 		//If fetching all, do a test ping to get the total size
+		// if (config.debug) 
+		console.log("Launching fetch for " + apiKey + " size of ids is: " + (idsToFetch ? idsToFetch.length : '0'));
+		new Promise(function(resolve, reject) {
+			if (!idsToFetch || idsToFetch == 'all') { //this is an endpoint that gives a list of ids, fetch that list
+				var pageCountFromHeaders = function(res, headers) {
+					// if (config.debug) 
+					console.log("result size fetch:" + headers.resultTotal);
+					if (res.error) reject(res);
+					else resolve(res);
+				};
+				ret[apiKey](pageCountFromHeaders, idsToFetch, bypass);
 
-		//loop <total> times and push promises
-		loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+			} else { //directly fetch a compiled list of ids
+				resolve(idsToFetch);
+			}
+		}).then(function(idList) {
+			// if (config.debug) 
+			console.log("loading ids total: " + idList.length);
+			//loop <total> times and push promises
+			var loadPromises = [];
+			var page = 0;
+			while (page <= (idList.length)) {
+				var ids = idList.slice(page, page + config.dataLoadPageSize);
+				page += config.dataLoadPageSize;
+				loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+			}
+			return Promise.all(loadPromises);
+			// loadPromises.push(ret.promise[apiKey](ids, null, bypass));
+			// fetchParams.page = 0;
+			// fetchParams.page_size = config.dataLoadPageSize;
 
-		//resolve all
-
+			// 	saveList = fetchParams.ids.slice(0);
+			// 	fetchParams.ids = saveList.slice(fetchParams.page, fetchParams.page + fetchParams.page_size).join(",");
+			// //resolve all
+			// ret.data[apiKey] = ret.data[apiKey].concat(jsonList);
+		}).then(function(allResults) {
+			var total = 0;
+			allResults.forEach(function(v) {
+				if (apiKey in config.dao) {
+					for (var item in v) {
+						if (config.debug && total === 0 && item == '0') console.log("sample dao:\n" + JSON.stringify(v[item]) + "\nbecomes\n" + JSON.stringify(daoLoad(apiKey, v[item])));
+						ret.data[apiKey] = ret.data[apiKey].concat(daoLoad(apiKey, v[item]));
+					}
+				} else {
+					ret.data[apiKey] = ret.data[apiKey].concat(v);
+				}
+				total += v.length;
+			});
+			console.log("promises fufilled " + allResults.length + ", total items: " + total + ", data length:" + ret.data[apiKey].length);
+			ret.loaded[apiKey] = true;
+			doneCallback(apiKey);
+		}).catch(function(error) {
+			if (errorCallback) errorCallback(apiKey, "I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
+		});
 	};
 
 	//Loader helper function; if there is a list of IDs, paginate manually, otherwise fetch all ids by page.
