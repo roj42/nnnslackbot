@@ -87,7 +87,7 @@ module.exports = function() {
             if (termsArray.length < 3) return [];
 
             //Prefix. Translate to an ascended prefix
-            var prefixSearchTerms = getValidTermFromAlias(sf.removePunctuationAndToLower(termsArray[0]), aliasLists.ascendedPrefixes, true);
+            var prefixSearchTerms = getValidTermFromAlias(sf.removePunctuationAndToLower(termsArray[0]), 'ascended', true);
             if (debug) sf.log("Prefix search terms: " + JSON.stringify(prefixSearchTerms));
             if (!termsArray[0] || !prefixSearchTerms || prefixSearchTerms.length === 0) {
               bot.reply(message, "Were you trying to find an ascended item? See 'help asscraft'.");
@@ -98,6 +98,7 @@ module.exports = function() {
             for (var i in prefixSearchTerms) {
               itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
             }
+            if(debug) sf.log(prefixSearchTerms.join(", ")+": found "+(itemSearchResults?itemSearchResults.length:'0'+" items"));
             //they should all be ascended, but just in case:
             itemSearchResults = itemSearchResults.filter(function(value) {
               return value.rarity == 'Ascended';
@@ -169,8 +170,10 @@ module.exports = function() {
           if (itemSearchResults.length === 0) { //no match
             bot.reply(message, "No item names contain that exact text.");
           } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-            if (itemSearchResults[0] == 'error')//nevermind
+            if (itemSearchResults[0] == 'error'){//nevermind
+              if (debug) sf.log("but it's 'error'");
               return;
+            }
             else
               bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));
           } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
@@ -253,6 +256,9 @@ function getValidTermFromAlias(searchTerm, source, returnArray) {
       source = aliasLists.weightAliases;
     else if (source == 'slot')
       source = aliasLists.slotAliases;
+    else if (source == 'ascended')
+      source = aliasLists.ascendedPrefixes;
+    
     else {
       sf.log("Invalid source for getValidTermFromAlias: " + source);
       source = [];
