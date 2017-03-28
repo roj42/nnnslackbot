@@ -98,7 +98,7 @@ module.exports = function() {
             for (var i in prefixSearchTerms) {
               itemSearchResults = itemSearchResults.concat(findCraftableItemByName(prefixSearchTerms[i]));
             }
-            if(debug) sf.log(prefixSearchTerms.join(", ")+": found "+(itemSearchResults?itemSearchResults.length:'0'+" items"));
+            if (debug) sf.log(prefixSearchTerms.join(", ") + ": found " + (itemSearchResults ? itemSearchResults.length : '0' + " items"));
             //they should all be ascended, but just in case:
             itemSearchResults = itemSearchResults.filter(function(value) {
               return value.rarity == 'Ascended';
@@ -157,7 +157,11 @@ module.exports = function() {
                 }
               }
 
-              if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
+              if (sassOff)
+                if (sf.removePunctuationAndToLower(termsArray[0]) == 'zintls')
+                  bot.reply(message, "_Actually_, 'Zintl' is the name of a tribe of Hylek, not a person, so it's not really used in a possessive sense, y'know?");
+                else
+                  bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
               else if (prefixSearchTerms.length > 1 && foundHeroName != saidHeroName)
                 bot.reply(message, "You know " + foundHeroName + " made that, right? Not " + saidHeroName + "?");
               bot.reply(message, "Your final search was for: " + itemSearchResults[0].name.split("'")[0] + " " + weight + " " + slot);
@@ -170,11 +174,10 @@ module.exports = function() {
           if (itemSearchResults.length === 0) { //no match
             bot.reply(message, "No item names contain that exact text.");
           } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-            if (itemSearchResults[0] == 'error'){//nevermind
+            if (itemSearchResults[0] == 'error') { //nevermind
               if (debug) sf.log("but it's 'error'");
               return;
-            }
-            else
+            } else
               bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));
           } else if (itemSearchResults.length > 10) { //too many matches in our 'contains' search, notify and give examples.
             var itemNameList = [];
@@ -258,7 +261,7 @@ function getValidTermFromAlias(searchTerm, source, returnArray) {
       source = aliasLists.slotAliases;
     else if (source == 'ascended')
       source = aliasLists.ascendedPrefixes;
-    
+
     else {
       sf.log("Invalid source for getValidTermFromAlias: " + source);
       source = [];
