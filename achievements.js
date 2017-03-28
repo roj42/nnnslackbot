@@ -2,7 +2,7 @@
 //Author: Roger Lampe roger.lampe@gmail.com
 var sf = require('./sharedFunctions.js');
 var gw2api = require('./api.js');
-var debug = true;
+var debug = false;
 var toggle = true;
 var currentUserAccessToken;
 
@@ -57,7 +57,7 @@ function displayRandomCheevoCallback(cheevoToDisplay) {
   var randomNum;
   var alreadyDone = true;
   var acctCheevo;
-  var subcheevoList;
+  var subcheevoList = [];
   var isBits = false;
   if (cheevoToDisplay.achievements) { //choose random achievement from sub category
     subcheevoList = cheevoToDisplay.achievements.slice();
@@ -175,8 +175,7 @@ function displayCategoryCallback(categoryToDisplay) {
         });
 
 
-      attachment = {};
-      attachment = { //assemble attachment
+      var attachment = { //assemble attachment
         fallback: title,
         pretext: pretext,
         //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
@@ -188,9 +187,7 @@ function displayCategoryCallback(categoryToDisplay) {
       };
       sf.replyWith({
         text: '',
-        attachments: {
-          attachment: attachment
-        }
+        attachments: [attachment]
       });
     });
 }
@@ -326,8 +323,7 @@ function displayCheevoCallback(cheevoToDisplay, isFull) {
         });
       }
 
-      attachment = {};
-      attachment = { //assemble attachment
+      var attachment = { //assemble attachment
         fallback: title,
         pretext: pretext,
         //example: Dungeon Frequenter Report 5 of 8 - Done 4 times
@@ -340,9 +336,7 @@ function displayCheevoCallback(cheevoToDisplay, isFull) {
       sf.log("Cheevo title: " + title);
       sf.replyWith({
         text: '',
-        attachments: {
-          attachment: attachment
-        }
+        attachments: [attachment]
       });
     }).catch(function(error) {
       sf.replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
@@ -538,20 +532,17 @@ module.exports = function() {
             return;
           } else if (possibleMatches.length == 1) {
             sf.setGlobalMessage(message);
-
             if (possibleMatches[0].achievements && !isRandom) displayCategoryCallback(possibleMatches[0]);
-            lookupCheevoParts(possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
+            else lookupCheevoParts(possibleMatches[0], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
           } else if (possibleMatches.length > 10) {
             var itemNameList = [];
             for (var n in possibleMatches)
               itemNameList.push(possibleMatches[n].name);
             bot.reply(message, {
-              attachments: {
-                attachment: {
-                  fallback: 'Too many achievements found in search.',
-                  text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
-                }
-              }
+              attachments: [{
+                fallback: 'Too many achievements found in search.',
+                text: "Woah. I found " + possibleMatches.length + ' achievements. Get more specific.\n' + itemNameList.join("\n")
+              }]
             });
           } else {
             bot.startConversation(message, function(err, convo) {
@@ -582,8 +573,8 @@ module.exports = function() {
                   var selection = matches[0];
                   if (selection < possibleMatches.length) {
                     sf.setGlobalMessage(convo);
-                    if (isRandom) displayRandomCheevoCallback(possibleMatches[selection]);
-                    lookupCheevoParts(possibleMatches[selection], isFull, ((possibleMatches[selection].achievements) ? displayCategoryCallback : displayCheevoCallback));
+                    if (possibleMatches[selection].achievements && !isRandom) displayCategoryCallback(possibleMatches[selection]);
+                    else lookupCheevoParts(possibleMatches[selection], isFull, (isRandom ? displayRandomCheevoCallback : displayCheevoCallback));
                   } else if (askNum-- > 0) {
                     convo.say("Choose a valid number.");
                     convo.repeat();
@@ -690,16 +681,14 @@ module.exports = function() {
 
             }
 
-            var attachments = [];
             var attachment = { //assemble attachment
               fallback: 'Daily Achievements',
               color: '#000000',
               thumb_url: (sublist == 'fractals') ? "https://wiki.guildwars2.com/images/3/38/Daily_Fractals.png" : "https://wiki.guildwars2.com/images/1/14/Daily_Achievement.png",
               fields: fieldsFormatted,
             };
-            attachments.push(attachment);
             bot.reply(message, {
-              attachments: attachments,
+              attachments: [attachment],
             }, function(err, resp) {
               if (err || debug) bot.botkit.log(err, resp);
             });

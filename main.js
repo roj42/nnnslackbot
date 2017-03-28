@@ -1,7 +1,7 @@
 //A botkit based guildwars helperbot
 //Main controls data load and coordinates the node files
 //Author: Roger Lampe roger.lampe@gmail.com
-var version = "2.21.23"; //fractal daily tier bug
+var version = "2.22"; //major overhaul to load utilizing promises for performance
 debug = false; //for debug messages, passed to botkit
 start = 0; //holds start time for data loading
 var toggle = true; //global no-real-use toggle. Used at present to compare 'craft' command output formats.
@@ -9,7 +9,6 @@ var toggle = true; //global no-real-use toggle. Used at present to compare 'craf
 var Botkit = require('botkit');
 
 helpFile = [];
-cheevoList = {};
 
 controller = Botkit.slackbot({
 	debug: debug,
@@ -110,7 +109,7 @@ controller.hears(['^help', '^help (.*)'], 'direct_message,direct_mention,mention
 
 helpFile.latest = "Show latest completed TODO item";
 controller.hears(['^latest$'], 'direct_message,direct_mention,mention,ambient', function(bot, message) {
-	bot.reply(message, "fractal dailies, added rollup timer to data reload");
+	bot.reply(message, "major overhaul to load (db reload, and load on startup utilizing promises for performance");
 });
 
 helpFile.todo = "Display the backlog";
@@ -489,17 +488,10 @@ controller.on('ambient', function(bot, message) {
 	standalone.sass(bot, message);
 });
 
-
-function halfCallback(apiKey) {
-	var end = new Date().getTime();
-	var time = end - start;
-	sf.replyWith("Half done loading the list of " + apiKey + ".", true);
-	bot.botkit.log("HALF " + apiKey + ": " + time + "ms");
-}
-
-function errorCallback(msg) {
-	sf.replyWith("Oop. I got an error while loading data:\n" + msg + '\nTry loading again later.', false);
+function errorCallback(apiKey, msg) {
+	sf.replyWith("Oop. I got an error while loading data for " + apiKey + ":\n" + msg + '\nTry loading again later.', true);
 	bot.botkit.log("error loading: " + msg);
+	decrementAndCheckDone(apiKey);
 }
 
 function doneRecipesCallback(apiKey) {
@@ -525,12 +517,10 @@ function doneRecipesCallback(apiKey) {
 			sf.replyWith("Ingredient list from recipes loaded. I know about " + Object.keys(gw2api.data.items).length + " ingredients for the " + Object.keys(gw2api.data.recipes).length + " recipes and " + Object.keys(gw2api.data.forged).length + " forge recipes.", true);
 			var end = new Date().getTime();
 			var time = end - start;
-			bot.botkit.log("Item list from recipes loaded. Data has " + gw2api.data.items.length + " items: " + time + "ms");
+			bot.botkit.log("Item list from recipes loaded. Data has " + gw2api.data.items.length + " items in " + time + "ms");
 			decrementAndCheckDone(apiKey); //apiKey will be items
 		};
-		gw2api.load("items", {
-			ids: itemsCompile
-		}, (sf.isGlobalMessageSet() ? true : false), halfCallback, doneIngredientsCallback, errorCallback);
+		gw2api.load("items", itemsCompile, (sf.isGlobalMessageSet() ? true : false), doneIngredientsCallback, errorCallback);
 	});
 }
 
@@ -540,39 +530,11 @@ function doneAllOtherCallback(apiKey) {
 	var apiKeyString = apiKey;
 	if (apiKey == 'achievementsCategories') apiKeyString = 'achievement categories';
 	sf.replyWith("Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2api.data[apiKey]).length + ".", true);
-	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + ": " + time + "ms");
+	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + " in " + time + "ms");
 	if (apiKey == 'colors') {
 		colors.colorCategories = [];
 		colors.reloadColorCategories();
 		sf.replyWith("Collated " + colors.colorCategories.length + " color categories.", true);
-	}
-	if (apiKey == 'achievementsCategories') {
-		//to make this work, you need a global cheevoList
-		for (var t in gw2api.data.achievementsCategories) {
-			var code = sf.removePunctuationAndToLower(gw2api.data.achievementsCategories[t].name).replace(/\s+/g, '');
-			if (!cheevoList[code]) {
-				cheevoList[code] = {
-					name: gw2api.data.achievementsCategories[t].name,
-					includeDone: true,
-					includeUndone: true,
-					category: true
-				};
-			}
-		}
-	}
-	if (apiKey == 'achievements') {
-		for (var a in gw2api.data.achievements) {
-			//to make this work, you need a global cheevoList
-			var acode = sf.removePunctuationAndToLower(gw2api.data.achievements[a].name).replace(/\s+/g, '');
-			if (!cheevoList[acode]) {
-				cheevoList[acode] = {
-					name: gw2api.data.achievements[a].name,
-					includeDone: true,
-					includeUndone: true,
-					category: false
-				};
-			}
-		}
 	}
 	decrementAndCheckDone(apiKey);
 }
@@ -623,27 +585,20 @@ function reloadAllData(bypass) {
 		} else {
 			start = new Date().getTime();
 			numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
-
-			gw2api.load("colors", {
-				ids: 'all'
-			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			gw2api.load("colors", null, bypass, doneAllOtherCallback, errorCallback);
 			sf.replyWith("Starting to load colors.", true);
 
-			gw2api.load("currencies", {
-				ids: 'all'
-			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
-			sf.replyWith("Starting to load currencies.", true);
-
 			sf.replyWith("Starting to load recipes.", true);
-			gw2api.load("recipes", {}, bypass, halfCallback, doneRecipesCallback, errorCallback);
+			gw2api.load("recipes", null, bypass, doneRecipesCallback, errorCallback);
+
+			sf.replyWith("Starting to load currencies.", true);
+			gw2api.load("currencies", null, bypass, doneAllOtherCallback, errorCallback);
 
 			sf.replyWith("Starting to load achievements.", true);
-			gw2api.load("achievements", {}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			gw2api.load("achievements", null, bypass, doneAllOtherCallback, errorCallback);
 
 			sf.replyWith("Starting to load achievement categories.", true);
-			gw2api.load("achievementsCategories", {
-				ids: 'all'
-			}, bypass, halfCallback, doneAllOtherCallback, errorCallback);
+			gw2api.load("achievementsCategories", null, bypass, doneAllOtherCallback, errorCallback);
 		}
 
 	});
