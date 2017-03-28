@@ -490,7 +490,7 @@ controller.on('ambient', function(bot, message) {
 
 function errorCallback(apiKey, msg) {
 	sf.replyWith("Oop. I got an error while loading data for " + apiKey + ":\n" + msg + '\nTry loading again later.', true);
-	bot.botkit.log("error loading: " + msg);
+	bot.botkit.log("load: error loading: " + msg);
 	decrementAndCheckDone(apiKey);
 }
 
@@ -499,7 +499,7 @@ function doneRecipesCallback(apiKey) {
 	var end = new Date().getTime();
 	var time = end - start;
 	sf.replyWith("Finished loading the list of recipes. I found " + Object.keys(gw2api.data[apiKey]).length + ". Starting on items.", true);
-	bot.botkit.log("DONE " + apiKey + ": " + time + "ms");
+	bot.botkit.log("load: DONE " + apiKey + ": " + time + "ms");
 	gw2api.data.forged.length = 0;
 	gw2api.forgeRequest(function(forgeList) {
 		if (debug) bot.botkit.log("unfiltered forgeitems: " + forgeList.length);
@@ -507,17 +507,17 @@ function doneRecipesCallback(apiKey) {
 		if (debug) bot.botkit.log((forgeList.length - filteredForgeList.length) + " invalid forge items");
 		if (debug) bot.botkit.log("forgeitems: " + filteredForgeList.length);
 		gw2api.data.forged = gw2api.data.forged.concat(filteredForgeList);
-		bot.botkit.log("data has " + Object.keys(gw2api.data.recipes).length + " recipes and " + Object.keys(gw2api.data.forged).length + " forge recipes");
+		bot.botkit.log("load: data has " + Object.keys(gw2api.data.recipes).length + " recipes and " + Object.keys(gw2api.data.forged).length + " forge recipes");
 		//Go through recipes, and get the item id of all output items and recipe ingredients.
 		var itemsCompile = compileIngredientIds();
 		sf.replyWith("I need to fetch item data for " + itemsCompile.length + " ingredients.", true);
-		bot.botkit.log("Fetching " + itemsCompile.length + " ingredient items");
+		bot.botkit.log("load: Fetching " + itemsCompile.length + " ingredient items");
 		decrementAndCheckDone(apiKey);
 		var doneIngredientsCallback = function(apiKey) {
 			sf.replyWith("Ingredient list from recipes loaded. I know about " + Object.keys(gw2api.data.items).length + " ingredients for the " + Object.keys(gw2api.data.recipes).length + " recipes and " + Object.keys(gw2api.data.forged).length + " forge recipes.", true);
 			var end = new Date().getTime();
 			var time = end - start;
-			bot.botkit.log("Item list from recipes loaded. Data has " + gw2api.data.items.length + " items in " + time + "ms");
+			bot.botkit.log("load: Item list from recipes loaded. Data has " + gw2api.data.items.length + " items in " + time + "ms");
 			decrementAndCheckDone(apiKey); //apiKey will be items
 		};
 		gw2api.load("items", itemsCompile, (sf.isGlobalMessageSet() ? true : false), doneIngredientsCallback, errorCallback);
@@ -530,7 +530,7 @@ function doneAllOtherCallback(apiKey) {
 	var apiKeyString = apiKey;
 	if (apiKey == 'achievementsCategories') apiKeyString = 'achievement categories';
 	sf.replyWith("Finished loading the list of " + apiKeyString + ". I found " + Object.keys(gw2api.data[apiKey]).length + ".", true);
-	bot.botkit.log("DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + " in " + time + "ms");
+	bot.botkit.log("load: DONE " + apiKey + ". Things: " + Object.keys(gw2api.data[apiKey]).length + " in " + time + "ms");
 	if (apiKey == 'colors') {
 		colors.colorCategories = [];
 		colors.reloadColorCategories();
@@ -544,7 +544,7 @@ function decrementAndCheckDone(apiKey) {
 		var end = new Date().getTime();
 		var time = end - start;
 		sf.replyWith("All loading complete in " + time / 1000 + " seconds.", false);
-		bot.botkit.log('Finished loading all apikeys after ' + apiKey + ": " + time + "ms");
+		bot.botkit.log('load: Finished loading all apikeys after ' + apiKey + ": " + time + "ms");
 	}
 }
 //filter function for recipe data. Removes invalid output items id and invalid ingredient ids
@@ -584,21 +584,29 @@ function reloadAllData(bypass) {
 			return;
 		} else {
 			start = new Date().getTime();
-			numToLoad = 6; //colors, currencies, recipies (recipies and items), achievements, achievement catagores
+			numToLoad = 0;
+
+			numToLoad += 1; 
 			gw2api.load("colors", null, bypass, doneAllOtherCallback, errorCallback);
 			sf.replyWith("Starting to load colors.", true);
 
+			numToLoad += 2; 
 			sf.replyWith("Starting to load recipes.", true);
 			gw2api.load("recipes", null, bypass, doneRecipesCallback, errorCallback);
 
+			numToLoad += 1; 
 			sf.replyWith("Starting to load currencies.", true);
 			gw2api.load("currencies", null, bypass, doneAllOtherCallback, errorCallback);
 
+			numToLoad += 1; 
 			sf.replyWith("Starting to load achievements.", true);
 			gw2api.load("achievements", null, bypass, doneAllOtherCallback, errorCallback);
 
+			numToLoad += 1; 
 			sf.replyWith("Starting to load achievement categories.", true);
 			gw2api.load("achievementsCategories", null, bypass, doneAllOtherCallback, errorCallback);
+
+			//num to load should be 6, colors, currencies, recipies (recipies and items), achievements, achievement catagores
 		}
 
 	});

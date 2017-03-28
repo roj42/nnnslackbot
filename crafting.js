@@ -123,22 +123,7 @@ module.exports = function() {
                 return (value.details && value.details.type == slot);
               });
             }
-            //Add sass!
-            //Sass people who don't know the hero's name directly
-            var sassOff = true;
-            var saidHeroName;
-            var foundHeroName = itemSearchResults[0].name.split("'")[0];
-            for (var prefix in prefixSearchTerms) {
-              if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0]))) {
-                sassOff = false;
-                saidHeroName = prefixSearchTerms[prefix].split("'")[0];
-                break;
-              }
-            }
-            if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
-            else if (prefixSearchTerms.length > 1 && foundHeroName!=saidHeroName)
-                bot.reply(message,"You know "+foundHeroName+" made that, right? Not "+saidHeroName+"?");
-
+            if (debug) sf.log("itemSearchResults length: " + (itemSearchResults ? itemSearchResults.length : "0"));
             //Extra sass for a nonsense search
             if (!slot || !weight || !itemSearchResults || itemSearchResults.length === 0) {
               var names = [];
@@ -157,8 +142,25 @@ module.exports = function() {
               bot.reply(message, "I looked carefully, and it turns out " + (names.length > 1 ? "neither " + names.join(" nor ") + " has ever" : names[0] + " never") + " made \"" + (weight ? weight : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[1]])) + " " + (slot ? slot : sf.randomOneOf(["Horseshit", "Gobbeldygook", "Nonsense", "Nothing", "Garbage", termsArray[2]])) + "\"\n" + sf.randomOneOf(exaspArray) + ". " +
                 ((Math.floor(Math.random() * 10) > 8) ? "\"" + sf.randomOneOf(mockArray) + "\" That's you. That's what you sound like." : "This is you: \"" + sf.randomOneOf(mockArray) + "\"")
               );
-              return;
-            } else bot.reply(message, "Your final search was for: " + itemSearchResults[0].name.split("'")[0] + " " + weight + " " + slot);
+              return ["error"];
+            } else {
+              //Sass people who don't know the hero's name directly
+              var sassOff = true;
+              var saidHeroName;
+              var foundHeroName = itemSearchResults[0].name.split("'")[0];
+              for (var prefix in prefixSearchTerms) {
+                if (sf.removePunctuationAndToLower(prefixSearchTerms[prefix]).includes(sf.removePunctuationAndToLower(termsArray[0]))) {
+                  sassOff = false;
+                  saidHeroName = prefixSearchTerms[prefix].split("'")[0];
+                  break;
+                }
+              }
+
+              if (sassOff) bot.reply(message, "You meant " + prefixSearchTerms.join(" or ") + ", right? Of course you did.");
+              else if (prefixSearchTerms.length > 1 && foundHeroName != saidHeroName)
+                bot.reply(message, "You know " + foundHeroName + " made that, right? Not " + saidHeroName + "?");
+              bot.reply(message, "Your final search was for: " + itemSearchResults[0].name.split("'")[0] + " " + weight + " " + slot);
+            }
             if (debug) sf.log(itemSearchResults.length + " matches found for asscraft");
           }
           return itemSearchResults;
@@ -167,7 +169,7 @@ module.exports = function() {
           if (itemSearchResults.length === 0) { //no match
             bot.reply(message, "No item names contain that exact text.");
           } else if (itemSearchResults.length == 1) { //exactly one. Ship it.
-            if (itemSearchResults[0] == 'error')
+            if (itemSearchResults[0] == 'error')//nevermind
               return;
             else
               bot.reply(message, getMessageWithRecipeAttachment(itemSearchResults[0], isBaseCraft));

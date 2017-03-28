@@ -174,7 +174,7 @@ function displayCategoryCallback(categoryToDisplay) {
           value: "You've done " + partsCurrentSum + " out of " + partsMaxSum + " parts (" + Math.floor(partsCurrentSum / partsMaxSum * 100) + "%).\nRepeats count as their max value."
         });
 
-
+      sf.log("Cheevo category title: " + title);
       var attachment = { //assemble attachment
         fallback: title,
         pretext: pretext,
