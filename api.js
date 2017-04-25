@@ -308,7 +308,10 @@ module.exports = function() {
 
 							if (jsonRes.text || jsonRes.err || jsonRes.error) {
 								if (config.debug) console.log(apiKey + " promise error: " + JSON.stringify(jsonRes));
-								reject(jsonRes.text || jsonRes.err || jsonRes.error);
+								if(jsonRes.text && jsonRes.text == "all ids provided are invalid"){
+									resolve([]);
+								}
+								else reject(jsonRes.text || jsonRes.err || jsonRes.error);
 							} else {
 								if (config.debug) console.log(apiKey + " promise results: " + jsonRes.length);
 								resolve(jsonRes);

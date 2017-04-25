@@ -104,6 +104,8 @@ function displayRandomCheevoCallback(cheevoToDisplay) {
           sf.replyWith("Go do '" + randomCheevo.name + "'." + (desc.length > 1 ? "\n" + desc : '') + "\n" + url);
         }
       }
+    }).catch(function(error) {
+      sf.replyWith("I got an error on my way to promise land from random cheevos. Send help!\nTell them " + error);
     });
 }
 
@@ -189,6 +191,8 @@ function displayCategoryCallback(categoryToDisplay) {
         text: '',
         attachments: [attachment]
       });
+    }).catch(function(error) {
+      sf.replyWith("I got an error on my way to promise land from cheevo categories. Send help!\nTell them " + error);
     });
 }
 
@@ -232,7 +236,7 @@ function lookupCheevoParts(cheevoToDisplay, isFull, callback) {
       fetchFreshData = results;
       callback(cheevoToDisplay, isFull);
     }).catch(function(error) {
-      sf.replyWith("I got an error on my way to promise land from cheevos. Send help!\nTell them " + error);
+      sf.replyWith("I got an error on my way to promise land from cheevo parts. Send help!\nTell them " + error);
     });
 }
 
